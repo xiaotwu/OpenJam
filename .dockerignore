@@ -1,0 +1,35 @@
+# Node modules
+app/node_modules/
+server/node_modules/
+
+# Build outputs
+app/dist/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Env files (we use Docker env vars)
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+**/*.test.*
+**/__tests__/
+
+# Temporary files
+*.tmp
+*.temp

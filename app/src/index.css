@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@import "flowbite/src/themes/default";
+@plugin "flowbite/plugin";
+@source "../node_modules/flowbite";
+
+:root {
+  color: #213547;
+  background-color: #ffffff;
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Full viewport canvas */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* Utility classes not covered by Tailwind */
+.touch-none {
+  touch-action: none;
+}
+
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
