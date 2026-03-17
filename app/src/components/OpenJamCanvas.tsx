@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from './canvas/hooks/useKeyboardShortcuts';
 import { useClipboard } from './canvas/hooks/useClipboard';
 import { useSelection } from './canvas/hooks/useSelection';
 import { useDrawing } from './canvas/hooks/useDrawing';
+import { useEraser } from './canvas/hooks/useEraser';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -89,35 +90,6 @@ interface OpenJamCanvasProps {
 // Generate stamp ID
 function generateStampId(): string {
   return `stamp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Helper function for pixel eraser: splits a stroke into segments based on which points to keep
-function splitStrokeByKeptPoints(
-  points: { x: number; y: number }[],
-  keepPoint: boolean[]
-): { x: number; y: number }[][] {
-  const segments: { x: number; y: number }[][] = [];
-  let currentSegment: { x: number; y: number }[] = [];
-
-  for (let i = 0; i < points.length; i++) {
-    if (keepPoint[i]) {
-      // Point is kept
-      currentSegment.push(points[i]);
-    } else {
-      // Point is erased - end current segment if it has enough points
-      if (currentSegment.length >= 2) {
-        segments.push(currentSegment);
-      }
-      currentSegment = [];
-    }
-  }
-
-  // Don't forget the last segment
-  if (currentSegment.length >= 2) {
-    segments.push(currentSegment);
-  }
-
-  return segments;
 }
 
 // Sticky color map
@@ -319,9 +291,10 @@ export default function OpenJamCanvas({
   const [dragMoveElementId, setDragMoveElementId] = useState<string | null>(null);
   const [dragMoveInitialPos, setDragMoveInitialPos] = useState<{ x: number; y: number } | null>(null);
   
-  // Eraser state
-  const [isErasing, setIsErasing] = useState(false);
-  const [eraserPosition, setEraserPosition] = useState<{ x: number; y: number } | null>(null);
+  // Eraser hook
+  const { isErasing, eraserPosition, setEraserPosition, startErasing, continueErasing, endErasing: endErasingHook } = useEraser({
+    elementStoreRef, toolOptions,
+  });
   
   // Stamps state
   const [stamps, setStamps] = useState<Stamp[]>([]);
@@ -993,74 +966,11 @@ export default function OpenJamCanvas({
       
       // Eraser mode - start erasing and erase drawing strokes under cursor
       if (currentTool === 'eraser') {
-        setIsErasing(true);
-        const eraserRadius = toolOptions.eraserSize / 2;
-        
-        if (toolOptions.eraserMode === 'stroke') {
-          // Stroke mode: Delete entire drawing strokes when touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              const isNearPath = drawing.points.some((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance <= eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              if (isNearPath) {
-                elementStoreRef.current.deleteElement(el.id);
-              }
-            }
-          });
-        } else {
-          // Pixel mode: Remove points from drawings that are touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              // Mark which points should be erased
-              const keepPoint = drawing.points.map((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance > eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              const keptCount = keepPoint.filter(Boolean).length;
-              
-              if (keptCount === 0) {
-                // All points erased, delete the element
-                elementStoreRef.current.deleteElement(el.id);
-              } else if (keptCount !== drawing.points.length) {
-                // Some points erased - split into segments
-                const segments = splitStrokeByKeptPoints(drawing.points, keepPoint);
-                
-                // Delete the original drawing
-                elementStoreRef.current.deleteElement(el.id);
-                
-                // Create new drawings for each segment (only if they have at least 2 points)
-                segments.forEach((segmentPoints: { x: number; y: number }[]) => {
-                  if (segmentPoints.length >= 2) {
-                    elementStoreRef.current.addElement('drawing', drawing.x, drawing.y, {
-                      points: segmentPoints,
-                      stroke: drawing.stroke,
-                      strokeWidth: drawing.strokeWidth,
-                      isEraser: drawing.isEraser,
-                    } as Partial<Element>);
-                  }
-                });
-              }
-            }
-          });
-        }
+        startErasing({ x: canvas.x, y: canvas.y }, elements);
         return;
       }
     },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, toolOptions.eraserMode, toolOptions.eraserSize, startDrawing]
+    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing]
   );
   
   // Handle canvas mouse move
@@ -1095,68 +1005,7 @@ export default function OpenJamCanvas({
       
       // Eraser - erase drawing strokes where cursor touches
       if (isErasing) {
-        const eraserRadius = toolOptions.eraserSize / 2;
-        
-        if (toolOptions.eraserMode === 'stroke') {
-          // Stroke mode: Delete entire drawing strokes when touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              const isNearPath = drawing.points.some((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance <= eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              if (isNearPath) {
-                elementStoreRef.current.deleteElement(el.id);
-              }
-            }
-          });
-        } else {
-          // Pixel mode: Remove points from drawings that are touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              // Mark which points should be erased
-              const keepPoint = drawing.points.map((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance > eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              const keptCount = keepPoint.filter(Boolean).length;
-              
-              if (keptCount === 0) {
-                elementStoreRef.current.deleteElement(el.id);
-              } else if (keptCount !== drawing.points.length) {
-                // Some points erased - split into segments
-                const segments = splitStrokeByKeptPoints(drawing.points, keepPoint);
-                
-                // Delete the original drawing
-                elementStoreRef.current.deleteElement(el.id);
-                
-                // Create new drawings for each segment (only if they have at least 2 points)
-                segments.forEach((segmentPoints: { x: number; y: number }[]) => {
-                  if (segmentPoints.length >= 2) {
-                    elementStoreRef.current.addElement('drawing', drawing.x, drawing.y, {
-                      points: segmentPoints,
-                      stroke: drawing.stroke,
-                      strokeWidth: drawing.strokeWidth,
-                      isEraser: drawing.isEraser,
-                    } as Partial<Element>);
-                  }
-                });
-              }
-            }
-          });
-        }
+        continueErasing({ x: canvas.x, y: canvas.y }, elements);
         return;
       }
       
@@ -1176,7 +1025,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, dragMoveElementId, dragMoveInitialPos, toolOptions.eraserMode, toolOptions.eraserSize, currentTool, continueDrawing]
+    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, dragMoveElementId, dragMoveInitialPos, currentTool, continueDrawing, continueErasing]
   );
   
   // Handle canvas mouse up
@@ -1263,12 +1112,12 @@ export default function OpenJamCanvas({
     
     // Stop erasing
     if (isErasing) {
-      setIsErasing(false);
+      endErasingHook();
       return;
     }
     
     endDrawing();
-  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, toolOptions, dragCreateStart, dragCreateEnd, dragCreateTool, isErasing, dragMoveStart, currentTool, endDrawing]);
+  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, toolOptions, dragCreateStart, dragCreateEnd, dragCreateTool, isErasing, dragMoveStart, currentTool, endDrawing, endErasingHook]);
   
   // Zoom functions (defined early for use in context menu)
   const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.2, 5)), []);
