@@ -7,6 +7,8 @@ import { useClipboard } from './canvas/hooks/useClipboard';
 import { useSelection } from './canvas/hooks/useSelection';
 import { useDrawing } from './canvas/hooks/useDrawing';
 import { useEraser } from './canvas/hooks/useEraser';
+import { useDragCreate } from './canvas/hooks/useDragCreate';
+import { useDragMove } from './canvas/hooks/useDragMove';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -281,16 +283,16 @@ export default function OpenJamCanvas({
   const [elements, setElements] = useState<Element[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
-  // Drag-to-create state (for text, shape, sticky, connector)
-  const [dragCreateStart, setDragCreateStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragCreateEnd, setDragCreateEnd] = useState<{ x: number; y: number } | null>(null);
-  const [dragCreateTool, setDragCreateTool] = useState<ToolType | null>(null);
-  
-  // Element dragging state (for moving elements after creation)
-  const [dragMoveStart, setDragMoveStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragMoveElementId, setDragMoveElementId] = useState<string | null>(null);
-  const [dragMoveInitialPos, setDragMoveInitialPos] = useState<{ x: number; y: number } | null>(null);
-  
+  // Drag-to-create hook (for text, shape, sticky, connector)
+  const { dragCreateStart, dragCreateEnd, dragCreateTool, startDragCreate, updateDragCreate, endDragCreate } = useDragCreate({
+    elementStoreRef, toolOptions, setSelectedIds, setEditingId, setCurrentTool,
+  });
+
+  // Drag-move hook (for moving elements after creation)
+  const { dragMoveStart, startDragMove, updateDragMove, endDragMove } = useDragMove({
+    elementStoreRef,
+  });
+
   // Eraser hook
   const { isErasing, eraserPosition, setEraserPosition, startErasing, continueErasing, endErasing: endErasingHook } = useEraser({
     elementStoreRef, toolOptions,
@@ -917,9 +919,7 @@ export default function OpenJamCanvas({
         if (clickedElement && !clickedElement.locked) {
           // Start dragging the element
           setSelectedIds(new Set([clickedElement.id]));
-          setDragMoveStart({ x: canvas.x, y: canvas.y });
-          setDragMoveElementId(clickedElement.id);
-          setDragMoveInitialPos({ x: clickedElement.x, y: clickedElement.y });
+          startDragMove({ x: canvas.x, y: canvas.y }, clickedElement.id, { x: clickedElement.x, y: clickedElement.y });
           return;
         }
         
@@ -930,9 +930,7 @@ export default function OpenJamCanvas({
       
       // Create elements with drag-to-size
       if (currentTool === 'sticky' || currentTool === 'shape' || currentTool === 'text' || currentTool === 'connector') {
-        setDragCreateStart({ x: canvas.x, y: canvas.y });
-        setDragCreateEnd({ x: canvas.x, y: canvas.y });
-        setDragCreateTool(currentTool);
+        startDragCreate({ x: canvas.x, y: canvas.y }, currentTool);
         return;
       }
       
@@ -1011,21 +1009,17 @@ export default function OpenJamCanvas({
       
       // Drag-to-create elements
       if (dragCreateStart) {
-        setDragCreateEnd({ x: canvas.x, y: canvas.y });
+        updateDragCreate({ x: canvas.x, y: canvas.y });
         return;
       }
-      
+
       // Element dragging (moving)
-      if (dragMoveStart && dragMoveElementId && dragMoveInitialPos) {
-        const dx = canvas.x - dragMoveStart.x;
-        const dy = canvas.y - dragMoveStart.y;
-        const newX = dragMoveInitialPos.x + dx;
-        const newY = dragMoveInitialPos.y + dy;
-        elementStoreRef.current.moveElement(dragMoveElementId, newX, newY);
+      if (dragMoveStart) {
+        updateDragMove({ x: canvas.x, y: canvas.y });
         return;
       }
     },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, dragMoveElementId, dragMoveInitialPos, currentTool, continueDrawing, continueErasing]
+    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, continueDrawing, continueErasing, updateDragCreate, updateDragMove]
   );
   
   // Handle canvas mouse up
@@ -1047,77 +1041,25 @@ export default function OpenJamCanvas({
     }
     
     // Drag-to-create element complete
-    if (dragCreateStart && dragCreateEnd && dragCreateTool) {
-      const minX = Math.min(dragCreateStart.x, dragCreateEnd.x);
-      const minY = Math.min(dragCreateStart.y, dragCreateEnd.y);
-      const width = Math.abs(dragCreateEnd.x - dragCreateStart.x);
-      const height = Math.abs(dragCreateEnd.y - dragCreateStart.y);
-      const isDragged = width > 20 || height > 20;
-      
-      let op;
-      
-      if (dragCreateTool === 'text') {
-        if (isDragged) {
-          op = elementStoreRef.current.addElement('text', minX, minY, {
-            width: Math.max(100, width),
-            height: Math.max(40, height),
-            fontSize: toolOptions.fontSize,
-          } as Partial<Element>);
-        } else {
-          op = elementStoreRef.current.addElement('text', dragCreateStart.x, dragCreateStart.y, {
-            fontSize: toolOptions.fontSize,
-          } as Partial<Element>);
-        }
-        setSelectedIds(new Set([op.element.id]));
-        setEditingId(op.element.id);
-      } else if (dragCreateTool === 'sticky') {
-        const size = isDragged ? Math.max(100, Math.max(width, height)) : 150;
-        op = elementStoreRef.current.addElement('sticky', isDragged ? minX : dragCreateStart.x, isDragged ? minY : dragCreateStart.y, {
-          width: size,
-          height: size,
-        } as Partial<Element>);
-        setSelectedIds(new Set([op.element.id]));
-        setEditingId(op.element.id);
-      } else if (dragCreateTool === 'shape') {
-        op = elementStoreRef.current.addElement('shape', isDragged ? minX : dragCreateStart.x, isDragged ? minY : dragCreateStart.y, {
-          width: isDragged ? Math.max(50, width) : 100,
-          height: isDragged ? Math.max(50, height) : 100,
-          shapeType: toolOptions.shapeType,
-          fill: toolOptions.fillColor,
-          stroke: toolOptions.strokeColor,
-          strokeWidth: toolOptions.strokeWidth,
-        } as Partial<Element>);
-        setSelectedIds(new Set([op.element.id]));
-      } else if (dragCreateTool === 'connector') {
-        op = elementStoreRef.current.addElement('connector', dragCreateStart.x, dragCreateStart.y, {
-          endPoint: { x: isDragged ? dragCreateEnd.x : dragCreateStart.x + 100, y: isDragged ? dragCreateEnd.y : dragCreateStart.y },
-        } as Partial<Element>);
-        setSelectedIds(new Set([op.element.id]));
-      }
-      
-      setDragCreateStart(null);
-      setDragCreateEnd(null);
-      setDragCreateTool(null);
-      setCurrentTool('select');
+    if (dragCreateStart) {
+      endDragCreate();
       return;
     }
-    
+
     // Stop element dragging
     if (dragMoveStart) {
-      setDragMoveStart(null);
-      setDragMoveElementId(null);
-      setDragMoveInitialPos(null);
+      endDragMove();
       return;
     }
-    
+
     // Stop erasing
     if (isErasing) {
       endErasingHook();
       return;
     }
-    
+
     endDrawing();
-  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, toolOptions, dragCreateStart, dragCreateEnd, dragCreateTool, isErasing, dragMoveStart, currentTool, endDrawing, endErasingHook]);
+  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, dragCreateStart, isErasing, dragMoveStart, currentTool, endDrawing, endErasingHook, endDragCreate, endDragMove]);
   
   // Zoom functions (defined early for use in context menu)
   const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.2, 5)), []);
