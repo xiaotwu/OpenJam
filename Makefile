@@ -10,9 +10,10 @@ frontend:
 
 # Copy dist into server and build Go binary with embed
 backend:
-	rm -rf server/static && cp -r app/dist server/static
+	rm -rf server/static/*
+	cp -r app/dist/* server/static/
 	cd server && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../openjam-server .
-	rm -rf server/static
+	find server/static -not -name '.gitkeep' -not -path server/static -delete 2>/dev/null || true
 
 # Start dev environment (requires docker-compose.dev.yml services running)
 dev:
@@ -29,6 +30,6 @@ docker:
 # Clean build artifacts
 clean:
 	rm -f openjam-server
-	rm -rf server/static
+	find server/static -not -name '.gitkeep' -not -path server/static -delete 2>/dev/null || true
 	rm -rf app/dist
 	rm -rf app/node_modules
