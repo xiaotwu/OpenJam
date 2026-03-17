@@ -30,6 +30,12 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Accept both CORS_ORIGIN and CORS_ORIGINS for compatibility
+	corsOrigins := getEnvList("CORS_ORIGINS", nil)
+	if corsOrigins == nil {
+		corsOrigins = getEnvList("CORS_ORIGIN", []string{"http://localhost:5173"})
+	}
+
 	return &Config{
 		Port:        getEnv("PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
@@ -37,7 +43,7 @@ func Load() *Config {
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/openjam?sslmode=disable"),
 		RedisURL:    getEnv("REDIS_URL", ""),
 
-		CorsOrigins: getEnvList("CORS_ORIGINS", []string{"http://localhost:5173"}),
+		CorsOrigins: corsOrigins,
 
 		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
 		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),

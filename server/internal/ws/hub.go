@@ -2,6 +2,8 @@ package ws
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"sync"
@@ -48,8 +50,8 @@ func NewHub() *Hub {
 
 func generateInstanceID() string {
 	b := make([]byte, 8)
-	_, _ = json.Marshal(b)
-	return string(b)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func (h *Hub) Run() {
