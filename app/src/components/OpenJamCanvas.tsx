@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 
 import { ElementRenderer } from './elements';
 import { useAutoSave } from './canvas/hooks/useAutoSave';
+import { useKeyboardShortcuts } from './canvas/hooks/useKeyboardShortcuts';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -1504,146 +1505,35 @@ export default function OpenJamCanvas({
   );
   
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Command palette (Ctrl+K)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowCommandPalette(true);
-        return;
+  useKeyboardShortcuts({
+    editingId,
+    onDelete: deleteSelected,
+    onDuplicate: duplicateSelected,
+    onCopy: copySelected,
+    onPaste: pasteElements,
+    onUndo: () => elementStoreRef.current.undo(),
+    onRedo: () => elementStoreRef.current.redo(),
+    onSelectAll: selectAll,
+    onZoomIn: handleZoomIn,
+    onZoomOut: handleZoomOut,
+    onZoomReset: handleZoomReset,
+    onZoomFit: handleZoomFit,
+    onBringToFront: bringToFront,
+    onSendToBack: sendToBack,
+    onCommandPalette: () => setShowCommandPalette(true),
+    onSetTool: (tool) => {
+      setCurrentTool(tool as ToolType);
+      if (tool === 'stamp') {
+        setShowStampPicker(true);
       }
-      
-      // Don't handle shortcuts when editing
-      if (editingId) return;
-      
-      // Delete selected elements
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        deleteSelected();
-        return;
-      }
-      
-      // Duplicate (Ctrl+D)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        e.preventDefault();
-        duplicateSelected();
-        return;
-      }
-      
-      // Copy (Ctrl+C)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        e.preventDefault();
-        copySelected();
-        return;
-      }
-      
-      // Paste (Ctrl+V)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        e.preventDefault();
-        pasteElements();
-        return;
-      }
-      
-      // Undo (Ctrl+Z)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        elementStoreRef.current.undo();
-        return;
-      }
-      
-      // Redo (Ctrl+Shift+Z or Ctrl+Y)
-      if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
-        e.preventDefault();
-        elementStoreRef.current.redo();
-        return;
-      }
-      
-      // Select all (Ctrl+A)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        e.preventDefault();
-        selectAll();
-        return;
-      }
-      
-      // Zoom shortcuts
-      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        handleZoomIn();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-        e.preventDefault();
-        handleZoomOut();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        handleZoomReset();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '1') {
-        e.preventDefault();
-        handleZoomFit();
-        return;
-      }
-      
-      // Layer order
-      if (e.key === ']') {
-        bringToFront();
-        return;
-      }
-      if (e.key === '[') {
-        sendToBack();
-        return;
-      }
-      
-      // Tool shortcuts
-      switch (e.key.toLowerCase()) {
-        case 'v':
-        case 'escape':
-          setCurrentTool('select');
-          setEditingId(null);
-          setShowStampPicker(false);
-          setContextMenu(null);
-          break;
-        case 'h':
-          setCurrentTool('pan');
-          break;
-        case 's':
-          setCurrentTool('sticky');
-          break;
-        case 'r':
-          setCurrentTool('shape');
-          break;
-        case 't':
-          setCurrentTool('text');
-          break;
-        case 'c':
-          if (!e.ctrlKey && !e.metaKey) {
-            setCurrentTool('connector');
-          }
-          break;
-        case 'p':
-          setCurrentTool('draw');
-          break;
-        case 'm':
-          setCurrentTool('marker');
-          break;
-        case 'f':
-          setCurrentTool('frame');
-          break;
-        case 'e':
-          setCurrentTool('stamp');
-          setShowStampPicker(true);
-          break;
-        case 'x':
-          setCurrentTool('eraser');
-          break;
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, editingId, elements, deleteSelected, duplicateSelected, copySelected, pasteElements, selectAll, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit, bringToFront, sendToBack]);
+    },
+    onEscape: () => {
+      setCurrentTool('select');
+      setEditingId(null);
+      setShowStampPicker(false);
+      setContextMenu(null);
+    },
+  });
   
   // Sort elements by z-index
   const sortedElements = useMemo(() => {
