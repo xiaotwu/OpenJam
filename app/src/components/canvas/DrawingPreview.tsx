@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { getStrokePath, getPenOptions, getMarkerOptions } from '../../lib/strokeUtils';
+
 interface DrawingPreviewProps {
   drawingPath: { x: number; y: number }[];
   isMarker: boolean;
@@ -6,8 +9,14 @@ interface DrawingPreviewProps {
 }
 
 export default function DrawingPreview({ drawingPath, isMarker, strokeWidth, strokeColor }: DrawingPreviewProps) {
-  const previewStrokeWidth = isMarker ? Math.max(strokeWidth * 3, 12) : strokeWidth;
-  const previewStrokeColor = isMarker ? strokeColor + '80' : strokeColor;
+  const previewColor = isMarker ? strokeColor + '80' : strokeColor;
+
+  const pathD = useMemo(() => {
+    const options = isMarker ? getMarkerOptions(strokeWidth) : getPenOptions(strokeWidth);
+    return getStrokePath(drawingPath, options);
+  }, [drawingPath, isMarker, strokeWidth]);
+
+  if (!pathD) return null;
 
   return (
     <svg
@@ -21,15 +30,9 @@ export default function DrawingPreview({ drawingPath, isMarker, strokeWidth, str
       }}
     >
       <path
-        d={drawingPath.reduce((path, point, i) => {
-          if (i === 0) return `M ${point.x} ${point.y}`;
-          return `${path} L ${point.x} ${point.y}`;
-        }, '')}
-        fill="none"
-        stroke={previewStrokeColor}
-        strokeWidth={previewStrokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d={pathD}
+        fill={previewColor}
+        stroke="none"
       />
     </svg>
   );

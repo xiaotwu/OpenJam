@@ -1,6 +1,7 @@
 // Drawing/Path Component
 import { useMemo } from 'react';
 import type { DrawingElement } from '../../lib/elements';
+import { getStrokePath, getPenOptions, getMarkerOptions } from '../../lib/strokeUtils';
 
 interface DrawingProps {
   element: DrawingElement;
@@ -45,34 +46,24 @@ export default function Drawing({
     };
   }, [element.points, element.strokeWidth]);
 
-  // Generate smooth path from points
+  // Generate smooth path from points using perfect-freehand
   const pathD = useMemo(() => {
     const points = element.points;
     if (points.length === 0) return '';
-    if (points.length === 1) {
-      const p = points[0];
-      return `M ${p.x - bounds.x} ${p.y - bounds.y} L ${p.x - bounds.x + 0.1} ${p.y - bounds.y + 0.1}`;
-    }
 
-    // Use quadratic bezier curves for smooth lines
-    let path = `M ${points[0].x - bounds.x} ${points[0].y - bounds.y}`;
-    
-    for (let i = 1; i < points.length - 1; i++) {
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      
-      const midX = (p1.x + p2.x) / 2 - bounds.x;
-      const midY = (p1.y + p2.y) / 2 - bounds.y;
-      
-      path += ` Q ${p1.x - bounds.x} ${p1.y - bounds.y} ${midX} ${midY}`;
-    }
-    
-    // Last point
-    const last = points[points.length - 1];
-    path += ` L ${last.x - bounds.x} ${last.y - bounds.y}`;
-    
-    return path;
-  }, [element.points, bounds]);
+    const offsetPoints = points.map(p => ({
+      x: p.x - bounds.x,
+      y: p.y - bounds.y,
+    }));
+
+    // Detect marker by semi-transparent color (ends with '80' hex alpha)
+    const isMarker = element.stroke.length === 9 && element.stroke.endsWith('80');
+    const options = isMarker
+      ? getMarkerOptions(element.strokeWidth / 3)
+      : getPenOptions(element.strokeWidth);
+
+    return getStrokePath(offsetPoints, options);
+  }, [element.points, element.strokeWidth, element.stroke, bounds]);
 
   if (element.points.length === 0) return null;
 
@@ -95,26 +86,20 @@ export default function Drawing({
         onClick={handleClick}
       >
         {/* Selection highlight */}
-        {isSelected && (
+        {isSelected && pathD && (
           <path
             d={pathD}
-            stroke="#3B82F6"
-            strokeWidth={element.strokeWidth + 4}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.3}
+            fill="#3B82F6"
+            stroke="none"
+            opacity={0.15}
           />
         )}
 
-        {/* Main path */}
+        {/* Main path — filled shape from perfect-freehand */}
         <path
           d={pathD}
-          stroke={element.isEraser ? 'white' : element.stroke}
-          strokeWidth={element.strokeWidth}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          fill={element.isEraser ? 'white' : element.stroke}
+          stroke="none"
           style={element.isEraser ? { mixBlendMode: 'difference' } : undefined}
         />
 
