@@ -4,6 +4,7 @@ import { ElementRenderer } from './elements';
 import { useAutoSave } from './canvas/hooks/useAutoSave';
 import { useKeyboardShortcuts } from './canvas/hooks/useKeyboardShortcuts';
 import { useClipboard } from './canvas/hooks/useClipboard';
+import { useSelection } from './canvas/hooks/useSelection';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -370,10 +371,9 @@ export default function OpenJamCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [selectionBox, setSelectionBox] = useState<{
-    start: { x: number; y: number };
-    end: { x: number; y: number };
-  } | null>(null);
+  const { selectionBox, setSelectionBox, handleSelect, selectAll, getSelectedFromBox } = useSelection({
+    elements, setSelectedIds,
+  });
   const [drawingPath, setDrawingPath] = useState<{ x: number; y: number }[]>([]);
   
   // Subscribe to element store changes
@@ -430,18 +430,7 @@ export default function OpenJamCanvas({
     [offset, scale]
   );
   
-  // Handle element selection
-  const handleSelect = useCallback((id: string, addToSelection: boolean) => {
-    setSelectedIds((prev) => {
-      const newSelection = new Set(addToSelection ? prev : []);
-      if (newSelection.has(id)) {
-        newSelection.delete(id);
-      } else {
-        newSelection.add(id);
-      }
-      return newSelection;
-    });
-  }, []);
+  // handleSelect is provided by useSelection hook
   
   // Handle element update
   const handleUpdate = useCallback((id: string, changes: Partial<Element>) => {
@@ -524,10 +513,7 @@ export default function OpenJamCanvas({
     elements, selectedIds, elementStoreRef, setSelectedIds,
   });
 
-  // Select all
-  const selectAll = useCallback(() => {
-    setSelectedIds(new Set(elements.map((el) => el.id)));
-  }, [elements]);
+  // selectAll is provided by useSelection hook
   
   // Bring to front / send to back
   const bringToFront = useCallback(() => {
@@ -1200,22 +1186,7 @@ export default function OpenJamCanvas({
     }
     
     if (selectionBox) {
-      const minX = Math.min(selectionBox.start.x, selectionBox.end.x);
-      const maxX = Math.max(selectionBox.start.x, selectionBox.end.x);
-      const minY = Math.min(selectionBox.start.y, selectionBox.end.y);
-      const maxY = Math.max(selectionBox.start.y, selectionBox.end.y);
-      
-      const selectedElements = elements.filter((el) => {
-        const bounds = {
-          left: el.x,
-          right: el.x + (el.width || 100),
-          top: el.y,
-          bottom: el.y + (el.height || 100),
-        };
-        return bounds.left >= minX && bounds.right <= maxX && bounds.top >= minY && bounds.bottom <= maxY;
-      });
-      
-      setSelectedIds(new Set(selectedElements.map((el) => el.id)));
+      setSelectedIds(getSelectedFromBox(selectionBox));
       setSelectionBox(null);
       return;
     }
