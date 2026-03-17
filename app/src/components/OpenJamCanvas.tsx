@@ -5,6 +5,7 @@ import { useAutoSave } from './canvas/hooks/useAutoSave';
 import { useKeyboardShortcuts } from './canvas/hooks/useKeyboardShortcuts';
 import { useClipboard } from './canvas/hooks/useClipboard';
 import { useSelection } from './canvas/hooks/useSelection';
+import { useDrawing } from './canvas/hooks/useDrawing';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -369,12 +370,13 @@ export default function OpenJamCanvas({
   
   // Interaction state
   const [isPanning, setIsPanning] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const { selectionBox, setSelectionBox, handleSelect, selectAll, getSelectedFromBox } = useSelection({
     elements, setSelectedIds,
   });
-  const [drawingPath, setDrawingPath] = useState<{ x: number; y: number }[]>([]);
+  const { isDrawing, drawingPath, startDrawing, continueDrawing, endDrawing } = useDrawing({
+    elementStoreRef, currentTool, toolOptions,
+  });
   
   // Subscribe to element store changes
   useEffect(() => {
@@ -985,8 +987,7 @@ export default function OpenJamCanvas({
       
       // Drawing mode (pen or marker)
       if (currentTool === 'draw' || currentTool === 'marker') {
-        setIsDrawing(true);
-        setDrawingPath([{ x: canvas.x, y: canvas.y }]);
+        startDrawing({ x: canvas.x, y: canvas.y });
         return;
       }
       
@@ -1059,7 +1060,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, toolOptions.eraserMode, toolOptions.eraserSize]
+    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, toolOptions.eraserMode, toolOptions.eraserSize, startDrawing]
   );
   
   // Handle canvas mouse move
@@ -1088,7 +1089,7 @@ export default function OpenJamCanvas({
       }
       
       if (isDrawing) {
-        setDrawingPath((prev) => [...prev, { x: canvas.x, y: canvas.y }]);
+        continueDrawing({ x: canvas.x, y: canvas.y });
         return;
       }
       
@@ -1175,7 +1176,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, dragMoveElementId, dragMoveInitialPos, toolOptions.eraserMode, toolOptions.eraserSize, currentTool]
+    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, dragMoveElementId, dragMoveInitialPos, toolOptions.eraserMode, toolOptions.eraserSize, currentTool, continueDrawing]
   );
   
   // Handle canvas mouse up
@@ -1191,20 +1192,8 @@ export default function OpenJamCanvas({
       return;
     }
     
-    if (isDrawing && drawingPath.length > 1) {
-      // Marker has thicker stroke and semi-transparent color
-      const isMarker = currentTool === 'marker';
-      const strokeWidth = isMarker ? Math.max(toolOptions.strokeWidth * 3, 12) : toolOptions.strokeWidth;
-      const strokeColor = isMarker ? toolOptions.strokeColor + '80' : toolOptions.strokeColor; // 50% opacity for marker
-      
-      elementStoreRef.current.addElement('drawing', drawingPath[0].x, drawingPath[0].y, {
-        points: drawingPath.map((p) => ({ x: p.x - drawingPath[0].x, y: p.y - drawingPath[0].y })),
-        stroke: strokeColor,
-        strokeWidth: strokeWidth,
-      } as Partial<Element>);
-      // Don't select the drawing after creation - just continue drawing mode
-      setIsDrawing(false);
-      setDrawingPath([]);
+    if (isDrawing) {
+      endDrawing();
       return;
     }
     
@@ -1278,9 +1267,8 @@ export default function OpenJamCanvas({
       return;
     }
     
-    setIsDrawing(false);
-    setDrawingPath([]);
-  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, toolOptions, dragCreateStart, dragCreateEnd, dragCreateTool, isErasing, dragMoveStart, currentTool]);
+    endDrawing();
+  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, toolOptions, dragCreateStart, dragCreateEnd, dragCreateTool, isErasing, dragMoveStart, currentTool, endDrawing]);
   
   // Zoom functions (defined early for use in context menu)
   const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.2, 5)), []);
