@@ -23,7 +23,8 @@ app/node_modules/
 dist/
 dist-ssr/
 app/dist/
-server/static/
+server/static/*
+!server/static/.gitkeep
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 

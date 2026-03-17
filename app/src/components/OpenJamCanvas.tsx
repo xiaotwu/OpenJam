@@ -1,6 +1,17 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 
 import { ElementRenderer } from './elements';
+import { useAutoSave } from './canvas/hooks/useAutoSave';
+import { useKeyboardShortcuts } from './canvas/hooks/useKeyboardShortcuts';
+import { useClipboard } from './canvas/hooks/useClipboard';
+import { useSelection } from './canvas/hooks/useSelection';
+import { useDrawing } from './canvas/hooks/useDrawing';
+import { useEraser } from './canvas/hooks/useEraser';
+import { useDragCreate } from './canvas/hooks/useDragCreate';
+import { useDragMove } from './canvas/hooks/useDragMove';
+import DrawingPreview from './canvas/DrawingPreview';
+import EraserCursor from './canvas/EraserCursor';
+import DragCreatePreview from './canvas/DragCreatePreview';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -84,35 +95,6 @@ interface OpenJamCanvasProps {
 // Generate stamp ID
 function generateStampId(): string {
   return `stamp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Helper function for pixel eraser: splits a stroke into segments based on which points to keep
-function splitStrokeByKeptPoints(
-  points: { x: number; y: number }[],
-  keepPoint: boolean[]
-): { x: number; y: number }[][] {
-  const segments: { x: number; y: number }[][] = [];
-  let currentSegment: { x: number; y: number }[] = [];
-
-  for (let i = 0; i < points.length; i++) {
-    if (keepPoint[i]) {
-      // Point is kept
-      currentSegment.push(points[i]);
-    } else {
-      // Point is erased - end current segment if it has enough points
-      if (currentSegment.length >= 2) {
-        segments.push(currentSegment);
-      }
-      currentSegment = [];
-    }
-  }
-
-  // Don't forget the last segment
-  if (currentSegment.length >= 2) {
-    segments.push(currentSegment);
-  }
-
-  return segments;
 }
 
 // Sticky color map
@@ -304,21 +286,20 @@ export default function OpenJamCanvas({
   const [elements, setElements] = useState<Element[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [clipboard, setClipboard] = useState<Element[]>([]);
-  
-  // Drag-to-create state (for text, shape, sticky, connector)
-  const [dragCreateStart, setDragCreateStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragCreateEnd, setDragCreateEnd] = useState<{ x: number; y: number } | null>(null);
-  const [dragCreateTool, setDragCreateTool] = useState<ToolType | null>(null);
-  
-  // Element dragging state (for moving elements after creation)
-  const [dragMoveStart, setDragMoveStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragMoveElementId, setDragMoveElementId] = useState<string | null>(null);
-  const [dragMoveInitialPos, setDragMoveInitialPos] = useState<{ x: number; y: number } | null>(null);
-  
-  // Eraser state
-  const [isErasing, setIsErasing] = useState(false);
-  const [eraserPosition, setEraserPosition] = useState<{ x: number; y: number } | null>(null);
+  // Drag-to-create hook (for text, shape, sticky, connector)
+  const { dragCreateStart, dragCreateEnd, dragCreateTool, startDragCreate, updateDragCreate, endDragCreate } = useDragCreate({
+    elementStoreRef, toolOptions, setSelectedIds, setEditingId, setCurrentTool,
+  });
+
+  // Drag-move hook (for moving elements after creation)
+  const { dragMoveStart, startDragMove, updateDragMove, endDragMove } = useDragMove({
+    elementStoreRef,
+  });
+
+  // Eraser hook
+  const { isErasing, eraserPosition, setEraserPosition, startErasing, continueErasing, endErasing: endErasingHook } = useEraser({
+    elementStoreRef, toolOptions,
+  });
   
   // Stamps state
   const [stamps, setStamps] = useState<Stamp[]>([]);
@@ -367,13 +348,13 @@ export default function OpenJamCanvas({
   
   // Interaction state
   const [isPanning, setIsPanning] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [selectionBox, setSelectionBox] = useState<{
-    start: { x: number; y: number };
-    end: { x: number; y: number };
-  } | null>(null);
-  const [drawingPath, setDrawingPath] = useState<{ x: number; y: number }[]>([]);
+  const { selectionBox, setSelectionBox, handleSelect, selectAll, getSelectedFromBox } = useSelection({
+    elements, setSelectedIds,
+  });
+  const { isDrawing, drawingPath, startDrawing, continueDrawing, endDrawing } = useDrawing({
+    elementStoreRef, currentTool, toolOptions,
+  });
   
   // Subscribe to element store changes
   useEffect(() => {
@@ -429,18 +410,7 @@ export default function OpenJamCanvas({
     [offset, scale]
   );
   
-  // Handle element selection
-  const handleSelect = useCallback((id: string, addToSelection: boolean) => {
-    setSelectedIds((prev) => {
-      const newSelection = new Set(addToSelection ? prev : []);
-      if (newSelection.has(id)) {
-        newSelection.delete(id);
-      } else {
-        newSelection.add(id);
-      }
-      return newSelection;
-    });
-  }, []);
+  // handleSelect is provided by useSelection hook
   
   // Handle element update
   const handleUpdate = useCallback((id: string, changes: Partial<Element>) => {
@@ -518,38 +488,12 @@ export default function OpenJamCanvas({
     setSelectedIds(new Set());
   }, [selectedIds]);
   
-  // Duplicate selected elements
-  const duplicateSelected = useCallback(() => {
-    const newIds: string[] = [];
-    selectedIds.forEach((id) => {
-      const op = elementStoreRef.current.duplicateElement(id);
-      if (op) {
-        newIds.push(op.element.id);
-      }
-    });
-    setSelectedIds(new Set(newIds));
-  }, [selectedIds]);
-  
-  // Copy selected elements
-  const copySelected = useCallback(() => {
-    const selectedElements = elements.filter((el) => selectedIds.has(el.id));
-    setClipboard(selectedElements);
-  }, [elements, selectedIds]);
-  
-  // Paste elements
-  const pasteElements = useCallback(() => {
-    const newIds: string[] = [];
-    clipboard.forEach((el) => {
-      const op = elementStoreRef.current.addElement(el.type, el.x + 20, el.y + 20, el);
-      newIds.push(op.element.id);
-    });
-    setSelectedIds(new Set(newIds));
-  }, [clipboard]);
-  
-  // Select all
-  const selectAll = useCallback(() => {
-    setSelectedIds(new Set(elements.map((el) => el.id)));
-  }, [elements]);
+  // Clipboard operations
+  const { clipboard, duplicateSelected, copySelected, pasteElements } = useClipboard({
+    elements, selectedIds, elementStoreRef, setSelectedIds,
+  });
+
+  // selectAll is provided by useSelection hook
   
   // Bring to front / send to back
   const bringToFront = useCallback(() => {
@@ -795,33 +739,14 @@ export default function OpenJamCanvas({
   }, [elements, boardName]);
   
   // Save to database
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [saveError, setSaveError] = useState<string>('');
-  
-  const saveToDatabase = useCallback(async () => {
-    setSaveStatus('saving');
-    setSaveError('');
-    try {
-      const { saveBoard } = await import('../lib/api');
-      // Get elements directly from the store to ensure we have the latest data
-      const currentElements = elementStoreRef.current.getElements();
-      await saveBoard(_boardId, {
-        name: boardName,
-        elements: currentElements,
-        stamps: stamps,
-        pages: pages,
-        currentPageId: currentPageId,
-      });
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to save board:', errorMessage);
-      setSaveError(errorMessage);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    }
-  }, [_boardId, boardName, stamps, pages, currentPageId]);
+  const { saveStatus, saveError, saveToDatabase } = useAutoSave({
+    boardId: _boardId,
+    getElements: () => elementStoreRef.current.getElements(),
+    getBoardName: () => boardName,
+    getStamps: () => stamps,
+    getPages: () => pages,
+    getCurrentPageId: () => currentPageId,
+  });
   
   // Export to JSON file (for download)
   const exportToJSONFile = useCallback(() => {
@@ -997,9 +922,7 @@ export default function OpenJamCanvas({
         if (clickedElement && !clickedElement.locked) {
           // Start dragging the element
           setSelectedIds(new Set([clickedElement.id]));
-          setDragMoveStart({ x: canvas.x, y: canvas.y });
-          setDragMoveElementId(clickedElement.id);
-          setDragMoveInitialPos({ x: clickedElement.x, y: clickedElement.y });
+          startDragMove({ x: canvas.x, y: canvas.y }, clickedElement.id, { x: clickedElement.x, y: clickedElement.y });
           return;
         }
         
@@ -1010,9 +933,7 @@ export default function OpenJamCanvas({
       
       // Create elements with drag-to-size
       if (currentTool === 'sticky' || currentTool === 'shape' || currentTool === 'text' || currentTool === 'connector') {
-        setDragCreateStart({ x: canvas.x, y: canvas.y });
-        setDragCreateEnd({ x: canvas.x, y: canvas.y });
-        setDragCreateTool(currentTool);
+        startDragCreate({ x: canvas.x, y: canvas.y }, currentTool);
         return;
       }
       
@@ -1040,81 +961,17 @@ export default function OpenJamCanvas({
       
       // Drawing mode (pen or marker)
       if (currentTool === 'draw' || currentTool === 'marker') {
-        setIsDrawing(true);
-        setDrawingPath([{ x: canvas.x, y: canvas.y }]);
+        startDrawing({ x: canvas.x, y: canvas.y });
         return;
       }
       
       // Eraser mode - start erasing and erase drawing strokes under cursor
       if (currentTool === 'eraser') {
-        setIsErasing(true);
-        const eraserRadius = toolOptions.eraserSize / 2;
-        
-        if (toolOptions.eraserMode === 'stroke') {
-          // Stroke mode: Delete entire drawing strokes when touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              const isNearPath = drawing.points.some((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance <= eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              if (isNearPath) {
-                elementStoreRef.current.deleteElement(el.id);
-              }
-            }
-          });
-        } else {
-          // Pixel mode: Remove points from drawings that are touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              // Mark which points should be erased
-              const keepPoint = drawing.points.map((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance > eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              const keptCount = keepPoint.filter(Boolean).length;
-              
-              if (keptCount === 0) {
-                // All points erased, delete the element
-                elementStoreRef.current.deleteElement(el.id);
-              } else if (keptCount !== drawing.points.length) {
-                // Some points erased - split into segments
-                const segments = splitStrokeByKeptPoints(drawing.points, keepPoint);
-                
-                // Delete the original drawing
-                elementStoreRef.current.deleteElement(el.id);
-                
-                // Create new drawings for each segment (only if they have at least 2 points)
-                segments.forEach((segmentPoints: { x: number; y: number }[]) => {
-                  if (segmentPoints.length >= 2) {
-                    elementStoreRef.current.addElement('drawing', drawing.x, drawing.y, {
-                      points: segmentPoints,
-                      stroke: drawing.stroke,
-                      strokeWidth: drawing.strokeWidth,
-                      isEraser: drawing.isEraser,
-                    } as Partial<Element>);
-                  }
-                });
-              }
-            }
-          });
-        }
+        startErasing({ x: canvas.x, y: canvas.y }, elements);
         return;
       }
     },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, toolOptions.eraserMode, toolOptions.eraserSize]
+    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing]
   );
   
   // Handle canvas mouse move
@@ -1143,94 +1000,29 @@ export default function OpenJamCanvas({
       }
       
       if (isDrawing) {
-        setDrawingPath((prev) => [...prev, { x: canvas.x, y: canvas.y }]);
+        continueDrawing({ x: canvas.x, y: canvas.y });
         return;
       }
       
       // Eraser - erase drawing strokes where cursor touches
       if (isErasing) {
-        const eraserRadius = toolOptions.eraserSize / 2;
-        
-        if (toolOptions.eraserMode === 'stroke') {
-          // Stroke mode: Delete entire drawing strokes when touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              const isNearPath = drawing.points.some((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance <= eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              if (isNearPath) {
-                elementStoreRef.current.deleteElement(el.id);
-              }
-            }
-          });
-        } else {
-          // Pixel mode: Remove points from drawings that are touched
-          elements.forEach((el) => {
-            if (el.type === 'drawing') {
-              const drawing = el as DrawingElement;
-              // Mark which points should be erased
-              const keepPoint = drawing.points.map((point) => {
-                const absX = drawing.x + point.x;
-                const absY = drawing.y + point.y;
-                const distance = Math.sqrt(
-                  Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-                );
-                return distance > eraserRadius + drawing.strokeWidth / 2;
-              });
-              
-              const keptCount = keepPoint.filter(Boolean).length;
-              
-              if (keptCount === 0) {
-                elementStoreRef.current.deleteElement(el.id);
-              } else if (keptCount !== drawing.points.length) {
-                // Some points erased - split into segments
-                const segments = splitStrokeByKeptPoints(drawing.points, keepPoint);
-                
-                // Delete the original drawing
-                elementStoreRef.current.deleteElement(el.id);
-                
-                // Create new drawings for each segment (only if they have at least 2 points)
-                segments.forEach((segmentPoints: { x: number; y: number }[]) => {
-                  if (segmentPoints.length >= 2) {
-                    elementStoreRef.current.addElement('drawing', drawing.x, drawing.y, {
-                      points: segmentPoints,
-                      stroke: drawing.stroke,
-                      strokeWidth: drawing.strokeWidth,
-                      isEraser: drawing.isEraser,
-                    } as Partial<Element>);
-                  }
-                });
-              }
-            }
-          });
-        }
+        continueErasing({ x: canvas.x, y: canvas.y }, elements);
         return;
       }
       
       // Drag-to-create elements
       if (dragCreateStart) {
-        setDragCreateEnd({ x: canvas.x, y: canvas.y });
+        updateDragCreate({ x: canvas.x, y: canvas.y });
         return;
       }
-      
+
       // Element dragging (moving)
-      if (dragMoveStart && dragMoveElementId && dragMoveInitialPos) {
-        const dx = canvas.x - dragMoveStart.x;
-        const dy = canvas.y - dragMoveStart.y;
-        const newX = dragMoveInitialPos.x + dx;
-        const newY = dragMoveInitialPos.y + dy;
-        elementStoreRef.current.moveElement(dragMoveElementId, newX, newY);
+      if (dragMoveStart) {
+        updateDragMove({ x: canvas.x, y: canvas.y });
         return;
       }
     },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, dragMoveElementId, dragMoveInitialPos, toolOptions.eraserMode, toolOptions.eraserSize, currentTool]
+    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, continueDrawing, continueErasing, updateDragCreate, updateDragMove]
   );
   
   // Handle canvas mouse up
@@ -1241,116 +1033,36 @@ export default function OpenJamCanvas({
     }
     
     if (selectionBox) {
-      const minX = Math.min(selectionBox.start.x, selectionBox.end.x);
-      const maxX = Math.max(selectionBox.start.x, selectionBox.end.x);
-      const minY = Math.min(selectionBox.start.y, selectionBox.end.y);
-      const maxY = Math.max(selectionBox.start.y, selectionBox.end.y);
-      
-      const selectedElements = elements.filter((el) => {
-        const bounds = {
-          left: el.x,
-          right: el.x + (el.width || 100),
-          top: el.y,
-          bottom: el.y + (el.height || 100),
-        };
-        return bounds.left >= minX && bounds.right <= maxX && bounds.top >= minY && bounds.bottom <= maxY;
-      });
-      
-      setSelectedIds(new Set(selectedElements.map((el) => el.id)));
+      setSelectedIds(getSelectedFromBox(selectionBox));
       setSelectionBox(null);
       return;
     }
     
-    if (isDrawing && drawingPath.length > 1) {
-      // Marker has thicker stroke and semi-transparent color
-      const isMarker = currentTool === 'marker';
-      const strokeWidth = isMarker ? Math.max(toolOptions.strokeWidth * 3, 12) : toolOptions.strokeWidth;
-      const strokeColor = isMarker ? toolOptions.strokeColor + '80' : toolOptions.strokeColor; // 50% opacity for marker
-      
-      elementStoreRef.current.addElement('drawing', drawingPath[0].x, drawingPath[0].y, {
-        points: drawingPath.map((p) => ({ x: p.x - drawingPath[0].x, y: p.y - drawingPath[0].y })),
-        stroke: strokeColor,
-        strokeWidth: strokeWidth,
-      } as Partial<Element>);
-      // Don't select the drawing after creation - just continue drawing mode
-      setIsDrawing(false);
-      setDrawingPath([]);
+    if (isDrawing) {
+      endDrawing();
       return;
     }
     
     // Drag-to-create element complete
-    if (dragCreateStart && dragCreateEnd && dragCreateTool) {
-      const minX = Math.min(dragCreateStart.x, dragCreateEnd.x);
-      const minY = Math.min(dragCreateStart.y, dragCreateEnd.y);
-      const width = Math.abs(dragCreateEnd.x - dragCreateStart.x);
-      const height = Math.abs(dragCreateEnd.y - dragCreateStart.y);
-      const isDragged = width > 20 || height > 20;
-      
-      let op;
-      
-      if (dragCreateTool === 'text') {
-        if (isDragged) {
-          op = elementStoreRef.current.addElement('text', minX, minY, {
-            width: Math.max(100, width),
-            height: Math.max(40, height),
-            fontSize: toolOptions.fontSize,
-          } as Partial<Element>);
-        } else {
-          op = elementStoreRef.current.addElement('text', dragCreateStart.x, dragCreateStart.y, {
-            fontSize: toolOptions.fontSize,
-          } as Partial<Element>);
-        }
-        setSelectedIds(new Set([op.element.id]));
-        setEditingId(op.element.id);
-      } else if (dragCreateTool === 'sticky') {
-        const size = isDragged ? Math.max(100, Math.max(width, height)) : 150;
-        op = elementStoreRef.current.addElement('sticky', isDragged ? minX : dragCreateStart.x, isDragged ? minY : dragCreateStart.y, {
-          width: size,
-          height: size,
-        } as Partial<Element>);
-        setSelectedIds(new Set([op.element.id]));
-        setEditingId(op.element.id);
-      } else if (dragCreateTool === 'shape') {
-        op = elementStoreRef.current.addElement('shape', isDragged ? minX : dragCreateStart.x, isDragged ? minY : dragCreateStart.y, {
-          width: isDragged ? Math.max(50, width) : 100,
-          height: isDragged ? Math.max(50, height) : 100,
-          shapeType: toolOptions.shapeType,
-          fill: toolOptions.fillColor,
-          stroke: toolOptions.strokeColor,
-          strokeWidth: toolOptions.strokeWidth,
-        } as Partial<Element>);
-        setSelectedIds(new Set([op.element.id]));
-      } else if (dragCreateTool === 'connector') {
-        op = elementStoreRef.current.addElement('connector', dragCreateStart.x, dragCreateStart.y, {
-          endPoint: { x: isDragged ? dragCreateEnd.x : dragCreateStart.x + 100, y: isDragged ? dragCreateEnd.y : dragCreateStart.y },
-        } as Partial<Element>);
-        setSelectedIds(new Set([op.element.id]));
-      }
-      
-      setDragCreateStart(null);
-      setDragCreateEnd(null);
-      setDragCreateTool(null);
-      setCurrentTool('select');
+    if (dragCreateStart) {
+      endDragCreate();
       return;
     }
-    
+
     // Stop element dragging
     if (dragMoveStart) {
-      setDragMoveStart(null);
-      setDragMoveElementId(null);
-      setDragMoveInitialPos(null);
+      endDragMove();
       return;
     }
-    
+
     // Stop erasing
     if (isErasing) {
-      setIsErasing(false);
+      endErasingHook();
       return;
     }
-    
-    setIsDrawing(false);
-    setDrawingPath([]);
-  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, toolOptions, dragCreateStart, dragCreateEnd, dragCreateTool, isErasing, dragMoveStart, currentTool]);
+
+    endDrawing();
+  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, dragCreateStart, isErasing, dragMoveStart, currentTool, endDrawing, endErasingHook, endDragCreate, endDragMove]);
   
   // Zoom functions (defined early for use in context menu)
   const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.2, 5)), []);
@@ -1522,146 +1234,35 @@ export default function OpenJamCanvas({
   );
   
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Command palette (Ctrl+K)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowCommandPalette(true);
-        return;
+  useKeyboardShortcuts({
+    editingId,
+    onDelete: deleteSelected,
+    onDuplicate: duplicateSelected,
+    onCopy: copySelected,
+    onPaste: pasteElements,
+    onUndo: () => elementStoreRef.current.undo(),
+    onRedo: () => elementStoreRef.current.redo(),
+    onSelectAll: selectAll,
+    onZoomIn: handleZoomIn,
+    onZoomOut: handleZoomOut,
+    onZoomReset: handleZoomReset,
+    onZoomFit: handleZoomFit,
+    onBringToFront: bringToFront,
+    onSendToBack: sendToBack,
+    onCommandPalette: () => setShowCommandPalette(true),
+    onSetTool: (tool) => {
+      setCurrentTool(tool as ToolType);
+      if (tool === 'stamp') {
+        setShowStampPicker(true);
       }
-      
-      // Don't handle shortcuts when editing
-      if (editingId) return;
-      
-      // Delete selected elements
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        deleteSelected();
-        return;
-      }
-      
-      // Duplicate (Ctrl+D)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        e.preventDefault();
-        duplicateSelected();
-        return;
-      }
-      
-      // Copy (Ctrl+C)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        e.preventDefault();
-        copySelected();
-        return;
-      }
-      
-      // Paste (Ctrl+V)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        e.preventDefault();
-        pasteElements();
-        return;
-      }
-      
-      // Undo (Ctrl+Z)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        elementStoreRef.current.undo();
-        return;
-      }
-      
-      // Redo (Ctrl+Shift+Z or Ctrl+Y)
-      if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
-        e.preventDefault();
-        elementStoreRef.current.redo();
-        return;
-      }
-      
-      // Select all (Ctrl+A)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        e.preventDefault();
-        selectAll();
-        return;
-      }
-      
-      // Zoom shortcuts
-      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        handleZoomIn();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-        e.preventDefault();
-        handleZoomOut();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        handleZoomReset();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '1') {
-        e.preventDefault();
-        handleZoomFit();
-        return;
-      }
-      
-      // Layer order
-      if (e.key === ']') {
-        bringToFront();
-        return;
-      }
-      if (e.key === '[') {
-        sendToBack();
-        return;
-      }
-      
-      // Tool shortcuts
-      switch (e.key.toLowerCase()) {
-        case 'v':
-        case 'escape':
-          setCurrentTool('select');
-          setEditingId(null);
-          setShowStampPicker(false);
-          setContextMenu(null);
-          break;
-        case 'h':
-          setCurrentTool('pan');
-          break;
-        case 's':
-          setCurrentTool('sticky');
-          break;
-        case 'r':
-          setCurrentTool('shape');
-          break;
-        case 't':
-          setCurrentTool('text');
-          break;
-        case 'c':
-          if (!e.ctrlKey && !e.metaKey) {
-            setCurrentTool('connector');
-          }
-          break;
-        case 'p':
-          setCurrentTool('draw');
-          break;
-        case 'm':
-          setCurrentTool('marker');
-          break;
-        case 'f':
-          setCurrentTool('frame');
-          break;
-        case 'e':
-          setCurrentTool('stamp');
-          setShowStampPicker(true);
-          break;
-        case 'x':
-          setCurrentTool('eraser');
-          break;
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, editingId, elements, deleteSelected, duplicateSelected, copySelected, pasteElements, selectAll, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit, bringToFront, sendToBack]);
+    },
+    onEscape: () => {
+      setCurrentTool('select');
+      setEditingId(null);
+      setShowStampPicker(false);
+      setContextMenu(null);
+    },
+  });
   
   // Sort elements by z-index
   const sortedElements = useMemo(() => {
@@ -2000,35 +1601,14 @@ export default function OpenJamCanvas({
           ))}
           
           {/* Drawing preview */}
-          {isDrawing && drawingPath.length > 1 && (() => {
-            const isMarker = currentTool === 'marker';
-            const previewStrokeWidth = isMarker ? Math.max(toolOptions.strokeWidth * 3, 12) : toolOptions.strokeWidth;
-            const previewStrokeColor = isMarker ? toolOptions.strokeColor + '80' : toolOptions.strokeColor;
-            return (
-              <svg
-                className="absolute pointer-events-none"
-                style={{
-                  left: 0,
-                  top: 0,
-                  width: '10000px',
-                  height: '10000px',
-                  overflow: 'visible',
-                }}
-              >
-                <path
-                  d={drawingPath.reduce((path, point, i) => {
-                    if (i === 0) return `M ${point.x} ${point.y}`;
-                    return `${path} L ${point.x} ${point.y}`;
-                  }, '')}
-                  fill="none"
-                  stroke={previewStrokeColor}
-                  strokeWidth={previewStrokeWidth}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            );
-          })()}
+          {isDrawing && drawingPath.length > 1 && (
+            <DrawingPreview
+              drawingPath={drawingPath}
+              isMarker={currentTool === 'marker'}
+              strokeWidth={toolOptions.strokeWidth}
+              strokeColor={toolOptions.strokeColor}
+            />
+          )}
           
           {/* Selection box */}
           {selectionBox && (
@@ -2045,52 +1625,12 @@ export default function OpenJamCanvas({
           
           {/* Drag-to-create preview */}
           {dragCreateStart && dragCreateEnd && dragCreateTool && (
-            <div
-              className={`absolute border-2 border-dashed pointer-events-none flex items-center justify-center ${
-                dragCreateTool === 'connector' ? 'bg-transparent' : 'bg-purple-500/10'
-              }`}
-              style={{
-                left: Math.min(dragCreateStart.x, dragCreateEnd.x),
-                top: Math.min(dragCreateStart.y, dragCreateEnd.y),
-                width: Math.max(Math.abs(dragCreateEnd.x - dragCreateStart.x), dragCreateTool === 'connector' ? 0 : 20),
-                height: Math.max(Math.abs(dragCreateEnd.y - dragCreateStart.y), dragCreateTool === 'connector' ? 0 : 20),
-                borderColor: dragCreateTool === 'sticky' ? '#FCD34D' : dragCreateTool === 'shape' ? '#6B7280' : dragCreateTool === 'connector' ? '#3B82F6' : '#A855F7',
-              }}
-            >
-              {dragCreateTool === 'connector' && (
-                <svg className="absolute inset-0 overflow-visible" style={{ width: '100%', height: '100%' }}>
-                  <line
-                    x1={dragCreateStart.x < dragCreateEnd.x ? 0 : Math.abs(dragCreateEnd.x - dragCreateStart.x)}
-                    y1={dragCreateStart.y < dragCreateEnd.y ? 0 : Math.abs(dragCreateEnd.y - dragCreateStart.y)}
-                    x2={dragCreateStart.x < dragCreateEnd.x ? Math.abs(dragCreateEnd.x - dragCreateStart.x) : 0}
-                    y2={dragCreateStart.y < dragCreateEnd.y ? Math.abs(dragCreateEnd.y - dragCreateStart.y) : 0}
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    strokeDasharray="5,5"
-                  />
-                </svg>
-              )}
-              {dragCreateTool !== 'connector' && (
-                <span className="text-sm font-medium" style={{ color: dragCreateTool === 'sticky' ? '#D97706' : dragCreateTool === 'shape' ? '#374151' : '#7C3AED' }}>
-                  {dragCreateTool === 'sticky' ? 'Sticky Note' : dragCreateTool === 'shape' ? 'Shape' : 'Text Box'}
-                </span>
-              )}
-            </div>
+            <DragCreatePreview start={dragCreateStart} end={dragCreateEnd} tool={dragCreateTool} />
           )}
           
           {/* Eraser cursor indicator */}
           {currentTool === 'eraser' && eraserPosition && (
-            <div
-              className="absolute pointer-events-none rounded-full border-2 border-gray-500"
-              style={{
-                left: eraserPosition.x - toolOptions.eraserSize / 2,
-                top: eraserPosition.y - toolOptions.eraserSize / 2,
-                width: toolOptions.eraserSize,
-                height: toolOptions.eraserSize,
-                backgroundColor: isErasing ? 'rgba(239, 68, 68, 0.2)' : 'rgba(156, 163, 175, 0.2)',
-                borderColor: isErasing ? '#EF4444' : '#6B7280',
-              }}
-            />
+            <EraserCursor x={eraserPosition.x} y={eraserPosition.y} size={toolOptions.eraserSize} isErasing={isErasing} />
           )}
         </div>
       </div>

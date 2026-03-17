@@ -291,7 +291,7 @@ func (c *Client) handleOperation(payload json.RawMessage) {
 		},
 	}
 	opBytes, _ := json.Marshal(opMsg)
-	c.hub.Broadcast(c.roomID, opBytes, nil)
+	c.hub.Broadcast(c.roomID, opBytes, c)
 }
 
 func (c *Client) handleCursor(payload json.RawMessage) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/project-wb/server/internal/config"
@@ -87,22 +88,34 @@ func main() {
 		handler.HandleWebSocket(hub, c)
 	})
 
-	staticPaths := []string{"./static", "../app/dist", "./dist"}
-	var staticDir string
-	for _, path := range staticPaths {
-		if _, err := os.Stat(path); err == nil {
-			staticDir = path
-			break
-		}
+	// Serve embedded frontend assets
+	staticFS, err := StaticFS()
+	if err != nil {
+		log.Printf("Warning: No embedded static files found (run 'make build' to embed frontend)")
+	} else {
+		httpFS := http.FS(staticFS)
+		r.StaticFS("/assets", httpFS)
+		r.StaticFS("/icons", httpFS)
+		r.NoRoute(func(c *gin.Context) {
+			c.FileFromFS("index.html", httpFS)
+		})
+		log.Println("Serving embedded frontend assets")
 	}
 
-	if staticDir != "" {
-		r.Static("/assets", staticDir+"/assets")
-		r.Static("/icons", staticDir+"/icons")
-		r.NoRoute(func(c *gin.Context) {
-			c.File(staticDir + "/index.html")
-		})
-		log.Printf("📦 Serving static frontend from %s", staticDir)
+	// Fallback: serve from disk in development (when static/ dir doesn't exist in embed)
+	if err != nil {
+		devPaths := []string{"../app/dist", "./static", "./dist"}
+		for _, path := range devPaths {
+			if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
+				r.Static("/assets", path+"/assets")
+				r.Static("/icons", path+"/icons")
+				r.NoRoute(func(c *gin.Context) {
+					c.File(path + "/index.html")
+				})
+				log.Printf("Serving frontend from disk: %s (development mode)", path)
+				break
+			}
+		}
 	}
 
 	port := cfg.Port
