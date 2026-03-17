@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 
 import { ElementRenderer } from './elements';
+import { useAutoSave } from './canvas/hooks/useAutoSave';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -795,33 +796,14 @@ export default function OpenJamCanvas({
   }, [elements, boardName]);
   
   // Save to database
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [saveError, setSaveError] = useState<string>('');
-  
-  const saveToDatabase = useCallback(async () => {
-    setSaveStatus('saving');
-    setSaveError('');
-    try {
-      const { saveBoard } = await import('../lib/api');
-      // Get elements directly from the store to ensure we have the latest data
-      const currentElements = elementStoreRef.current.getElements();
-      await saveBoard(_boardId, {
-        name: boardName,
-        elements: currentElements,
-        stamps: stamps,
-        pages: pages,
-        currentPageId: currentPageId,
-      });
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to save board:', errorMessage);
-      setSaveError(errorMessage);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    }
-  }, [_boardId, boardName, stamps, pages, currentPageId]);
+  const { saveStatus, saveError, saveToDatabase } = useAutoSave({
+    boardId: _boardId,
+    getElements: () => elementStoreRef.current.getElements(),
+    getBoardName: () => boardName,
+    getStamps: () => stamps,
+    getPages: () => pages,
+    getCurrentPageId: () => currentPageId,
+  });
   
   // Export to JSON file (for download)
   const exportToJSONFile = useCallback(() => {
