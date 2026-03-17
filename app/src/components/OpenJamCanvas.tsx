@@ -44,6 +44,7 @@ import {
   createDefaultReactionCounter,
 } from './widgets';
 import MenuBar from './MenuBar';
+import { useTheme } from '../lib/useTheme';
 import CommandPalette from './CommandPalette';
 import ZoomControls from './ZoomControls';
 import { StampElement, type Stamp } from './StampTool';
@@ -251,6 +252,9 @@ export default function OpenJamCanvas({
   username,
   color,
 }: OpenJamCanvasProps) {
+  // Theme
+  const { isDark, setTheme } = useTheme();
+
   // Canvas state
   const containerRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -1398,6 +1402,8 @@ export default function OpenJamCanvas({
             onUnlockAll={unlockAll}
             onGroup={groupSelected}
             onUngroup={ungroupSelected}
+            isDark={isDark}
+            onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
           />
         </div>
 
