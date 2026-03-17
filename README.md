@@ -86,6 +86,18 @@ bun run dev
 docker compose up --build -d
 ```
 
+### Single Binary (Recommended for production)
+
+```bash
+make build
+```
+
+This builds the frontend, embeds it into the Go binary via `go:embed`, and produces a single `./openjam-server` file (~17MB). Deploy it anywhere — no Node.js runtime needed.
+
+```bash
+DATABASE_URL=postgres://... ./openjam-server
+```
+
 ### Manual Build
 
 <details>
@@ -98,23 +110,11 @@ bun install
 bun run build
 ```
 
-**Backend (Linux/macOS):**
+**Backend:**
 ```bash
-cd server
-CGO_ENABLED=0 go build -o openjam-server .
+rm -rf server/static && cp -r app/dist server/static
+cd server && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../openjam-server .
 ```
-
-**Backend (Windows):**
-```powershell
-cd server
-$env:CGO_ENABLED=0
-go build -o openjam-server.exe .
-```
-
-**Deploy:**
-1. Copy `app/dist/*` to `server/static/`
-2. Configure environment variables
-3. Run the server binary
 
 </details>
 
@@ -126,7 +126,7 @@ go build -o openjam-server.exe .
 | `ENVIRONMENT` | `development` / `production` | `development` |
 | `DATABASE_URL` | PostgreSQL connection string | - |
 | `REDIS_URL` | Redis connection string | - |
-| `CORS_ORIGIN` | Allowed CORS origins | `*` |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` |
 | `SESSION_SECRET` | Session encryption key | ⚠️ **Change in production** |
 | `MINIO_ENDPOINT` | MinIO/S3 endpoint | - |
 | `MINIO_ACCESS_KEY` | MinIO access key | - |
@@ -140,8 +140,12 @@ See [`.env.example`](server/.env.example) for all available options.
 openjam/
 ├── app/                      # Frontend (React + TypeScript + Vite)
 │   ├── src/
-│   │   ├── components/       # UI components
-│   │   └── lib/              # Utilities and stores
+│   │   ├── components/
+│   │   │   ├── canvas/       # Canvas decomposed modules
+│   │   │   │   ├── hooks/    # useDrawing, useEraser, useSelection, etc.
+│   │   │   │   └── ...       # DrawingPreview, EraserCursor, CanvasContext
+│   │   │   └── ...           # OpenJamCanvas, BottomToolbar, MenuBar, etc.
+│   │   └── lib/              # ElementStore, WebSocket, API client
 │   └── ...
 ├── server/                   # Backend (Go + Gin)
 │   ├── internal/
@@ -151,8 +155,10 @@ openjam/
 │   │   ├── middleware/       # Middleware
 │   │   ├── model/            # Data models
 │   │   ├── storage/          # File storage
-│   │   └── ws/               # WebSocket
+│   │   └── ws/               # WebSocket hub + client
+│   ├── static.go             # Embedded frontend assets (go:embed)
 │   └── main.go
+├── Makefile                  # Build: make build → single binary
 ├── docker-compose.yml        # Production deployment
 ├── docker-compose.dev.yml    # Development services
 └── Dockerfile                # Multi-stage build
