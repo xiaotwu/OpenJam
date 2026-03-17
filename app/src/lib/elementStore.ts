@@ -138,6 +138,10 @@ function mergeVectorClocks(a: VectorClock, b: VectorClock): VectorClock {
   return result;
 }
 
+type StoreEvents = {
+  operation: (op: ElementOperation) => void;
+};
+
 // Element Store class
 export class ElementStore {
   private elements: Map<string, Element> = new Map();
@@ -155,6 +159,19 @@ export class ElementStore {
   constructor(userId: string) {
     this.userId = userId;
     this.vectorClock[userId] = 0;
+  }
+
+  // --- Event emitter for collaboration ---
+  private eventListeners = new Map<string, Set<Function>>();
+
+  on<K extends keyof StoreEvents>(event: K, fn: StoreEvents[K]): () => void {
+    if (!this.eventListeners.has(event)) this.eventListeners.set(event, new Set());
+    this.eventListeners.get(event)!.add(fn);
+    return () => { this.eventListeners.get(event)?.delete(fn); };
+  }
+
+  private emit<K extends keyof StoreEvents>(event: K, ...args: Parameters<StoreEvents[K]>): void {
+    this.eventListeners.get(event)?.forEach(fn => (fn as Function)(...args));
   }
 
   // Subscribe to changes
@@ -240,6 +257,7 @@ export class ElementStore {
     const op = this.createOperation<AddOperation>('add', element.id, { element });
     this.applyOperation(op);
     this.undoStack.push(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -280,6 +298,7 @@ export class ElementStore {
     
     const op = this.createOperation<UpdateOperation>('update', elementId, { changes });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -290,6 +309,7 @@ export class ElementStore {
     const op = this.createOperation<DeleteOperation>('delete', elementId, {});
     this.applyOperation(op);
     this.undoStack.push(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -299,6 +319,7 @@ export class ElementStore {
     
     const op = this.createOperation<MoveOperation>('move', elementId, { x, y });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -314,6 +335,7 @@ export class ElementStore {
     
     const op = this.createOperation<ResizeOperation>('resize', elementId, { width, height, x, y });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -323,6 +345,7 @@ export class ElementStore {
     
     const op = this.createOperation<ReorderOperation>('reorder', elementId, { zIndex });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -332,6 +355,7 @@ export class ElementStore {
     
     const op = this.createOperation<LockOperation>('lock', elementId, { locked });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -351,6 +375,7 @@ export class ElementStore {
       action: 'add',
     });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -374,6 +399,7 @@ export class ElementStore {
       action: 'add',
     });
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -381,6 +407,7 @@ export class ElementStore {
   clearAll(): ClearOperation {
     const op = this.createOperation<ClearOperation>('clear', '*', {});
     this.applyOperation(op);
+    this.emit('operation', op);
     return op;
   }
 
@@ -608,6 +635,7 @@ export class ElementStore {
     const op = this.createOperation<AddOperation>('add', newElement.id, { element: newElement });
     this.applyOperation(op);
     this.undoStack.push(op);
+    this.emit('operation', op);
     return op;
   }
 
