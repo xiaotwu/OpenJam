@@ -169,28 +169,28 @@ export function PenSettings({
   const widths = [2, 4, 6, 8, 12, 16];
 
   return (
-    <div className="flex flex-col gap-2 p-2 bg-white rounded-lg shadow-lg border">
+    <div className="flex flex-col gap-2 p-2 glass-elevated rounded-xl">
       {/* Pen/Eraser toggle */}
       <div className="flex gap-1">
         <button
           onClick={() => onEraserToggle(false)}
           className={`flex-1 py-1 px-2 rounded text-sm ${
-            !isEraser ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+            !isEraser ? 'bg-blue-100 text-blue-600' : 'hover:bg-white/10'
           }`}
         >
-          ✏️ Pen
+          Pen
         </button>
         <button
           onClick={() => onEraserToggle(true)}
           className={`flex-1 py-1 px-2 rounded text-sm ${
-            isEraser ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+            isEraser ? 'bg-blue-100 text-blue-600' : 'hover:bg-white/10'
           }`}
         >
-          🧹 Eraser
+          Eraser
         </button>
       </div>
 
-      <div className="h-px bg-gray-200" />
+      <div className="h-px" style={{ background: 'var(--glass-border-strong)' }} />
 
       {/* Colors */}
       {!isEraser && (
@@ -209,7 +209,7 @@ export function PenSettings({
             ))}
           </div>
 
-          <div className="h-px bg-gray-200" />
+          <div className="h-px" style={{ background: 'var(--glass-border-strong)' }} />
         </>
       )}
 
@@ -220,7 +220,7 @@ export function PenSettings({
             key={width}
             onClick={() => onWidthChange(width)}
             className={`w-8 h-8 flex items-center justify-center rounded ${
-              currentWidth === width ? 'bg-blue-100' : 'hover:bg-gray-100'
+              currentWidth === width ? 'bg-blue-100' : 'hover:bg-white/10'
             }`}
             title={`${width}px`}
           >

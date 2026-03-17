@@ -53,9 +53,9 @@ export default function UserMenu({
 
       {/* White Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50">
+        <div className="absolute top-full right-0 mt-2 w-72 glass-elevated rounded-xl glass-panel-enter overflow-hidden z-50">
           {/* User Info Header */}
-          <div className="px-4 py-4 border-b border-gray-200">
+          <div className="px-4 py-4 border-b" style={{ borderColor: 'var(--glass-border-strong)' }}>
             <div className="flex items-center gap-3">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden"
@@ -68,20 +68,20 @@ export default function UserMenu({
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{username}</p>
-                {email && <p className="text-xs text-gray-500 truncate">{email}</p>}
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{username}</p>
+                {email && <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{email}</p>}
               </div>
             </div>
           </div>
 
           {/* Spotlight Me Button */}
-          <div className="px-4 py-3 border-b border-gray-200">
+          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--glass-border-strong)' }}>
             <button
               onClick={() => { onTogglePin(); }}
               className={`w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${
                 isPinned
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'hover:bg-white/10'
               }`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -97,22 +97,22 @@ export default function UserMenu({
             {/* Profile Settings */}
             <button
               onClick={() => { onOpenSettings(); setIsOpen(false); }}
-              className="w-full px-4 py-2.5 flex items-center gap-3 text-left hover:bg-gray-100 transition-colors"
+              className="w-full px-4 py-2.5 flex items-center gap-3 text-left hover:bg-white/10 transition-colors"
             >
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <span className="text-sm text-gray-700">Profile settings</span>
+              <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Profile settings</span>
             </button>
 
             {onLogout && (
               <>
-                <div className="my-2 border-t border-gray-200" />
+                <div className="my-2 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
                 <button
                   onClick={() => { onLogout(); setIsOpen(false); }}
-                  className="w-full px-4 py-2.5 flex items-center gap-3 text-left hover:bg-red-50 transition-colors"
+                  className="w-full px-4 py-2.5 flex items-center gap-3 text-left hover:bg-red-50/10 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -231,12 +231,12 @@ export function ProfileSettingsDialog({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Profile Settings</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-md">
-            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="absolute inset-0" style={{ background: 'var(--surface-overlay)' }} onClick={onClose} />
+      <div className="relative glass-elevated rounded-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--glass-border-strong)' }}>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Profile Settings</h2>
+          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-md">
+            <svg className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -276,12 +276,12 @@ export function ProfileSettingsDialog({
                 Remove avatar
               </button>
             )}
-            <p className="mt-2 text-xs text-gray-500">Click to upload (max 2MB)</p>
+            <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>Click to upload (max 2MB)</p>
           </div>
 
           {/* Username */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Display Name</label>
             <input
               type="text"
               value={tempUsername}
@@ -293,7 +293,7 @@ export function ProfileSettingsDialog({
           {/* Email (read-only) */}
           {email && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Email</label>
               <input
                 type="email"
                 value={email}
@@ -319,11 +319,11 @@ export function ProfileSettingsDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+        <div className="px-6 py-4 border-t flex justify-end gap-2" style={{ borderColor: 'var(--glass-border-strong)' }}>
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium hover:bg-white/10 rounded-lg disabled:opacity-50" style={{ color: 'var(--text-primary)' }}
           >
             Cancel
           </button>

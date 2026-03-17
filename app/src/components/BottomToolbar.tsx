@@ -150,9 +150,9 @@ export default function BottomToolbar({
 
   return (
     <div ref={toolbarRef} className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
-      <div className="flex items-center gap-0.5 px-2 py-1.5 bg-white rounded-xl shadow-xl border border-gray-200">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 glass-elevated rounded-2xl">
         {/* Group 1: Cursor & Pan */}
-        <div className="flex items-center bg-gray-50 rounded-lg p-0.5">
+        <div className="flex items-center rounded-lg p-0.5">
           <ToolButton
             active={currentTool === 'select'}
             onClick={() => { closeAllPopups(); onToolChange('select'); }}
@@ -176,7 +176,7 @@ export default function BottomToolbar({
         <ToolDivider />
 
         {/* Group 2: Pen, Marker & Eraser */}
-        <div className="flex items-center bg-gray-50 rounded-lg p-0.5">
+        <div className="flex items-center rounded-lg p-0.5">
           {/* Pen Tool */}
           <div className="relative">
             <ToolButton
@@ -189,8 +189,8 @@ export default function BottomToolbar({
               </svg>
             </ToolButton>
             {showPenOptions && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px]">
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Color</div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 glass-elevated rounded-xl glass-panel-enter min-w-[200px]">
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Color</div>
                 <div className="grid grid-cols-7 gap-1 mb-3">
                   {PEN_COLORS.map((color) => (
                     <button
@@ -201,13 +201,13 @@ export default function BottomToolbar({
                     />
                   ))}
                 </div>
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Size</div>
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Size</div>
                 <div className="flex gap-1">
                   {[2, 4, 6, 8, 12].map((width) => (
                     <button
                       key={width}
                       onClick={() => onToolOptionsChange({ strokeWidth: width })}
-                      className={`w-8 h-8 rounded flex items-center justify-center ${toolOptions.strokeWidth === width ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                      className={`w-8 h-8 rounded flex items-center justify-center ${toolOptions.strokeWidth === width ? 'bg-blue-100' : 'hover:bg-white/10'}`}
                     >
                       <div className="rounded-full bg-current" style={{ width: Math.min(width * 1.5, 16), height: Math.min(width * 1.5, 16) }} />
                     </button>
@@ -234,8 +234,8 @@ export default function BottomToolbar({
               </svg>
             </ToolButton>
             {showMarkerOptions && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[220px]">
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Highlighter Colors</div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 glass-elevated rounded-xl glass-panel-enter min-w-[220px]">
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Highlighter Colors</div>
                 <div className="grid grid-cols-7 gap-1 mb-3">
                   {MARKER_COLORS.map((color) => (
                     <button
@@ -246,13 +246,13 @@ export default function BottomToolbar({
                     />
                   ))}
                 </div>
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Size</div>
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Size</div>
                 <div className="flex gap-1">
                   {[4, 8, 12, 16, 20].map((width) => (
                     <button
                       key={width}
                       onClick={() => onToolOptionsChange({ strokeWidth: width })}
-                      className={`w-8 h-8 rounded flex items-center justify-center ${toolOptions.strokeWidth === width ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                      className={`w-8 h-8 rounded flex items-center justify-center ${toolOptions.strokeWidth === width ? 'bg-blue-100' : 'hover:bg-white/10'}`}
                     >
                       <div className="rounded-full bg-current" style={{ width: Math.min(width * 0.8, 16), height: Math.min(width * 0.8, 16) }} />
                     </button>
@@ -275,12 +275,12 @@ export default function BottomToolbar({
               </svg>
             </ToolButton>
             {showEraserOptions && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px]">
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Mode</div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 glass-elevated rounded-xl glass-panel-enter min-w-[200px]">
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Mode</div>
                 <div className="flex gap-1 mb-3">
                   <button
                     onClick={() => onToolOptionsChange({ eraserMode: 'stroke' })}
-                    className={`flex-1 py-2 px-3 text-xs rounded flex flex-col items-center gap-1 ${toolOptions.eraserMode === 'stroke' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'hover:bg-gray-100 border border-gray-200'}`}
+                    className={`flex-1 py-2 px-3 text-xs rounded flex flex-col items-center gap-1 ${toolOptions.eraserMode === 'stroke' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'hover:bg-white/10 border border-white/10'}`}
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                       <path d="M3 6h18M3 12h18M3 18h18" /><path d="M19 6l-4 4M19 12l-4 4" strokeLinecap="round" />
@@ -289,7 +289,7 @@ export default function BottomToolbar({
                   </button>
                   <button
                     onClick={() => onToolOptionsChange({ eraserMode: 'pixel' })}
-                    className={`flex-1 py-2 px-3 text-xs rounded flex flex-col items-center gap-1 ${toolOptions.eraserMode === 'pixel' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'hover:bg-gray-100 border border-gray-200'}`}
+                    className={`flex-1 py-2 px-3 text-xs rounded flex flex-col items-center gap-1 ${toolOptions.eraserMode === 'pixel' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'hover:bg-white/10 border border-white/10'}`}
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                       <circle cx="12" cy="12" r="8" strokeDasharray="4 2" /><circle cx="12" cy="12" r="3" fill="currentColor" />
@@ -297,13 +297,13 @@ export default function BottomToolbar({
                     <span>Pixel</span>
                   </button>
                 </div>
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Size</div>
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Size</div>
                 <div className="flex gap-1">
                   {[10, 20, 30, 40, 50].map((size) => (
                     <button
                       key={size}
                       onClick={() => onToolOptionsChange({ eraserSize: size })}
-                      className={`w-8 h-8 rounded flex items-center justify-center ${toolOptions.eraserSize === size ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                      className={`w-8 h-8 rounded flex items-center justify-center ${toolOptions.eraserSize === size ? 'bg-blue-100' : 'hover:bg-white/10'}`}
                     >
                       <div className="rounded-full bg-gray-400" style={{ width: Math.min(size * 0.4, 20), height: Math.min(size * 0.4, 20) }} />
                     </button>
@@ -317,7 +317,7 @@ export default function BottomToolbar({
         <ToolDivider />
 
         {/* Group 3: Shapes & Connectors */}
-        <div className="flex items-center bg-gray-50 rounded-lg p-0.5">
+        <div className="flex items-center rounded-lg p-0.5">
           {/* Shape Tool */}
           <div className="relative">
             <ToolButton
@@ -330,14 +330,14 @@ export default function BottomToolbar({
               </svg>
             </ToolButton>
             {showShapeOptions && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200">
-                <div className="text-xs font-medium text-gray-500 uppercase mb-2">Shapes</div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 glass-elevated rounded-xl glass-panel-enter">
+                <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Shapes</div>
                 <div className="grid grid-cols-3 gap-1" style={{ width: '140px' }}>
                   {SHAPE_OPTIONS.map(({ type, icon }) => (
                     <button
                       key={type}
                       onClick={() => { onToolOptionsChange({ shapeType: type }); onToolChange('shape'); }}
-                      className={`w-10 h-10 rounded flex items-center justify-center ${toolOptions.shapeType === type ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                      className={`w-10 h-10 rounded flex items-center justify-center ${toolOptions.shapeType === type ? 'bg-blue-100' : 'hover:bg-white/10'}`}
                       title={type}
                     >
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">{icon}</svg>
@@ -379,8 +379,8 @@ export default function BottomToolbar({
             </div>
           </ToolButton>
           {showStickyOptions && (
-            <div className="absolute bottom-full left-0 mb-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px]">
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Color</div>
+            <div className="absolute bottom-full left-0 mb-2 p-3 glass-elevated rounded-xl glass-panel-enter min-w-[200px]">
+              <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Color</div>
               <div className="flex gap-1 mb-3">
                 {(Object.keys(STICKY_COLORS) as StickyColor[]).map((color) => (
                   <button
@@ -391,13 +391,13 @@ export default function BottomToolbar({
                   />
                 ))}
               </div>
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Shape</div>
+              <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Shape</div>
               <div className="flex gap-1">
                 {(['square', 'rounded', 'circle'] as const).map((shape) => (
                   <button
                     key={shape}
                     onClick={() => onToolOptionsChange({ stickyShape: shape })}
-                    className={`w-8 h-8 border rounded flex items-center justify-center ${toolOptions.stickyShape === shape ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                    className={`w-8 h-8 border rounded flex items-center justify-center ${toolOptions.stickyShape === shape ? 'border-blue-500 bg-blue-50' : 'border-white/10 hover:bg-white/10'}`}
                   >
                     {shape === 'square' && <div className="w-4 h-4 bg-yellow-200" />}
                     {shape === 'rounded' && <div className="w-4 h-4 bg-yellow-200 rounded" />}
@@ -467,10 +467,10 @@ export default function BottomToolbar({
             </svg>
           </ToolButton>
           {showMoreTools && (
-            <div className="absolute bottom-full right-0 mb-2 p-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[160px]">
+            <div className="absolute bottom-full right-0 mb-2 p-2 glass-elevated rounded-xl glass-panel-enter min-w-[160px]">
               <button
                 onClick={() => { onInsertImage(); setShowMoreTools(false); }}
-                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 rounded flex items-center gap-2" style={{ color: 'var(--text-primary)' }}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -479,7 +479,7 @@ export default function BottomToolbar({
               </button>
               <button
                 onClick={() => { setShowMoreTools(false); setShowWidgets(true); }}
-                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 rounded flex items-center gap-2" style={{ color: 'var(--text-primary)' }}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
@@ -513,7 +513,8 @@ function ToolButton({ active, onClick, title, children }: ToolButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`p-2 rounded-lg transition-all ${active ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
+      className={`glass-btn p-2 rounded-lg transition-all ${active ? 'bg-blue-100 text-blue-600' : 'hover:bg-white/10'}`}
+      style={active ? undefined : { color: 'var(--text-primary)' }}
       title={title}
     >
       {children}
@@ -522,16 +523,16 @@ function ToolButton({ active, onClick, title, children }: ToolButtonProps) {
 }
 
 function ToolDivider() {
-  return <div className="w-px h-6 bg-gray-200 mx-1" />;
+  return <div className="w-px h-6 mx-1" style={{ background: 'var(--glass-border-strong)' }} />;
 }
 
 function StampPickerDropdown({ onSelect }: { onSelect: (emoji: string) => void }) {
   const stamps = ['👍', '👎', '❤️', '🎉', '🤔', '👀', '🔥', '⭐', '✅', '❌', '💡', '🚀'];
   return (
-    <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-2 w-48">
+    <div className="glass-elevated rounded-xl glass-panel-enter p-2 w-48">
       <div className="grid grid-cols-6 gap-1">
         {stamps.map((stamp) => (
-          <button key={stamp} onClick={() => onSelect(stamp)} className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-100 rounded transition-colors">
+          <button key={stamp} onClick={() => onSelect(stamp)} className="w-7 h-7 flex items-center justify-center text-lg hover:bg-white/10 rounded transition-colors">
             {stamp}
           </button>
         ))}
@@ -542,24 +543,24 @@ function StampPickerDropdown({ onSelect }: { onSelect: (emoji: string) => void }
 
 function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptions: ToolOptions; onToolOptionsChange: (options: Partial<ToolOptions>) => void }) {
   return (
-    <div className="absolute bottom-full left-0 mb-2 p-3 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px]">
-      <div className="text-xs font-medium text-gray-500 uppercase mb-2">Line Style</div>
+    <div className="absolute bottom-full left-0 mb-2 p-3 glass-elevated rounded-xl glass-panel-enter min-w-[200px]">
+      <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Line Style</div>
       <div className="flex gap-1 mb-3">
-        <button onClick={() => onToolOptionsChange({ connectorStyle: 'straight' })} className={`flex-1 p-2 rounded flex items-center justify-center ${toolOptions.connectorStyle === 'straight' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'}`} title="Straight">
+        <button onClick={() => onToolOptionsChange({ connectorStyle: 'straight' })} className={`flex-1 p-2 rounded flex items-center justify-center ${toolOptions.connectorStyle === 'straight' ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/10'}`} style={toolOptions.connectorStyle !== 'straight' ? { color: 'var(--text-primary)' } : undefined} title="Straight">
           <svg className="w-6 h-4" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth={2}><line x1="2" y1="8" x2="22" y2="8" /></svg>
         </button>
-        <button onClick={() => onToolOptionsChange({ connectorStyle: 'elbow' })} className={`flex-1 p-2 rounded flex items-center justify-center ${toolOptions.connectorStyle === 'elbow' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'}`} title="Elbow">
+        <button onClick={() => onToolOptionsChange({ connectorStyle: 'elbow' })} className={`flex-1 p-2 rounded flex items-center justify-center ${toolOptions.connectorStyle === 'elbow' ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/10'}`} style={toolOptions.connectorStyle !== 'elbow' ? { color: 'var(--text-primary)' } : undefined} title="Elbow">
           <svg className="w-6 h-4" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth={2}><path d="M2 12 L12 12 L12 4 L22 4" fill="none" /></svg>
         </button>
-        <button onClick={() => onToolOptionsChange({ connectorStyle: 'curved' })} className={`flex-1 p-2 rounded flex items-center justify-center ${toolOptions.connectorStyle === 'curved' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'}`} title="Curved">
+        <button onClick={() => onToolOptionsChange({ connectorStyle: 'curved' })} className={`flex-1 p-2 rounded flex items-center justify-center ${toolOptions.connectorStyle === 'curved' ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/10'}`} style={toolOptions.connectorStyle !== 'curved' ? { color: 'var(--text-primary)' } : undefined} title="Curved">
           <svg className="w-6 h-4" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth={2}><path d="M2 12 Q12 12 12 8 Q12 4 22 4" fill="none" /></svg>
         </button>
       </div>
-      <div className="text-xs font-medium text-gray-500 uppercase mb-2">Arrows</div>
+      <div className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>Arrows</div>
       <div className="flex items-center gap-2">
         <div className="flex gap-0.5">
           {(['none', 'arrow', 'dot', 'diamond'] as const).map((head) => (
-            <button key={`start-${head}`} onClick={() => onToolOptionsChange({ arrowStart: head })} className={`w-7 h-7 rounded flex items-center justify-center ${toolOptions.arrowStart === head ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'}`} title={head}>
+            <button key={`start-${head}`} onClick={() => onToolOptionsChange({ arrowStart: head })} className={`w-7 h-7 rounded flex items-center justify-center ${toolOptions.arrowStart === head ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/10'}`} style={toolOptions.arrowStart !== head ? { color: 'var(--text-primary)' } : undefined} title={head}>
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" strokeWidth={1}>
                 {head === 'none' && <line x1="2" y1="8" x2="14" y2="8" strokeWidth={2} />}
                 {head === 'arrow' && <path d="M14 8 L6 4 L6 12 Z" />}
@@ -572,7 +573,7 @@ function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptio
         <span className="text-gray-300 text-lg">→</span>
         <div className="flex gap-0.5">
           {(['none', 'arrow', 'dot', 'diamond'] as const).map((head) => (
-            <button key={`end-${head}`} onClick={() => onToolOptionsChange({ arrowEnd: head })} className={`w-7 h-7 rounded flex items-center justify-center ${toolOptions.arrowEnd === head ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'}`} title={head}>
+            <button key={`end-${head}`} onClick={() => onToolOptionsChange({ arrowEnd: head })} className={`w-7 h-7 rounded flex items-center justify-center ${toolOptions.arrowEnd === head ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/10'}`} style={toolOptions.arrowEnd !== head ? { color: 'var(--text-primary)' } : undefined} title={head}>
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" strokeWidth={1}>
                 {head === 'none' && <line x1="2" y1="8" x2="14" y2="8" strokeWidth={2} />}
                 {head === 'arrow' && <path d="M2 8 L10 4 L10 12 Z" transform="rotate(180 8 8)" />}

@@ -70,12 +70,12 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
   return (
     <div
       ref={menuRef}
-      className="fixed z-[200] bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[200px]"
+      className="fixed z-[200] glass-elevated rounded-xl glass-panel-enter py-1 min-w-[200px]"
       style={{ left: x, top: y }}
     >
       {items.map((item, index) =>
         item.divider ? (
-          <div key={index} className="border-t border-gray-200 my-1" />
+          <div key={index} className="border-t my-1" style={{ borderColor: 'var(--glass-border-strong)' }} />
         ) : (
           <div key={item.id} className="relative">
             <button
@@ -84,19 +84,20 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
               disabled={item.disabled}
               className={`w-full px-3 py-2 text-left text-sm flex items-center gap-3 ${
                 item.disabled
-                  ? 'text-gray-400 cursor-not-allowed'
+                  ? 'cursor-not-allowed opacity-50'
                   : item.danger
-                  ? 'text-red-600 hover:bg-red-50'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'text-red-600 hover:bg-red-50/10'
+                  : 'hover:bg-white/10'
               }`}
+              style={item.disabled ? { color: 'var(--text-tertiary)' } : (!item.danger ? { color: 'var(--text-primary)' } : undefined)}
             >
               {item.icon && <span className="w-4 h-4 flex-shrink-0">{item.icon}</span>}
               <span className="flex-1">{item.label}</span>
               {item.shortcut && (
-                <span className="text-xs text-gray-400">{item.shortcut}</span>
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{item.shortcut}</span>
               )}
               {item.submenu && (
-                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               )}
@@ -104,10 +105,10 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
 
             {/* Submenu */}
             {item.submenu && activeSubmenu === item.id && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px]">
+              <div className="absolute left-full top-0 ml-1 glass-elevated rounded-xl glass-panel-enter py-1 min-w-[160px]">
                 {item.submenu.map((subItem) =>
                   subItem.divider ? (
-                    <div key={subItem.id} className="border-t border-gray-200 my-1" />
+                    <div key={subItem.id} className="border-t my-1" style={{ borderColor: 'var(--glass-border-strong)' }} />
                   ) : (
                     <button
                       key={subItem.id}
@@ -120,14 +121,15 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
                       disabled={subItem.disabled}
                       className={`w-full px-3 py-2 text-left text-sm flex items-center gap-3 ${
                         subItem.disabled
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'cursor-not-allowed opacity-50'
+                          : 'hover:bg-white/10'
                       }`}
+                      style={{ color: subItem.disabled ? 'var(--text-tertiary)' : 'var(--text-primary)' }}
                     >
                       {subItem.icon && <span className="w-4 h-4">{subItem.icon}</span>}
                       <span className="flex-1">{subItem.label}</span>
                       {subItem.shortcut && (
-                        <span className="text-xs text-gray-400">{subItem.shortcut}</span>
+                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{subItem.shortcut}</span>
                       )}
                     </button>
                   )

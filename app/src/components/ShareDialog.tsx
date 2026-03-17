@@ -85,20 +85,20 @@ export default function ShareDialog({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0" style={{ background: 'var(--surface-overlay)' }} onClick={onClose} />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative glass-elevated rounded-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--glass-border-strong)' }}>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Share "{boardName}"</h2>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Share "{boardName}"</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+            className="p-1 hover:bg-white/10 rounded-md transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -108,7 +108,7 @@ export default function ShareDialog({
         <div className="px-6 py-4 space-y-6">
           {/* Invite by email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
               Invite people
             </label>
             <div className="flex gap-2">
@@ -141,13 +141,13 @@ export default function ShareDialog({
 
           {/* Link sharing */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
               Get link
             </label>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="rounded-lg p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--glass-border-strong)' }}>
+                  <svg className="w-4 h-4" style={{ color: 'var(--text-primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                   </svg>
                 </div>
@@ -197,10 +197,10 @@ export default function ShareDialog({
 
           {/* Quick share buttons - sorted alphabetically */}
           <div className="flex items-center gap-4 pt-2">
-            <span className="text-sm text-gray-500">Share via:</span>
+            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Share via:</span>
             <button
               onClick={() => window.open(`mailto:?subject=${encodeURIComponent(`Check out "${boardName}" on OpenJam`)}&body=${encodeURIComponent(`I'd like to share this board with you: ${shareLink}`)}`)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Email"
             >
               <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -209,7 +209,7 @@ export default function ShareDialog({
             </button>
             <button
               onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareLink)}`, '_blank')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="LinkedIn"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#0A66C2">
@@ -217,7 +217,7 @@ export default function ShareDialog({
               </svg>
             </button>
             <button
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Slack"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#4A154B">
@@ -226,7 +226,7 @@ export default function ShareDialog({
             </button>
             <button
               onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out "${boardName}" on OpenJam`)}&url=${encodeURIComponent(shareLink)}`, '_blank')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Twitter/X"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#000000">
@@ -237,10 +237,10 @@ export default function ShareDialog({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+        <div className="px-6 py-4 border-t flex justify-end" style={{ borderColor: 'var(--glass-border-strong)' }}>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium hover:bg-white/10 rounded-lg transition-colors" style={{ color: 'var(--text-primary)' }}
           >
             Done
           </button>

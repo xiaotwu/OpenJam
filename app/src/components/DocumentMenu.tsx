@@ -113,34 +113,35 @@ export default function DocumentMenu({
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+        className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
         title="Document menu"
       >
-        <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+        <div className="absolute top-full left-0 mt-1 w-56 glass-elevated rounded-xl glass-panel-enter py-1 z-50">
           {menuItems.map((item, index) =>
             item.divider ? (
-              <div key={index} className="border-t border-gray-200 my-1" />
+              <div key={index} className="border-t my-1" style={{ borderColor: 'var(--glass-border-strong)' }} />
             ) : (
               <div key={index} className="relative">
                 <button
                   onClick={() => handleItemClick(item)}
-                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-3 hover:bg-gray-50 ${
-                    item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'
+                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-3 hover:bg-white/10 ${
+                    item.danger ? 'text-red-600 hover:bg-red-50/10' : ''
                   }`}
+                  style={item.danger ? undefined : { color: 'var(--text-primary)' }}
                 >
                   <span className="w-4 h-4 flex-shrink-0">{item.icon}</span>
                   <span className="flex-1">{item.label}</span>
                   {item.shortcut && (
-                    <span className="text-xs text-gray-400">{item.shortcut}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{item.shortcut}</span>
                   )}
                   {item.submenu && (
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   )}
@@ -148,7 +149,7 @@ export default function DocumentMenu({
 
                 {/* Export submenu */}
                 {item.submenu && showExportSubmenu && (
-                  <div className="absolute left-full top-0 ml-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1">
+                  <div className="absolute left-full top-0 ml-1 w-48 glass-elevated rounded-xl glass-panel-enter py-1">
                     {item.submenu.map((subItem, subIndex) => (
                       <button
                         key={subIndex}
@@ -157,7 +158,7 @@ export default function DocumentMenu({
                           setIsOpen(false);
                           setShowExportSubmenu(false);
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-white/10" style={{ color: 'var(--text-primary)' }}
                       >
                         {subItem.label}
                       </button>

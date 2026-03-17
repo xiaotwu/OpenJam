@@ -137,16 +137,16 @@ export default function WidgetsPanel({
   });
 
   return (
-    <div className="w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+    <div className="w-80 glass-elevated rounded-xl glass-panel-enter overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200">
+      <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--glass-border-strong)' }}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900">Components</h3>
+          <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Components</h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-white/10 rounded transition-colors"
           >
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -168,7 +168,7 @@ export default function WidgetsPanel({
       </div>
 
       {/* Categories */}
-      <div className="px-4 py-2 border-b border-gray-200 flex gap-1 overflow-x-auto">
+      <div className="px-4 py-2 border-b flex gap-1 overflow-x-auto" style={{ borderColor: 'var(--glass-border-strong)' }}>
         {CATEGORIES.map((category) => (
           <button
             key={category.id}
@@ -176,7 +176,7 @@ export default function WidgetsPanel({
             className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${
               selectedCategory === category.id
                 ? 'bg-purple-100 text-purple-700'
-                : 'text-gray-600 hover:bg-gray-100'
+                : 'hover:bg-white/10'
             }`}
           >
             {category.label}
@@ -194,13 +194,13 @@ export default function WidgetsPanel({
                 onInsertWidget(widget.id);
                 onClose();
               }}
-              className="p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors text-left"
+              className="p-3 rounded-lg border hover:border-purple-300 hover:bg-purple-50/10 transition-colors text-left" style={{ borderColor: 'var(--glass-border-strong)' }}
             >
-              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ background: 'rgba(255,255,255,0.1)' }}>
                 {widget.icon}
               </div>
-              <div className="text-sm font-medium text-gray-900">{widget.name}</div>
-              <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{widget.name}</div>
+              <div className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
                 {widget.description}
               </div>
             </button>
@@ -208,7 +208,7 @@ export default function WidgetsPanel({
         </div>
 
         {filteredWidgets.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
             <p className="text-sm">No components found</p>
           </div>
         )}

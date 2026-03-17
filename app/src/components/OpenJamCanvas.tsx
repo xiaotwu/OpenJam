@@ -1326,7 +1326,7 @@ export default function OpenJamCanvas({
   ], [copySelected, pasteElements, duplicateSelected, selectAll, deleteSelected, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-gray-50">
+    <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--surface-canvas)' }}>
       {/* Top Bar - contains menu and collaborators */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between pointer-events-none">
         {/* Menu Bar */}
