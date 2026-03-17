@@ -489,8 +489,8 @@ export default function OpenJamCanvas({
   }, [selectedIds]);
   
   // Clipboard operations
-  const { clipboard, duplicateSelected, copySelected, pasteElements } = useClipboard({
-    elements, selectedIds, elementStoreRef, setSelectedIds,
+  const { clipboard, duplicateSelected, copySelected, cutSelected, pasteElements } = useClipboard({
+    elements, selectedIds, elementStoreRef, setSelectedIds, onDelete: deleteSelected,
   });
 
   // selectAll is provided by useSelection hook
@@ -1262,6 +1262,11 @@ export default function OpenJamCanvas({
       setShowStampPicker(false);
       setContextMenu(null);
     },
+    onSave: saveToDatabase,
+    onCut: cutSelected,
+    onToggleLock: lockSelected,
+    onGroup: groupSelected,
+    onUngroup: ungroupSelected,
   });
   
   // Sort elements by z-index
@@ -1296,6 +1301,7 @@ export default function OpenJamCanvas({
     { id: 'text', label: 'Text tool', category: 'Tools', shortcut: 'T', action: () => setCurrentTool('text') },
     { id: 'connector', label: 'Connector', category: 'Tools', shortcut: 'C', action: () => setCurrentTool('connector') },
     { id: 'draw', label: 'Pen tool', category: 'Tools', shortcut: 'P', action: () => setCurrentTool('draw') },
+    { id: 'marker', label: 'Marker tool', category: 'Tools', shortcut: 'M', action: () => setCurrentTool('marker') },
     { id: 'stamp', label: 'Stamp tool', category: 'Tools', shortcut: 'E', action: () => { setCurrentTool('stamp'); setShowStampPicker(true); } },
     { id: 'eraser', label: 'Eraser tool', category: 'Tools', shortcut: 'X', action: () => setCurrentTool('eraser') },
     { id: 'frame', label: 'Frame tool', category: 'Tools', shortcut: 'F', action: () => setCurrentTool('frame') },

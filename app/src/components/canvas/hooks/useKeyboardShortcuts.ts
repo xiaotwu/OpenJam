@@ -18,6 +18,11 @@ interface UseKeyboardShortcutsOptions {
   onCommandPalette: () => void;
   onSetTool: (tool: string) => void;
   onEscape: () => void;
+  onSave: () => void;
+  onCut: () => void;
+  onToggleLock: () => void;
+  onGroup: () => void;
+  onUngroup: () => void;
 }
 
 export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
@@ -27,6 +32,13 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         options.onCommandPalette();
+        return;
+      }
+
+      // Save (Ctrl+S) - works even during text editing
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        options.onSave();
         return;
       }
 
@@ -78,6 +90,34 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
         options.onSelectAll();
+        return;
+      }
+
+      // Cut (Ctrl+X)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+        e.preventDefault();
+        options.onCut();
+        return;
+      }
+
+      // Lock/Unlock (Ctrl+Shift+L)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'l') {
+        e.preventDefault();
+        options.onToggleLock();
+        return;
+      }
+
+      // Ungroup (Ctrl+Shift+G) - must be before Ctrl+G
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'g') {
+        e.preventDefault();
+        options.onUngroup();
+        return;
+      }
+
+      // Group (Ctrl+G)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'g') {
+        e.preventDefault();
+        options.onGroup();
         return;
       }
 
