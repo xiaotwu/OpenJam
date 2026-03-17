@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { ElementRenderer } from './elements';
 import { useAutoSave } from './canvas/hooks/useAutoSave';
 import { useKeyboardShortcuts } from './canvas/hooks/useKeyboardShortcuts';
+import { useClipboard } from './canvas/hooks/useClipboard';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -306,8 +307,6 @@ export default function OpenJamCanvas({
   const [elements, setElements] = useState<Element[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [clipboard, setClipboard] = useState<Element[]>([]);
-  
   // Drag-to-create state (for text, shape, sticky, connector)
   const [dragCreateStart, setDragCreateStart] = useState<{ x: number; y: number } | null>(null);
   const [dragCreateEnd, setDragCreateEnd] = useState<{ x: number; y: number } | null>(null);
@@ -520,34 +519,11 @@ export default function OpenJamCanvas({
     setSelectedIds(new Set());
   }, [selectedIds]);
   
-  // Duplicate selected elements
-  const duplicateSelected = useCallback(() => {
-    const newIds: string[] = [];
-    selectedIds.forEach((id) => {
-      const op = elementStoreRef.current.duplicateElement(id);
-      if (op) {
-        newIds.push(op.element.id);
-      }
-    });
-    setSelectedIds(new Set(newIds));
-  }, [selectedIds]);
-  
-  // Copy selected elements
-  const copySelected = useCallback(() => {
-    const selectedElements = elements.filter((el) => selectedIds.has(el.id));
-    setClipboard(selectedElements);
-  }, [elements, selectedIds]);
-  
-  // Paste elements
-  const pasteElements = useCallback(() => {
-    const newIds: string[] = [];
-    clipboard.forEach((el) => {
-      const op = elementStoreRef.current.addElement(el.type, el.x + 20, el.y + 20, el);
-      newIds.push(op.element.id);
-    });
-    setSelectedIds(new Set(newIds));
-  }, [clipboard]);
-  
+  // Clipboard operations
+  const { clipboard, duplicateSelected, copySelected, pasteElements } = useClipboard({
+    elements, selectedIds, elementStoreRef, setSelectedIds,
+  });
+
   // Select all
   const selectAll = useCallback(() => {
     setSelectedIds(new Set(elements.map((el) => el.id)));
