@@ -9,6 +9,9 @@ import { useDrawing } from './canvas/hooks/useDrawing';
 import { useEraser } from './canvas/hooks/useEraser';
 import { useDragCreate } from './canvas/hooks/useDragCreate';
 import { useDragMove } from './canvas/hooks/useDragMove';
+import DrawingPreview from './canvas/DrawingPreview';
+import EraserCursor from './canvas/EraserCursor';
+import DragCreatePreview from './canvas/DragCreatePreview';
 import { ElementStore } from '../lib/elementStore';
 import {
   type Element,
@@ -1598,35 +1601,14 @@ export default function OpenJamCanvas({
           ))}
           
           {/* Drawing preview */}
-          {isDrawing && drawingPath.length > 1 && (() => {
-            const isMarker = currentTool === 'marker';
-            const previewStrokeWidth = isMarker ? Math.max(toolOptions.strokeWidth * 3, 12) : toolOptions.strokeWidth;
-            const previewStrokeColor = isMarker ? toolOptions.strokeColor + '80' : toolOptions.strokeColor;
-            return (
-              <svg
-                className="absolute pointer-events-none"
-                style={{
-                  left: 0,
-                  top: 0,
-                  width: '10000px',
-                  height: '10000px',
-                  overflow: 'visible',
-                }}
-              >
-                <path
-                  d={drawingPath.reduce((path, point, i) => {
-                    if (i === 0) return `M ${point.x} ${point.y}`;
-                    return `${path} L ${point.x} ${point.y}`;
-                  }, '')}
-                  fill="none"
-                  stroke={previewStrokeColor}
-                  strokeWidth={previewStrokeWidth}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            );
-          })()}
+          {isDrawing && drawingPath.length > 1 && (
+            <DrawingPreview
+              drawingPath={drawingPath}
+              isMarker={currentTool === 'marker'}
+              strokeWidth={toolOptions.strokeWidth}
+              strokeColor={toolOptions.strokeColor}
+            />
+          )}
           
           {/* Selection box */}
           {selectionBox && (
@@ -1643,52 +1625,12 @@ export default function OpenJamCanvas({
           
           {/* Drag-to-create preview */}
           {dragCreateStart && dragCreateEnd && dragCreateTool && (
-            <div
-              className={`absolute border-2 border-dashed pointer-events-none flex items-center justify-center ${
-                dragCreateTool === 'connector' ? 'bg-transparent' : 'bg-purple-500/10'
-              }`}
-              style={{
-                left: Math.min(dragCreateStart.x, dragCreateEnd.x),
-                top: Math.min(dragCreateStart.y, dragCreateEnd.y),
-                width: Math.max(Math.abs(dragCreateEnd.x - dragCreateStart.x), dragCreateTool === 'connector' ? 0 : 20),
-                height: Math.max(Math.abs(dragCreateEnd.y - dragCreateStart.y), dragCreateTool === 'connector' ? 0 : 20),
-                borderColor: dragCreateTool === 'sticky' ? '#FCD34D' : dragCreateTool === 'shape' ? '#6B7280' : dragCreateTool === 'connector' ? '#3B82F6' : '#A855F7',
-              }}
-            >
-              {dragCreateTool === 'connector' && (
-                <svg className="absolute inset-0 overflow-visible" style={{ width: '100%', height: '100%' }}>
-                  <line
-                    x1={dragCreateStart.x < dragCreateEnd.x ? 0 : Math.abs(dragCreateEnd.x - dragCreateStart.x)}
-                    y1={dragCreateStart.y < dragCreateEnd.y ? 0 : Math.abs(dragCreateEnd.y - dragCreateStart.y)}
-                    x2={dragCreateStart.x < dragCreateEnd.x ? Math.abs(dragCreateEnd.x - dragCreateStart.x) : 0}
-                    y2={dragCreateStart.y < dragCreateEnd.y ? Math.abs(dragCreateEnd.y - dragCreateStart.y) : 0}
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    strokeDasharray="5,5"
-                  />
-                </svg>
-              )}
-              {dragCreateTool !== 'connector' && (
-                <span className="text-sm font-medium" style={{ color: dragCreateTool === 'sticky' ? '#D97706' : dragCreateTool === 'shape' ? '#374151' : '#7C3AED' }}>
-                  {dragCreateTool === 'sticky' ? 'Sticky Note' : dragCreateTool === 'shape' ? 'Shape' : 'Text Box'}
-                </span>
-              )}
-            </div>
+            <DragCreatePreview start={dragCreateStart} end={dragCreateEnd} tool={dragCreateTool} />
           )}
           
           {/* Eraser cursor indicator */}
           {currentTool === 'eraser' && eraserPosition && (
-            <div
-              className="absolute pointer-events-none rounded-full border-2 border-gray-500"
-              style={{
-                left: eraserPosition.x - toolOptions.eraserSize / 2,
-                top: eraserPosition.y - toolOptions.eraserSize / 2,
-                width: toolOptions.eraserSize,
-                height: toolOptions.eraserSize,
-                backgroundColor: isErasing ? 'rgba(239, 68, 68, 0.2)' : 'rgba(156, 163, 175, 0.2)',
-                borderColor: isErasing ? '#EF4444' : '#6B7280',
-              }}
-            />
+            <EraserCursor x={eraserPosition.x} y={eraserPosition.y} size={toolOptions.eraserSize} isErasing={isErasing} />
           )}
         </div>
       </div>
