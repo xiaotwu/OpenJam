@@ -24,6 +24,8 @@ dist/
 dist-ssr/
 app/dist/
 server/static/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # Logs
 logs/
@@ -33,6 +35,7 @@ yarn-debug.log*
 pnpm-debug.log*
 
 # IDE and editor files
+.claude/
 .vscode/
 .idea/
 *.swp
@@ -72,3 +75,5 @@ ngrok
 *.old
 *_old*
 OpenJam_old.zip
+.superpowers/
+.worktrees/
