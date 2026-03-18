@@ -1,0 +1,44 @@
+# fly.toml app configuration file generated for openjam on 2026-03-18T14:43:47-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'openjam'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  ENVIRONMENT = 'production'
+  MINIO_ACCESS_KEY = ''
+  MINIO_ENDPOINT = ''
+  MINIO_SECRET_KEY = ''
+  MINIO_USE_SSL = 'false'
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 250
+    soft_limit = 200
+
+[checks]
+  [checks.health]
+    port = 8080
+    type = 'http'
+    interval = '15s'
+    timeout = '5s'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256

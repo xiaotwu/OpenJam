@@ -298,7 +298,7 @@ export default function OpenJamCanvas({
   });
 
   // Drag-move hook (for moving elements after creation)
-  const { dragMoveStart, startDragMoveSingle, startDragMove, updateDragMove, endDragMove } = useDragMove({
+  const { dragMoveStart, startDragMoveSingle: _startDragMoveSingle, startDragMove, updateDragMove, endDragMove } = useDragMove({
     elementStoreRef,
   });
 
@@ -925,7 +925,7 @@ export default function OpenJamCanvas({
         const clickedElement = [...elements].reverse().find((el) => {
           // For connectors, use start/end points to build correct bounds
           if (el.type === 'connector') {
-            const conn = el as import('../../lib/elements').ConnectorElement;
+            const conn = el as import('../lib/elements').ConnectorElement;
             const minX = Math.min(conn.startPoint.x, conn.endPoint.x) - padding - 8;
             const maxX = Math.max(conn.startPoint.x, conn.endPoint.x) + padding + 8;
             const minY = Math.min(conn.startPoint.y, conn.endPoint.y) - padding - 8;
@@ -934,10 +934,10 @@ export default function OpenJamCanvas({
           }
           // For drawings, use element position + point bounds
           if (el.type === 'drawing') {
-            const draw = el as import('../../lib/elements').DrawingElement;
+            const draw = el as import('../lib/elements').DrawingElement;
             if (draw.points.length === 0) return false;
-            const xs = draw.points.map(p => p.x);
-            const ys = draw.points.map(p => p.y);
+            const xs = draw.points.map((p: { x: number; y: number }) => p.x);
+            const ys = draw.points.map((p: { x: number; y: number }) => p.y);
             const minX = draw.x + Math.min(...xs) - padding;
             const maxX = draw.x + Math.max(...xs) + padding;
             const minY = draw.y + Math.min(...ys) - padding;
