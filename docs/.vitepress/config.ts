@@ -4,6 +4,8 @@ export default defineConfig({
   title: 'OpenJam',
   description: 'Real-time collaborative whiteboard for teams',
   base: '/OpenJam/',
+  srcExclude: ['superpowers/**'],
+  ignoreDeadLinks: [/^http:\/\/localhost/],
 
   head: [
     ['link', { rel: 'icon', href: '/OpenJam/favicon.ico' }],
