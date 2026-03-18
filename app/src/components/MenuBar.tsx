@@ -66,6 +66,8 @@ interface MenuBarProps {
   onUngroup?: () => void;
   collaborators?: Collaborator[];
   permissionLevel?: 'view' | 'comment' | 'edit';
+  isDark?: boolean;
+  onToggleTheme?: () => void;
 }
 
 export default function MenuBar(props: MenuBarProps) {
@@ -78,6 +80,8 @@ export default function MenuBar(props: MenuBarProps) {
     userAvatarUrl, isPinned, onTogglePin, onUpdateProfile, onLogout,
     onBringToFront, onSendToBack, onLock, onUnlockAll, onGroup, onUngroup,
     collaborators = [],
+    isDark,
+    onToggleTheme,
   } = props;
 
   const [showMainMenu, setShowMainMenu] = useState(false);
@@ -157,42 +161,42 @@ export default function MenuBar(props: MenuBarProps) {
   };
 
   return (
-    <div className="absolute top-0 left-0 right-0 h-12 bg-white border-b border-gray-200 flex items-center z-50">
+    <div className="absolute top-0 left-0 right-0 h-12 glass-elevated flex items-center z-50" style={{ borderRadius: 0 }}>
       {/* ===== LEFT SECTION: Logo + Menu + Document ===== */}
       <div className="flex items-center h-full">
         {/* Logo & Main Menu */}
         <div className="relative h-full flex items-center px-2" ref={mainMenuRef}>
           <button
             onClick={() => setShowMainMenu(!showMainMenu)}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors ${showMainMenu ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors ${showMainMenu ? 'bg-white/10' : 'hover:bg-white/10'}`}
           >
             <img src="/icons/openjam.png" alt="OpenJam" className="w-7 h-7 rounded-lg shadow-sm" />
-            <svg className={`w-3 h-3 text-gray-400 transition-transform ${showMainMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className={`w-3 h-3 transition-transform ${showMainMenu ? 'rotate-180' : ''}`} style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
 
           {/* Main dropdown menu */}
           {showMainMenu && (
-            <div className="absolute top-full left-2 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+            <div className="absolute top-full left-2 mt-1 w-48 glass-elevated rounded-lg glass-panel-enter py-1 z-50">
               {Object.entries(menus).map(([menuName, items]) => (
                 <div key={menuName} className="relative group" onMouseEnter={() => setActiveSubmenu(menuName)}>
-                  <button className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-between">
+                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-white/10 flex items-center justify-between" style={{ color: 'var(--text-primary)' }}>
                     <span>{menuName}</span>
-                    <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-3 h-3" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
                   {activeSubmenu === menuName && (
                     <div className="absolute left-full top-0 -ml-1 pl-2">
-                      <div className="w-52 bg-white rounded-lg shadow-xl border border-gray-200 py-1">
+                      <div className="w-52 glass-elevated rounded-lg glass-panel-enter py-1">
                         {items.map((item, idx) => item.divider ? (
-                          <div key={idx} className="my-1 border-t border-gray-100" />
+                          <div key={idx} className="my-1 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
                         ) : (
                           <button key={idx} onClick={() => handleItemClick(item)} disabled={item.disabled}
-                            className={`w-full px-3 py-1.5 text-left text-sm flex items-center justify-between ${item.disabled ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}>
+                            className={`w-full px-3 py-1.5 text-left text-sm flex items-center justify-between ${item.disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10'}`} style={{ color: item.disabled ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
                             <span>{item.label}</span>
-                            {item.shortcut && <span className="text-xs text-gray-400">{item.shortcut}</span>}
+                            {item.shortcut && <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{item.shortcut}</span>}
                           </button>
                         ))}
                       </div>
@@ -205,7 +209,7 @@ export default function MenuBar(props: MenuBarProps) {
         </div>
 
         {/* Separator */}
-        <div className="w-px h-6 bg-gray-200" />
+        <div className="w-px h-6" style={{ background: 'var(--glass-border-strong)' }} />
 
         {/* Document Title & Controls */}
         <div className="flex items-center gap-2 px-3">
@@ -215,7 +219,7 @@ export default function MenuBar(props: MenuBarProps) {
               className="px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 min-w-[120px]" autoFocus />
           ) : (
             <button onClick={() => { setIsEditingName(true); setTempName(boardName); }}
-              className="text-sm font-medium text-gray-800 hover:bg-gray-100 px-2 py-1 rounded transition-colors max-w-[200px] truncate">
+              className="text-sm font-medium hover:bg-white/10 px-2 py-1 rounded transition-colors max-w-[200px] truncate" style={{ color: 'var(--text-primary)' }}>
               {boardName}
             </button>
           )}
@@ -228,7 +232,7 @@ export default function MenuBar(props: MenuBarProps) {
         </div>
 
         {/* Separator */}
-        <div className="w-px h-6 bg-gray-200" />
+        <div className="w-px h-6" style={{ background: 'var(--glass-border-strong)' }} />
 
         {/* Pages Panel */}
         {pages && onSelectPage && onAddPage && (
@@ -238,7 +242,7 @@ export default function MenuBar(props: MenuBarProps) {
                 onAddPage={onAddPage} onRenamePage={onRenamePage || (() => {})}
                 onDuplicatePage={onDuplicatePage || (() => {})} onDeletePage={onDeletePage || (() => {})} />
             </div>
-            <div className="w-px h-6 bg-gray-200" />
+            <div className="w-px h-6" style={{ background: 'var(--glass-border-strong)' }} />
           </>
         )}
       </div>
@@ -263,12 +267,12 @@ export default function MenuBar(props: MenuBarProps) {
                 </div>
               ))}
               {collaborators.length > 4 && (
-                <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-medium">
+                <div className="w-7 h-7 rounded-full border-2 border-white/20 flex items-center justify-center text-xs font-medium" style={{ background: 'var(--glass-border-strong)', color: 'var(--text-secondary)' }}>
                   +{collaborators.length - 4}
                 </div>
               )}
             </div>
-            <div className="w-px h-6 bg-gray-200" />
+            <div className="w-px h-6" style={{ background: 'var(--glass-border-strong)' }} />
           </>
         )}
 
@@ -278,6 +282,23 @@ export default function MenuBar(props: MenuBarProps) {
             <UserMenu username={username} email={userEmail} avatarUrl={userAvatarUrl} color={userColor}
               isPinned={isPinned || false} onTogglePin={onTogglePin}
               onOpenSettings={() => setShowProfileSettings(true)} onLogout={onLogout} />
+          </div>
+        )}
+
+        {/* Dark Mode Toggle */}
+        {onToggleTheme && (
+          <div className="px-2">
+            <button onClick={onToggleTheme} className="glass-btn p-2 rounded-lg" title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+              {isDark ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
           </div>
         )}
 

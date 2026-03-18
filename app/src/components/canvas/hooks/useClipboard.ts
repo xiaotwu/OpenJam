@@ -7,9 +7,10 @@ interface UseClipboardOptions {
   selectedIds: Set<string>;
   elementStoreRef: RefObject<ElementStore>;
   setSelectedIds: (ids: Set<string>) => void;
+  onDelete: () => void;
 }
 
-export function useClipboard({ elements, selectedIds, elementStoreRef, setSelectedIds }: UseClipboardOptions) {
+export function useClipboard({ elements, selectedIds, elementStoreRef, setSelectedIds, onDelete }: UseClipboardOptions) {
   const [clipboard, setClipboard] = useState<Element[]>([]);
 
   const duplicateSelected = useCallback(() => {
@@ -28,6 +29,12 @@ export function useClipboard({ elements, selectedIds, elementStoreRef, setSelect
     setClipboard(selectedElements);
   }, [elements, selectedIds]);
 
+  const cutSelected = useCallback(() => {
+    const selectedElements = elements.filter((el) => selectedIds.has(el.id));
+    setClipboard(selectedElements);
+    onDelete();
+  }, [elements, selectedIds, onDelete]);
+
   const pasteElements = useCallback(() => {
     const newIds: string[] = [];
     clipboard.forEach((el) => {
@@ -37,5 +44,5 @@ export function useClipboard({ elements, selectedIds, elementStoreRef, setSelect
     setSelectedIds(new Set(newIds));
   }, [clipboard, elementStoreRef, setSelectedIds]);
 
-  return { clipboard, duplicateSelected, copySelected, pasteElements };
+  return { clipboard, duplicateSelected, copySelected, cutSelected, pasteElements };
 }

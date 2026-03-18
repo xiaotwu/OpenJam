@@ -33,7 +33,6 @@ import {
   QuestionCardWidget,
   DotVotingWidget,
   ReactionCounterWidget,
-  createDefaultTable,
   createDefaultPoll,
   createDefaultKanban,
   createDefaultRetro,
@@ -43,7 +42,11 @@ import {
   createDefaultDotVoting,
   createDefaultReactionCounter,
 } from './widgets';
+import PropertyInspector from './PropertyInspector';
+import TableCreationDialog from './widgets/TableCreationDialog';
+import TimerCreationDialog from './widgets/TimerCreationDialog';
 import MenuBar from './MenuBar';
+import { useTheme } from '../lib/useTheme';
 import CommandPalette from './CommandPalette';
 import ZoomControls from './ZoomControls';
 import { StampElement, type Stamp } from './StampTool';
@@ -251,6 +254,9 @@ export default function OpenJamCanvas({
   username,
   color,
 }: OpenJamCanvasProps) {
+  // Theme
+  const { isDark, setTheme } = useTheme();
+
   // Canvas state
   const containerRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -323,10 +329,19 @@ export default function OpenJamCanvas({
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showFileInfo, setShowFileInfo] = useState(false);
+  const [showTableCreation, setShowTableCreation] = useState(false);
+  const [showTimerCreation, setShowTimerCreation] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   
   // Mock version history
   const versions = useMemo(() => generateMockVersions(userId, currentUsername, currentUserColor), [userId, currentUsername, currentUserColor]);
+
+  // Selected element for property inspector
+  const selectedElement = useMemo(() => {
+    if (selectedIds.size !== 1) return null;
+    const id = Array.from(selectedIds)[0];
+    return elements.find((el) => el.id === id) || null;
+  }, [selectedIds, elements]);
   
   // File info
   const fileInfo = useMemo(() => ({
@@ -489,8 +504,8 @@ export default function OpenJamCanvas({
   }, [selectedIds]);
   
   // Clipboard operations
-  const { clipboard, duplicateSelected, copySelected, pasteElements } = useClipboard({
-    elements, selectedIds, elementStoreRef, setSelectedIds,
+  const { clipboard, duplicateSelected, copySelected, cutSelected, pasteElements } = useClipboard({
+    elements, selectedIds, elementStoreRef, setSelectedIds, onDelete: deleteSelected,
   });
 
   // selectAll is provided by useSelection hook
@@ -832,11 +847,11 @@ export default function OpenJamCanvas({
     let widgetData: Record<string, any> = {};
     switch (widgetType) {
       case 'table':
-        widgetData = createDefaultTable();
-        break;
+        setShowTableCreation(true);
+        return;
       case 'timer':
-        widgetData = { minutes: 5 };
-        break;
+        setShowTimerCreation(true);
+        return;
       case 'stopwatch':
         widgetData = {};
         break;
@@ -1262,6 +1277,11 @@ export default function OpenJamCanvas({
       setShowStampPicker(false);
       setContextMenu(null);
     },
+    onSave: saveToDatabase,
+    onCut: cutSelected,
+    onToggleLock: lockSelected,
+    onGroup: groupSelected,
+    onUngroup: ungroupSelected,
   });
   
   // Sort elements by z-index
@@ -1296,6 +1316,7 @@ export default function OpenJamCanvas({
     { id: 'text', label: 'Text tool', category: 'Tools', shortcut: 'T', action: () => setCurrentTool('text') },
     { id: 'connector', label: 'Connector', category: 'Tools', shortcut: 'C', action: () => setCurrentTool('connector') },
     { id: 'draw', label: 'Pen tool', category: 'Tools', shortcut: 'P', action: () => setCurrentTool('draw') },
+    { id: 'marker', label: 'Marker tool', category: 'Tools', shortcut: 'M', action: () => setCurrentTool('marker') },
     { id: 'stamp', label: 'Stamp tool', category: 'Tools', shortcut: 'E', action: () => { setCurrentTool('stamp'); setShowStampPicker(true); } },
     { id: 'eraser', label: 'Eraser tool', category: 'Tools', shortcut: 'X', action: () => setCurrentTool('eraser') },
     { id: 'frame', label: 'Frame tool', category: 'Tools', shortcut: 'F', action: () => setCurrentTool('frame') },
@@ -1316,7 +1337,7 @@ export default function OpenJamCanvas({
   ], [copySelected, pasteElements, duplicateSelected, selectAll, deleteSelected, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-gray-50">
+    <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--surface-canvas)' }}>
       {/* Top Bar - contains menu and collaborators */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between pointer-events-none">
         {/* Menu Bar */}
@@ -1392,6 +1413,8 @@ export default function OpenJamCanvas({
             onUnlockAll={unlockAll}
             onGroup={groupSelected}
             onUngroup={ungroupSelected}
+            isDark={isDark}
+            onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
           />
         </div>
 
@@ -1665,6 +1688,55 @@ export default function OpenJamCanvas({
         <span>{elements.length} elements</span>
         {selectedIds.size > 0 && <span>{selectedIds.size} selected</span>}
       </div>
+
+      {/* Property Inspector */}
+      {selectedElement && (
+        <div className="absolute top-16 right-0 bottom-0 z-40 pointer-events-auto">
+          <PropertyInspector
+            element={selectedElement}
+            elementStore={elementStoreRef.current}
+          />
+        </div>
+      )}
+
+      {/* Table Creation Dialog */}
+      {showTableCreation && (
+        <TableCreationDialog
+          onConfirm={(rows, cols) => {
+            const centerX = (-offset.x + window.innerWidth / 2) / scale;
+            const centerY = (-offset.y + window.innerHeight / 2) / scale;
+            const cells = Array(rows).fill(null).map(() =>
+              Array(cols).fill(null).map(() => ({ content: '', backgroundColor: '#ffffff' }))
+            );
+            elementStoreRef.current.addElement('widget', centerX - 200, centerY - 150, {
+              width: 400, height: 300,
+              widgetType: 'table',
+              widgetData: { rows, cols, cells },
+            } as Partial<Element>);
+            setShowTableCreation(false);
+            setCurrentTool('select');
+          }}
+          onCancel={() => setShowTableCreation(false)}
+        />
+      )}
+
+      {/* Timer Creation Dialog */}
+      {showTimerCreation && (
+        <TimerCreationDialog
+          onConfirm={(minutes) => {
+            const centerX = (-offset.x + window.innerWidth / 2) / scale;
+            const centerY = (-offset.y + window.innerHeight / 2) / scale;
+            elementStoreRef.current.addElement('widget', centerX - 100, centerY - 100, {
+              width: 200, height: 200,
+              widgetType: 'timer',
+              widgetData: { minutes },
+            } as Partial<Element>);
+            setShowTimerCreation(false);
+            setCurrentTool('select');
+          }}
+          onCancel={() => setShowTimerCreation(false)}
+        />
+      )}
 
       {/* Save status toast */}
       {saveStatus !== 'idle' && (

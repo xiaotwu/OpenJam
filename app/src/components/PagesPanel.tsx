@@ -56,31 +56,31 @@ export default function PagesPanel({
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded transition-colors"
+        className="flex items-center gap-1.5 px-2 py-1 hover:bg-white/10 rounded transition-colors"
         title="Pages"
       >
-        <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
-        <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {/* Pages Panel Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+        <div className="absolute top-full left-0 mt-1 w-56 glass-elevated rounded-lg glass-panel-enter overflow-hidden z-50">
           {/* Header */}
-          <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Pages</span>
+          <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--glass-border-strong)' }}>
+            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Pages</span>
             <button
               onClick={() => {
                 onAddPage();
               }}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              className="p-1 hover:bg-white/10 rounded transition-colors"
               title="Add page"
             >
-              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
@@ -92,7 +92,7 @@ export default function PagesPanel({
               <div
                 key={page.id}
                 className={`group flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
-                  page.id === currentPageId ? 'bg-purple-50' : 'hover:bg-gray-50'
+                  page.id === currentPageId ? 'bg-purple-50' : 'hover:bg-white/10'
                 }`}
                 onClick={() => {
                   if (editingId !== page.id) {
@@ -106,7 +106,7 @@ export default function PagesPanel({
               >
                 {/* Page icon */}
                 <div className={`w-6 h-6 rounded flex items-center justify-center text-xs ${
-                  page.id === currentPageId ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'
+                  page.id === currentPageId ? 'bg-purple-100 text-purple-600' : ''
                 }`}>
                   {pages.indexOf(page) + 1}
                 </div>
@@ -128,7 +128,7 @@ export default function PagesPanel({
                   />
                 ) : (
                   <span className={`flex-1 text-sm truncate ${
-                    page.id === currentPageId ? 'text-purple-700 font-medium' : 'text-gray-700'
+                    page.id === currentPageId ? 'text-purple-700 font-medium' : ''
                   }`}>
                     {page.name}
                   </span>
@@ -140,7 +140,7 @@ export default function PagesPanel({
                     e.stopPropagation();
                     setContextMenu({ pageId: page.id, x: e.clientX, y: e.clientY });
                   }}
-                  className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-all"
+                  className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/10 rounded transition-all"
                 >
                   <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="6" r="2" />
@@ -157,7 +157,7 @@ export default function PagesPanel({
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[60]"
+          className="fixed glass-elevated rounded-xl glass-panel-enter py-1 z-[60]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button
@@ -169,7 +169,7 @@ export default function PagesPanel({
               }
               setContextMenu(null);
             }}
-            className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-white/10" style={{ color: 'var(--text-primary)' }}
           >
             Rename
           </button>
@@ -178,7 +178,7 @@ export default function PagesPanel({
               onDuplicatePage(contextMenu.pageId);
               setContextMenu(null);
             }}
-            className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-white/10" style={{ color: 'var(--text-primary)' }}
           >
             Duplicate
           </button>

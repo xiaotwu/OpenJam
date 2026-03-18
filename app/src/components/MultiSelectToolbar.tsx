@@ -43,9 +43,9 @@ export default function MultiSelectToolbar({
 
   return (
     <div className="absolute top-28 left-1/2 -translate-x-1/2 z-50">
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-white rounded-lg shadow-lg border border-gray-200">
+      <div className="flex items-center gap-1 px-2 py-1.5 glass-elevated rounded-xl">
         {/* Selection count */}
-        <span className="px-2 text-sm text-gray-600 font-medium border-r border-gray-200 mr-1">
+        <span className="px-2 text-sm font-medium border-r mr-1" style={{ color: 'var(--text-secondary)', borderColor: 'var(--glass-border-strong)' }}>
           {selectedCount} selected
         </span>
 
@@ -53,15 +53,15 @@ export default function MultiSelectToolbar({
         <div className="relative">
           <button
             onClick={() => setShowAlignMenu(!showAlignMenu)}
-            className="p-2 rounded hover:bg-gray-100 transition-colors"
+            className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
             title="Align"
           >
             <AlignLeftIcon />
           </button>
 
           {showAlignMenu && (
-            <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 p-2 min-w-[200px]">
-              <div className="text-xs font-medium text-gray-500 uppercase px-2 mb-2">
+            <div className="absolute top-full left-0 mt-1 glass-elevated rounded-xl glass-panel-enter p-2 min-w-[200px]">
+              <div className="text-xs font-medium uppercase px-2 mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Align
               </div>
               <div className="flex gap-1 mb-2">
@@ -74,7 +74,7 @@ export default function MultiSelectToolbar({
                 <ToolButton onClick={onAlignRight} title="Align right">
                   <AlignRightIcon />
                 </ToolButton>
-                <div className="w-px bg-gray-200 mx-1" />
+                <div className="w-px mx-1" style={{ background: 'var(--glass-border-strong)' }} />
                 <ToolButton onClick={onAlignTop} title="Align top">
                   <AlignTopIcon />
                 </ToolButton>
@@ -86,7 +86,7 @@ export default function MultiSelectToolbar({
                 </ToolButton>
               </div>
 
-              <div className="text-xs font-medium text-gray-500 uppercase px-2 mb-2 mt-3">
+              <div className="text-xs font-medium uppercase px-2 mb-2 mt-3" style={{ color: 'var(--text-secondary)' }}>
                 Distribute
               </div>
               <div className="flex gap-1">
@@ -101,12 +101,12 @@ export default function MultiSelectToolbar({
           )}
         </div>
 
-        <div className="w-px h-6 bg-gray-200 mx-1" />
+        <div className="w-px h-6 mx-1" style={{ background: 'var(--glass-border-strong)' }} />
 
         {/* Group/Ungroup */}
         <button
           onClick={canUngroup ? onUngroup : onGroup}
-          className="p-2 rounded hover:bg-gray-100 transition-colors"
+          className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
           title={canUngroup ? 'Ungroup (Ctrl+Shift+G)' : 'Group (Ctrl+G)'}
         >
           <GroupIcon />
@@ -115,25 +115,25 @@ export default function MultiSelectToolbar({
         {/* Layer order */}
         <button
           onClick={onBringToFront}
-          className="p-2 rounded hover:bg-gray-100 transition-colors"
+          className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
           title="Bring to front (])"
         >
           <BringFrontIcon />
         </button>
         <button
           onClick={onSendToBack}
-          className="p-2 rounded hover:bg-gray-100 transition-colors"
+          className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
           title="Send to back ([)"
         >
           <SendBackIcon />
         </button>
 
-        <div className="w-px h-6 bg-gray-200 mx-1" />
+        <div className="w-px h-6 mx-1" style={{ background: 'var(--glass-border-strong)' }} />
 
         {/* Duplicate */}
         <button
           onClick={onDuplicate}
-          className="p-2 rounded hover:bg-gray-100 transition-colors"
+          className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
           title="Duplicate (Ctrl+D)"
         >
           <DuplicateIcon />
@@ -142,7 +142,7 @@ export default function MultiSelectToolbar({
         {/* Delete */}
         <button
           onClick={onDelete}
-          className="p-2 rounded hover:bg-gray-100 text-red-600 transition-colors"
+          className="glass-btn p-2 rounded hover:bg-white/10 text-red-600 transition-colors"
           title="Delete (Del)"
         >
           <DeleteIcon />
@@ -165,7 +165,7 @@ function ToolButton({
   return (
     <button
       onClick={onClick}
-      className="p-2 rounded hover:bg-gray-100 transition-colors"
+      className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
       title={title}
     >
       {children}
