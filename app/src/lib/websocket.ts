@@ -50,7 +50,8 @@ export interface UserPresence {
   avatarColor: string;
 }
 
-export type OperationType = 'draw' | 'erase' | 'undo' | 'clear';
+export type OperationType = 'draw' | 'erase' | 'undo' | 'clear'
+  | 'add' | 'update' | 'delete' | 'move' | 'resize' | 'reorder' | 'lock' | 'reaction' | 'comment';
 
 export interface Point {
   x: number;

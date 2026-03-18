@@ -30,6 +30,9 @@ Thumbs.db
 **/*.test.*
 **/__tests__/
 
+# Documentation site
+docs/
+
 # Temporary files
 *.tmp
 *.temp

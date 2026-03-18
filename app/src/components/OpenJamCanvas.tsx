@@ -50,7 +50,7 @@ import { useTheme } from '../lib/useTheme';
 import CommandPalette from './CommandPalette';
 import ZoomControls from './ZoomControls';
 import { StampElement, type Stamp } from './StampTool';
-import { type Collaborator, CollaboratorAvatars } from './CollaboratorPanel';
+import { type Collaborator } from './CollaboratorPanel';
 import ShareDialog from './ShareDialog';
 import ContextMenu, {
   getElementContextMenuItems,
@@ -298,7 +298,7 @@ export default function OpenJamCanvas({
   });
 
   // Drag-move hook (for moving elements after creation)
-  const { dragMoveStart, startDragMove, updateDragMove, endDragMove } = useDragMove({
+  const { dragMoveStart, startDragMoveSingle, startDragMove, updateDragMove, endDragMove } = useDragMove({
     elementStoreRef,
   });
 
@@ -920,27 +920,64 @@ export default function OpenJamCanvas({
       
       // Selection mode - check if clicking on an element first
       if (currentTool === 'select') {
-        // Check if clicking on an element
+        const padding = 6; // Hit detection padding for easier clicking
+        // Check if clicking on an element (top-to-bottom z-order)
         const clickedElement = [...elements].reverse().find((el) => {
+          // For connectors, use start/end points to build correct bounds
+          if (el.type === 'connector') {
+            const conn = el as import('../../lib/elements').ConnectorElement;
+            const minX = Math.min(conn.startPoint.x, conn.endPoint.x) - padding - 8;
+            const maxX = Math.max(conn.startPoint.x, conn.endPoint.x) + padding + 8;
+            const minY = Math.min(conn.startPoint.y, conn.endPoint.y) - padding - 8;
+            const maxY = Math.max(conn.startPoint.y, conn.endPoint.y) + padding + 8;
+            return canvas.x >= minX && canvas.x <= maxX && canvas.y >= minY && canvas.y <= maxY;
+          }
+          // For drawings, use element position + point bounds
+          if (el.type === 'drawing') {
+            const draw = el as import('../../lib/elements').DrawingElement;
+            if (draw.points.length === 0) return false;
+            const xs = draw.points.map(p => p.x);
+            const ys = draw.points.map(p => p.y);
+            const minX = draw.x + Math.min(...xs) - padding;
+            const maxX = draw.x + Math.max(...xs) + padding;
+            const minY = draw.y + Math.min(...ys) - padding;
+            const maxY = draw.y + Math.max(...ys) + padding;
+            return canvas.x >= minX && canvas.x <= maxX && canvas.y >= minY && canvas.y <= maxY;
+          }
+          // Standard bounding box for other elements
           const width = el.width || 100;
           const height = el.height || 100;
-          const bounds = {
-            left: el.x,
-            right: el.x + width,
-            top: el.y,
-            bottom: el.y + height,
-          };
-          return canvas.x >= bounds.left && canvas.x <= bounds.right &&
-                 canvas.y >= bounds.top && canvas.y <= bounds.bottom;
+          return canvas.x >= el.x - padding && canvas.x <= el.x + width + padding &&
+                 canvas.y >= el.y - padding && canvas.y <= el.y + height + padding;
         });
-        
+
         if (clickedElement && !clickedElement.locked) {
-          // Start dragging the element
-          setSelectedIds(new Set([clickedElement.id]));
-          startDragMove({ x: canvas.x, y: canvas.y }, clickedElement.id, { x: clickedElement.x, y: clickedElement.y });
+          // If shift-clicking, toggle in selection
+          if (e.shiftKey) {
+            setSelectedIds(prev => {
+              const next = new Set(prev);
+              if (next.has(clickedElement.id)) next.delete(clickedElement.id);
+              else next.add(clickedElement.id);
+              return next;
+            });
+          } else if (!selectedIds.has(clickedElement.id)) {
+            setSelectedIds(new Set([clickedElement.id]));
+          }
+          // Start dragging all selected elements (or just the clicked one)
+          const idsToMove = selectedIds.has(clickedElement.id) && selectedIds.size > 1
+            ? Array.from(selectedIds)
+            : [clickedElement.id];
+          startDragMove(
+            { x: canvas.x, y: canvas.y },
+            idsToMove,
+            (id) => {
+              const el = elementStoreRef.current.getElementById(id);
+              return el ? { x: el.x, y: el.y } : undefined;
+            },
+          );
           return;
         }
-        
+
         // If no element clicked, start selection box
         setSelectionBox({ start: canvas, end: canvas });
         return;
@@ -986,7 +1023,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing]
+    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing, selectedIds, startDragMove, elementStoreRef]
   );
   
   // Handle canvas mouse move
@@ -1338,94 +1375,78 @@ export default function OpenJamCanvas({
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--surface-canvas)' }}>
-      {/* Top Bar - contains menu and collaborators */}
-      <div className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between pointer-events-none">
-        {/* Menu Bar */}
-        <div className="pointer-events-auto">
-          <MenuBar
-            boardName={boardName}
-            onBoardNameChange={setBoardName}
-            onUndo={() => elementStoreRef.current.undo()}
-            onRedo={() => elementStoreRef.current.redo()}
-            onSelectAll={selectAll}
-            onDelete={deleteSelected}
-            onDuplicate={duplicateSelected}
-            onCopy={copySelected}
-            onPaste={pasteElements}
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-            onZoomReset={handleZoomReset}
-            onZoomFit={handleZoomFit}
-            onSave={saveToDatabase}
-            onExportPNG={exportToPNG}
-            onExportJSON={exportToJSONFile}
-            onShare={() => setShowShareDialog(true)}
-            onToggleGrid={() => setShowGrid((g) => !g)}
-            showGrid={showGrid}
-            onVersionHistory={() => setShowVersionHistory(true)}
-            onFileInfo={() => setShowFileInfo(true)}
-            onDeleteBoard={() => {
-              if (confirm('Are you sure you want to delete this board?')) {
-                window.location.href = '/';
-              }
-            }}
-            // Page management
-            pages={pages}
-            currentPageId={currentPageId}
-            onSelectPage={handleSelectPage}
-            onAddPage={handleAddPage}
-            onRenamePage={handleRenamePage}
-            onDuplicatePage={handleDuplicatePage}
-            onDeletePage={handleDeletePage}
-            onDuplicateBoard={() => {
-              // Duplicate the entire board by creating a new page with all current elements
-              const newPage: Page = {
-                id: `page-${Date.now()}`,
-                name: `${boardName} (Copy)`,
-              };
-              setPages((prev) => [...prev, newPage]);
-              // Note: In a full implementation, this would also duplicate all elements to the new page
-              // For now, we just create a new page entry
-              setCurrentPageId(newPage.id);
-            }}
-            // User settings
-            username={currentUsername}
-            userEmail={`${currentUsername.toLowerCase().replace(/\s+/g, '.')}@example.com`}
-            userColor={currentUserColor}
-            userAvatarUrl={currentUserAvatarUrl}
-            isPinned={isPinned}
-            onTogglePin={() => setIsPinned((p) => !p)}
-            onUpdateProfile={handleUpdateProfile}
-            onLogout={async () => {
-              try {
-                const { logout } = await import('../lib/api');
-                await logout();
-                window.location.href = '/';
-              } catch {
-                // If API fails, just redirect
-                window.location.href = '/';
-              }
-            }}
-            // Menu actions
-            onBringToFront={bringToFront}
-            onSendToBack={sendToBack}
-            onLock={lockSelected}
-            onUnlockAll={unlockAll}
-            onGroup={groupSelected}
-            onUngroup={ungroupSelected}
-            isDark={isDark}
-            onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
-          />
-        </div>
-
-        {/* Collaborator Avatars */}
-        <div className="pointer-events-auto m-4">
-          <CollaboratorAvatars
-            collaborators={collaborators}
-            onClick={() => setShowShareDialog(true)}
-          />
-        </div>
-      </div>
+      {/* Menu Bar — self-positions absolute top-right, includes avatar stack */}
+      <MenuBar
+        boardName={boardName}
+        onBoardNameChange={setBoardName}
+        onUndo={() => elementStoreRef.current.undo()}
+        onRedo={() => elementStoreRef.current.redo()}
+        onSelectAll={selectAll}
+        onDelete={deleteSelected}
+        onDuplicate={duplicateSelected}
+        onCopy={copySelected}
+        onPaste={pasteElements}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
+        onZoomFit={handleZoomFit}
+        onSave={saveToDatabase}
+        onExportPNG={exportToPNG}
+        onExportJSON={exportToJSONFile}
+        onShare={() => setShowShareDialog(true)}
+        onToggleGrid={() => setShowGrid((g) => !g)}
+        showGrid={showGrid}
+        onVersionHistory={() => setShowVersionHistory(true)}
+        onFileInfo={() => setShowFileInfo(true)}
+        onDeleteBoard={() => {
+          if (confirm('Are you sure you want to delete this board?')) {
+            window.location.href = '/';
+          }
+        }}
+        // Page management
+        pages={pages}
+        currentPageId={currentPageId}
+        onSelectPage={handleSelectPage}
+        onAddPage={handleAddPage}
+        onRenamePage={handleRenamePage}
+        onDuplicatePage={handleDuplicatePage}
+        onDeletePage={handleDeletePage}
+        onDuplicateBoard={() => {
+          const newPage: Page = {
+            id: `page-${Date.now()}`,
+            name: `${boardName} (Copy)`,
+          };
+          setPages((prev) => [...prev, newPage]);
+          setCurrentPageId(newPage.id);
+        }}
+        // User settings
+        username={currentUsername}
+        userEmail={`${currentUsername.toLowerCase().replace(/\s+/g, '.')}@example.com`}
+        userColor={currentUserColor}
+        userAvatarUrl={currentUserAvatarUrl}
+        isPinned={isPinned}
+        onTogglePin={() => setIsPinned((p) => !p)}
+        onUpdateProfile={handleUpdateProfile}
+        onLogout={async () => {
+          try {
+            const { logout } = await import('../lib/api');
+            await logout();
+            window.location.href = '/';
+          } catch {
+            window.location.href = '/';
+          }
+        }}
+        // Menu actions
+        onBringToFront={bringToFront}
+        onSendToBack={sendToBack}
+        onLock={lockSelected}
+        onUnlockAll={unlockAll}
+        onGroup={groupSelected}
+        onUngroup={ungroupSelected}
+        collaborators={collaborators.map(c => ({ id: c.id, name: c.name, color: c.color, avatarUrl: undefined }))}
+        isDark={isDark}
+        onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
+      />
       
       {/* Command Palette */}
       <CommandPalette
@@ -1564,10 +1585,10 @@ export default function OpenJamCanvas({
               className="absolute inset-0 pointer-events-none"
               style={{
                 backgroundImage: `
-                  linear-gradient(to right, #E5E7EB 1px, transparent 1px),
-                  linear-gradient(to bottom, #E5E7EB 1px, transparent 1px)
+                  repeating-linear-gradient(to right, #E5E7EB 0px, #E5E7EB 4px, transparent 4px, transparent 8px),
+                  repeating-linear-gradient(to bottom, #E5E7EB 0px, #E5E7EB 4px, transparent 4px, transparent 8px)
                 `,
-                backgroundSize: '20px 20px',
+                backgroundSize: '20px 1px, 1px 20px',
                 width: '10000px',
                 height: '10000px',
                 left: '-5000px',
@@ -1648,7 +1669,7 @@ export default function OpenJamCanvas({
           
           {/* Drag-to-create preview */}
           {dragCreateStart && dragCreateEnd && dragCreateTool && (
-            <DragCreatePreview start={dragCreateStart} end={dragCreateEnd} tool={dragCreateTool} />
+            <DragCreatePreview start={dragCreateStart} end={dragCreateEnd} tool={dragCreateTool} shapeType={toolOptions.shapeType} />
           )}
           
           {/* Eraser cursor indicator */}

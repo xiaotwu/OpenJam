@@ -16,6 +16,15 @@ const (
 	OpTypeErase OpType = "erase"
 	OpTypeUndo  OpType = "undo"
 	OpTypeClear OpType = "clear"
+
+	// Element operations
+	OpTypeAdd     OpType = "add"
+	OpTypeUpdate  OpType = "update"
+	OpTypeDelete  OpType = "delete"
+	OpTypeMove    OpType = "move"
+	OpTypeResize  OpType = "resize"
+	OpTypeReorder OpType = "reorder"
+	OpTypeLock    OpType = "lock"
 )
 
 type Point struct {

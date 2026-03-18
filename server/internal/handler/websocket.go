@@ -11,13 +11,32 @@ import (
 	"github.com/project-wb/server/internal/ws"
 )
 
+// allowedOrigins is set by InitWebSocket from the config's CorsOrigins.
+var allowedOrigins []string
+
+// InitWebSocket configures the WebSocket upgrader with the allowed CORS origins.
+func InitWebSocket(origins []string) {
+	allowedOrigins = origins
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		for _, allowed := range allowedOrigins {
+			if allowed == "*" || allowed == origin {
+				return true
+			}
+		}
+		return false
 	},
 }
+
+// TODO: Add per-IP rate limiting to WebSocket connections to prevent abuse.
 
 func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
 	token := c.Query("token")

@@ -60,6 +60,12 @@ func ListRooms(c *gin.Context) {
 }
 
 func GetRoom(c *gin.Context) {
+	user := middleware.GetUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
 	roomID := c.Param("id")
 	if roomID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID required"})
@@ -73,6 +79,12 @@ func GetRoom(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get room"})
+		return
+	}
+
+	// Only the room owner can access the room (TODO: expand to room members)
+	if room.OwnerID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
 		return
 	}
 

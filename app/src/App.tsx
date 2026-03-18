@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { useAuth, AuthProvider } from './components/AuthContext';
 import AuthPage from './components/AuthPage';
+import ErrorBoundary from './components/ErrorBoundary';
 import OpenJamCanvas from './components/OpenJamCanvas';
 import './App.css';
 
@@ -13,6 +15,8 @@ function generateColor(): string {
 
 function AppContent() {
   const { user, isLoading } = useAuth();
+  // Stabilize color so it doesn't change on every render
+  const userColor = useMemo(() => generateColor(), []);
 
   if (isLoading) {
     return (
@@ -37,16 +41,18 @@ function AppContent() {
       boardId={roomId}
       userId={user.id}
       username={user.displayName}
-      color={generateColor()}
+      color={user.avatarColor || userColor}
     />
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

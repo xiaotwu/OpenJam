@@ -11,6 +11,9 @@ interface UseDragCreateOptions {
     fillColor: string;
     strokeColor: string;
     strokeWidth: number;
+    connectorStyle: string;
+    arrowStart: string;
+    arrowEnd: string;
   };
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setEditingId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -66,9 +69,19 @@ export function useDragCreate({ elementStoreRef, toolOptions, setSelectedIds, se
       setSelectedIds(new Set([op.element.id]));
       setEditingId(op.element.id);
     } else if (dragCreateTool === 'shape') {
+      let shapeW = isDragged ? Math.max(50, width) : 100;
+      let shapeH = isDragged ? Math.max(50, height) : 100;
+
+      // Circle enforces 1:1 aspect ratio
+      if (toolOptions.shapeType === 'circle') {
+        const size = Math.max(shapeW, shapeH);
+        shapeW = size;
+        shapeH = size;
+      }
+
       op = elementStoreRef.current.addElement('shape', isDragged ? minX : dragCreateStart.x, isDragged ? minY : dragCreateStart.y, {
-        width: isDragged ? Math.max(50, width) : 100,
-        height: isDragged ? Math.max(50, height) : 100,
+        width: shapeW,
+        height: shapeH,
         shapeType: toolOptions.shapeType,
         fill: toolOptions.fillColor,
         stroke: toolOptions.strokeColor,
@@ -77,7 +90,11 @@ export function useDragCreate({ elementStoreRef, toolOptions, setSelectedIds, se
       setSelectedIds(new Set([op.element.id]));
     } else if (dragCreateTool === 'connector') {
       op = elementStoreRef.current.addElement('connector', dragCreateStart.x, dragCreateStart.y, {
+        startPoint: { x: dragCreateStart.x, y: dragCreateStart.y },
         endPoint: { x: isDragged ? dragCreateEnd.x : dragCreateStart.x + 100, y: isDragged ? dragCreateEnd.y : dragCreateStart.y },
+        style: toolOptions.connectorStyle || 'straight',
+        startArrow: toolOptions.arrowStart || 'none',
+        endArrow: toolOptions.arrowEnd || 'arrow',
       } as Partial<Element>);
       setSelectedIds(new Set([op.element.id]));
     }
