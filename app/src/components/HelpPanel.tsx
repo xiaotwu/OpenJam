@@ -260,28 +260,14 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
 
           {activeTab === 'about' && (
             <div className="text-center py-6">
-              {/* Updated OpenJam icon — whiteboard + wave + collaboration */}
-              <div
-                className="w-20 h-20 rounded-[22px] flex items-center justify-center mx-auto mb-5"
+              <img
+                src="/icons/openjam.png"
+                alt="OpenJam"
+                className="w-20 h-20 rounded-[22px] mx-auto mb-5"
                 style={{
-                  background: 'linear-gradient(135deg, #f97316, #ec4899, #a855f7)',
-                  boxShadow: '0 8px 24px rgba(249, 115, 22, 0.25), 0 2px 8px rgba(168, 85, 247, 0.15)',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05)',
                 }}
-              >
-                <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
-                  {/* Whiteboard */}
-                  <rect x="6" y="8" width="36" height="26" rx="4" fill="rgba(255,255,255,0.25)" stroke="white" strokeWidth="2.5" />
-                  {/* Creative wave stroke */}
-                  <path d="M13 22c3-5 6-5 9 0s6 5 9 0" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none" />
-                  {/* Pen tip */}
-                  <path d="M34 14l3-3 2 2-3 3-2-2z" fill="white" opacity="0.7" />
-                  <path d="M33 15l1 3-3 1 2-4z" fill="white" opacity="0.5" />
-                  {/* Collaboration dots */}
-                  <circle cx="16" cy="40" r="2.5" fill="white" opacity="0.9" />
-                  <circle cx="24" cy="40" r="2.5" fill="white" opacity="0.9" />
-                  <circle cx="32" cy="40" r="2.5" fill="white" opacity="0.9" />
-                </svg>
-              </div>
+              />
               <h3 className="text-xl font-bold mb-1" style={{ color: 'rgba(0, 0, 0, 0.87)' }}>
                 OpenJam
               </h3>
