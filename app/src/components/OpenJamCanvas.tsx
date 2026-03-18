@@ -33,7 +33,6 @@ import {
   QuestionCardWidget,
   DotVotingWidget,
   ReactionCounterWidget,
-  createDefaultTable,
   createDefaultPoll,
   createDefaultKanban,
   createDefaultRetro,
@@ -43,6 +42,9 @@ import {
   createDefaultDotVoting,
   createDefaultReactionCounter,
 } from './widgets';
+import PropertyInspector from './PropertyInspector';
+import TableCreationDialog from './widgets/TableCreationDialog';
+import TimerCreationDialog from './widgets/TimerCreationDialog';
 import MenuBar from './MenuBar';
 import { useTheme } from '../lib/useTheme';
 import CommandPalette from './CommandPalette';
@@ -327,10 +329,19 @@ export default function OpenJamCanvas({
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showFileInfo, setShowFileInfo] = useState(false);
+  const [showTableCreation, setShowTableCreation] = useState(false);
+  const [showTimerCreation, setShowTimerCreation] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   
   // Mock version history
   const versions = useMemo(() => generateMockVersions(userId, currentUsername, currentUserColor), [userId, currentUsername, currentUserColor]);
+
+  // Selected element for property inspector
+  const selectedElement = useMemo(() => {
+    if (selectedIds.size !== 1) return null;
+    const id = Array.from(selectedIds)[0];
+    return elements.find((el) => el.id === id) || null;
+  }, [selectedIds, elements]);
   
   // File info
   const fileInfo = useMemo(() => ({
@@ -836,11 +847,11 @@ export default function OpenJamCanvas({
     let widgetData: Record<string, any> = {};
     switch (widgetType) {
       case 'table':
-        widgetData = createDefaultTable();
-        break;
+        setShowTableCreation(true);
+        return;
       case 'timer':
-        widgetData = { minutes: 5 };
-        break;
+        setShowTimerCreation(true);
+        return;
       case 'stopwatch':
         widgetData = {};
         break;
@@ -1677,6 +1688,55 @@ export default function OpenJamCanvas({
         <span>{elements.length} elements</span>
         {selectedIds.size > 0 && <span>{selectedIds.size} selected</span>}
       </div>
+
+      {/* Property Inspector */}
+      {selectedElement && (
+        <div className="absolute top-16 right-0 bottom-0 z-40 pointer-events-auto">
+          <PropertyInspector
+            element={selectedElement}
+            elementStore={elementStoreRef.current}
+          />
+        </div>
+      )}
+
+      {/* Table Creation Dialog */}
+      {showTableCreation && (
+        <TableCreationDialog
+          onConfirm={(rows, cols) => {
+            const centerX = (-offset.x + window.innerWidth / 2) / scale;
+            const centerY = (-offset.y + window.innerHeight / 2) / scale;
+            const cells = Array(rows).fill(null).map(() =>
+              Array(cols).fill(null).map(() => ({ content: '', backgroundColor: '#ffffff' }))
+            );
+            elementStoreRef.current.addElement('widget', centerX - 200, centerY - 150, {
+              width: 400, height: 300,
+              widgetType: 'table',
+              widgetData: { rows, cols, cells },
+            } as Partial<Element>);
+            setShowTableCreation(false);
+            setCurrentTool('select');
+          }}
+          onCancel={() => setShowTableCreation(false)}
+        />
+      )}
+
+      {/* Timer Creation Dialog */}
+      {showTimerCreation && (
+        <TimerCreationDialog
+          onConfirm={(minutes) => {
+            const centerX = (-offset.x + window.innerWidth / 2) / scale;
+            const centerY = (-offset.y + window.innerHeight / 2) / scale;
+            elementStoreRef.current.addElement('widget', centerX - 100, centerY - 100, {
+              width: 200, height: 200,
+              widgetType: 'timer',
+              widgetData: { minutes },
+            } as Partial<Element>);
+            setShowTimerCreation(false);
+            setCurrentTool('select');
+          }}
+          onCancel={() => setShowTimerCreation(false)}
+        />
+      )}
 
       {/* Save status toast */}
       {saveStatus !== 'idle' && (
