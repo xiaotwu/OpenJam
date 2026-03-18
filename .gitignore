@@ -78,3 +78,8 @@ ngrok
 OpenJam_old.zip
 .superpowers/
 .worktrees/
+
+# Deployment configs (contain infrastructure details)
+fly.toml
+.fly/
+wrangler.toml
