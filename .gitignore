@@ -80,6 +80,4 @@ OpenJam_old.zip
 .worktrees/
 
 # Deployment configs (contain infrastructure details)
-fly.toml
-.fly/
 wrangler.toml
