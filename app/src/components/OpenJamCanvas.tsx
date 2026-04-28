@@ -70,6 +70,7 @@ import BottomToolbar, {
 import VersionHistoryPanel, { generateMockVersions } from './VersionHistoryPanel';
 import ImageUploadDialog from './ImageUploadDialog';
 import FileInfoDialog from './FileInfoDialog';
+import FloatingObjectToolbar from './FloatingObjectToolbar';
 import { type Page } from './PagesPanel';
 
 // Tool options interface
@@ -1560,6 +1561,15 @@ export default function OpenJamCanvas({
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         canUngroup={elements.some((el) => selectedIds.has(el.id) && (el as { groupId?: string }).groupId)}
+      />
+
+      <FloatingObjectToolbar
+        element={selectedElement}
+        scale={scale}
+        offset={offset}
+        onUpdate={handleUpdate}
+        onDuplicate={duplicateSelected}
+        onDelete={deleteSelected}
       />
       
       {/* Canvas */}
