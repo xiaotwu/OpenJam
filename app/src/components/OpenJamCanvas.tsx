@@ -298,7 +298,7 @@ export default function OpenJamCanvas({
   });
 
   // Drag-move hook (for moving elements after creation)
-  const { dragMoveStart, startDragMoveSingle: _startDragMoveSingle, startDragMove, updateDragMove, endDragMove } = useDragMove({
+  const { dragMoveStart, startDragMove, updateDragMove, endDragMove } = useDragMove({
     elementStoreRef,
   });
 

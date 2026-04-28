@@ -162,16 +162,22 @@ export class ElementStore {
   }
 
   // --- Event emitter for collaboration ---
-  private eventListeners = new Map<string, Set<Function>>();
+  private operationListeners: Set<StoreEvents['operation']> = new Set();
 
   on<K extends keyof StoreEvents>(event: K, fn: StoreEvents[K]): () => void {
-    if (!this.eventListeners.has(event)) this.eventListeners.set(event, new Set());
-    this.eventListeners.get(event)!.add(fn);
-    return () => { this.eventListeners.get(event)?.delete(fn); };
+    if (event === 'operation') {
+      const listener = fn as StoreEvents['operation'];
+      this.operationListeners.add(listener);
+      return () => { this.operationListeners.delete(listener); };
+    }
+    return () => {};
   }
 
   private emit<K extends keyof StoreEvents>(event: K, ...args: Parameters<StoreEvents[K]>): void {
-    this.eventListeners.get(event)?.forEach(fn => (fn as Function)(...args));
+    if (event === 'operation') {
+      const [op] = args as Parameters<StoreEvents['operation']>;
+      this.operationListeners.forEach(fn => fn(op));
+    }
   }
 
   // Subscribe to changes

@@ -22,17 +22,17 @@ interface PropertyInspectorProps {
 }
 
 export default function PropertyInspector({ element, elementStore }: PropertyInspectorProps) {
-  if (!element) return null;
-
   const onUpdate = useCallback(
     (changes: Partial<Element>) => {
+      if (!element) return;
       elementStore.updateElement(element.id, changes);
     },
-    [element.id, elementStore]
+    [element, elementStore]
   );
 
   const onUpdateWidget = useCallback(
     (data: Record<string, unknown>) => {
+      if (!element) return;
       const widget = element as WidgetElement;
       elementStore.updateElement(element.id, {
         widgetData: { ...widget.widgetData, ...data },
@@ -40,6 +40,8 @@ export default function PropertyInspector({ element, elementStore }: PropertyIns
     },
     [element, elementStore]
   );
+
+  if (!element) return null;
 
   const renderElementProperties = () => {
     switch (element.type) {

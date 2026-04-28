@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useRef, useState, useCallback, type RefObject } from 'react';
 import { ElementStore } from '../../lib/elementStore';
 import type { Element } from '../../lib/elements';

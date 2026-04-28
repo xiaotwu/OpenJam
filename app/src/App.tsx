@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { useAuth, AuthProvider } from './components/AuthContext';
 import AuthPage from './components/AuthPage';
+import Dashboard from './components/Dashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import OpenJamCanvas from './components/OpenJamCanvas';
 import './App.css';
@@ -14,7 +16,7 @@ function generateColor(): string {
 }
 
 function AppContent() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   // Stabilize color so it doesn't change on every render
   const userColor = useMemo(() => generateColor(), []);
 
@@ -33,15 +35,48 @@ function AppContent() {
     return <AuthPage />;
   }
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const roomId = urlParams.get('room') || window.location.pathname.split('/room/')[1] || 'default';
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  return (
+    <Routes>
+      <Route path="/" element={<HomeRoute user={user} onLogout={handleLogout} />} />
+      <Route
+        path="/board/:boardId"
+        element={<BoardRoute userId={user.id} username={user.displayName} color={user.avatarColor || userColor} />}
+      />
+      <Route path="/room/:boardId" element={<LegacyRoomRoute />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function HomeRoute({ user, onLogout }: { user: NonNullable<ReturnType<typeof useAuth>['user']>; onLogout: () => Promise<void> }) {
+  const location = useLocation();
+  const roomId = new URLSearchParams(location.search).get('room');
+
+  if (roomId) {
+    return <Navigate to={`/board/${encodeURIComponent(roomId)}`} replace />;
+  }
+
+  return <Dashboard user={user} onLogout={onLogout} />;
+}
+
+function LegacyRoomRoute() {
+  const { boardId } = useParams();
+  return <Navigate to={`/board/${encodeURIComponent(boardId || 'default')}`} replace />;
+}
+
+function BoardRoute({ userId, username, color }: { userId: string; username: string; color: string }) {
+  const { boardId } = useParams();
 
   return (
     <OpenJamCanvas
-      boardId={roomId}
-      userId={user.id}
-      username={user.displayName}
-      color={user.avatarColor || userColor}
+      boardId={boardId || 'default'}
+      userId={userId}
+      username={username}
+      color={color}
     />
   );
 }
@@ -50,7 +85,9 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <AppContent />
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
       </AuthProvider>
     </ErrorBoundary>
   );
