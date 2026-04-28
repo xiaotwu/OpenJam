@@ -16,6 +16,7 @@ interface UseKeyboardShortcutsOptions {
   onBringToFront: () => void;
   onSendToBack: () => void;
   onCommandPalette: () => void;
+  onHelp: () => void;
   onSetTool: (tool: string) => void;
   onEscape: () => void;
   onSave: () => void;
@@ -44,6 +45,13 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
 
       // Don't handle shortcuts when editing
       if (options.editingId) return;
+
+      // Keyboard shortcuts dialog
+      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        e.preventDefault();
+        options.onHelp();
+        return;
+      }
 
       // Delete selected elements
       if (e.key === 'Delete' || e.key === 'Backspace') {

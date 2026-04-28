@@ -1334,6 +1334,7 @@ export default function OpenJamCanvas({
     onBringToFront: bringToFront,
     onSendToBack: sendToBack,
     onCommandPalette: () => setShowCommandPalette(true),
+    onHelp: () => setShowHelpPanel(true),
     onSetTool: (tool) => {
       setCurrentTool(tool as ToolType);
       if (tool === 'stamp') {
@@ -1757,9 +1758,9 @@ export default function OpenJamCanvas({
       </div>
       
       {/* Status bar */}
-      <div className="absolute bottom-6 left-4 z-40 flex items-center gap-4 px-3 py-1.5 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600">
+      <div className="glass-subtle absolute bottom-6 left-4 z-40 flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
         <span>{elements.length} elements</span>
-        {selectedIds.size > 0 && <span>{selectedIds.size} selected</span>}
+        {selectedIds.size > 0 && <span className="badge rounded-full px-2 py-0.5">{selectedIds.size} selected</span>}
       </div>
 
       {/* Property Inspector */}
@@ -1813,7 +1814,7 @@ export default function OpenJamCanvas({
 
       {/* Save status toast */}
       {saveStatus !== 'idle' && (
-        <div className={`absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-all ${
+        <div className={`toast-surface absolute top-16 left-1/2 z-50 -translate-x-1/2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
           saveStatus === 'saving' ? 'bg-blue-500 text-white' :
           saveStatus === 'saved' ? 'bg-green-500 text-white' :
           saveStatus === 'dirty' ? 'bg-amber-500 text-white' :

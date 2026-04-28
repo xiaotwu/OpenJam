@@ -60,6 +60,7 @@ const KEYBOARD_SHORTCUTS = [
   {
     category: 'Canvas',
     shortcuts: [
+      { key: '?', description: 'Open keyboard shortcuts' },
       { key: 'Ctrl+K', description: 'Command palette' },
       { key: 'Ctrl+N', description: 'New board' },
       { key: 'F2', description: 'Rename board' },
@@ -87,35 +88,30 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
       {/* Backdrop */}
       <div
         className="absolute inset-0 backdrop-blur-sm"
-        style={{ background: 'rgba(0, 0, 0, 0.15)' }}
+        style={{ background: 'var(--surface-overlay)' }}
         onClick={onClose}
       />
 
-      {/* Panel — glassmorphic white */}
+      {/* Panel */}
       <div
-        className="relative rounded-2xl w-full max-w-2xl max-h-[80vh] mx-4 overflow-hidden flex flex-col glass-panel-enter"
-        style={{
-          background: 'rgba(255, 255, 255, 0.78)',
-          backdropFilter: 'blur(40px) saturate(1.8)',
-          WebkitBackdropFilter: 'blur(40px) saturate(1.8)',
-          border: '1px solid rgba(255, 255, 255, 0.6)',
-          boxShadow: '0 24px 80px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-        }}
+        className="relative glass-elevated rounded-2xl w-full max-w-2xl max-h-[80vh] mx-4 overflow-hidden flex flex-col glass-panel-enter"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-dialog-title"
       >
         {/* Header */}
         <div
           className="px-6 py-4 flex items-center justify-between"
-          style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)' }}
+          style={{ borderBottom: '1px solid var(--glass-border-strong)' }}
         >
-          <h2 className="text-lg font-semibold" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+          <h2 id="help-dialog-title" className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
             Help & Resources
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: 'rgba(0, 0, 0, 0.4)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            className="min-h-11 min-w-11 rounded-lg transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            style={{ color: 'var(--text-secondary)' }}
+            aria-label="Close help dialog"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -124,17 +120,17 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         </div>
 
         {/* Tabs */}
-        <div className="px-6 pt-3" style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)' }}>
+        <div className="px-6 pt-3" style={{ borderBottom: '1px solid var(--glass-border-strong)' }}>
           <div className="flex gap-6">
             {(['shortcuts', 'help', 'about'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+                className="border-b-2 pb-3 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: activeTab === tab ? 'var(--accent)' : 'transparent',
+                  color: activeTab === tab ? 'var(--accent)' : 'var(--text-secondary)',
+                }}
               >
                 {tab === 'shortcuts' ? 'Keyboard Shortcuts' : tab === 'help' ? 'Help Center' : 'About'}
               </button>
@@ -148,7 +144,7 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
             <div className="space-y-6">
               {KEYBOARD_SHORTCUTS.map((section) => (
                 <div key={section.category}>
-                  <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgba(0, 0, 0, 0.7)' }}>
+                  <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                     {section.category}
                   </h3>
                   <div className="grid grid-cols-2 gap-2">
@@ -156,17 +152,17 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                       <div
                         key={shortcut.key}
                         className="flex items-center justify-between py-1.5 px-3 rounded-lg"
-                        style={{ background: 'rgba(255, 255, 255, 0.5)' }}
+                        style={{ background: 'var(--glass-bg-subtle)' }}
                       >
-                        <span className="text-sm" style={{ color: 'rgba(0, 0, 0, 0.55)' }}>
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                           {shortcut.description}
                         </span>
                         <kbd
                           className="px-2 py-0.5 text-xs font-mono rounded-md"
                           style={{
-                            background: 'rgba(0, 0, 0, 0.05)',
-                            color: 'rgba(0, 0, 0, 0.7)',
-                            border: '1px solid rgba(0, 0, 0, 0.08)',
+                            background: 'var(--badge-bg)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--glass-border-strong)',
                           }}
                         >
                           {shortcut.key}
@@ -319,8 +315,9 @@ export function HelpButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-8 h-8 glass rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: 'var(--text-secondary)' }}
+      className="glass flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-white/10" style={{ color: 'var(--text-secondary)' }}
       title="Help & shortcuts"
+      aria-label="Help and keyboard shortcuts"
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
