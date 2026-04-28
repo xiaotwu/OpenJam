@@ -1391,6 +1391,8 @@ export default function OpenJamCanvas({
         onZoomReset={handleZoomReset}
         onZoomFit={handleZoomFit}
         onSave={saveToDatabase}
+        saveStatus={saveStatus}
+        saveError={saveError}
         onExportPNG={exportToPNG}
         onExportJSON={exportToJSONFile}
         onShare={() => setShowShareDialog(true)}
