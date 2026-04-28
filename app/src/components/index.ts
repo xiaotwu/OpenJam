@@ -28,4 +28,5 @@ export { default as StampTool } from './StampTool';
 
 // Auth
 export { default as AuthPage } from './AuthPage';
+export { default as WorkspaceDashboard } from './WorkspaceDashboard';
 export { AuthProvider, useAuth } from './AuthContext';

@@ -74,6 +74,7 @@ func main() {
 		api.POST("/rooms", handler.CreateRoom)
 		api.GET("/rooms", handler.ListRooms)
 		api.GET("/rooms/:id", handler.GetRoom)
+		api.PUT("/rooms/:id", handler.UpdateRoom)
 		api.DELETE("/rooms/:id", handler.DeleteRoom)
 
 		api.POST("/rooms/:id/save", handler.SaveBoard)

@@ -5,9 +5,10 @@ import { useAuth } from './AuthContext';
 interface AuthPageProps {
   onSuccess?: () => void;
   initialMode?: 'login' | 'register';
+  variant?: 'page' | 'modal';
 }
 
-export default function AuthPage({ onSuccess, initialMode = 'login' }: AuthPageProps) {
+export default function AuthPage({ onSuccess, initialMode = 'login', variant = 'page' }: AuthPageProps) {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
@@ -40,18 +41,27 @@ export default function AuthPage({ onSuccess, initialMode = 'login' }: AuthPageP
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-100 via-yellow-100 to-orange-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
+  const authCard = (
+    <div className={variant === 'modal' ? 'w-full pt-8' : 'w-full max-w-md'}>
+      {variant === 'page' && (
         <div className="text-center mb-8">
           <Link to="/" aria-label="Back to OpenJam home">
             <img src="/icons/openjam.png" alt="OpenJam" className="w-20 h-20 mx-auto rounded-2xl shadow-lg" />
           </Link>
         </div>
+      )}
 
-        {/* Auth Card */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-8">
+      {variant === 'modal' && (
+        <div className="mb-6 flex items-center gap-3">
+          <img src="/icons/openjam.png" alt="" className="h-11 w-11 rounded-xl shadow-sm" />
+          <div>
+            <h2 className="text-xl font-semibold">OpenJam</h2>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Enter your workplace</p>
+          </div>
+        </div>
+      )}
+
+      <div className={variant === 'modal' ? '' : 'bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-8'}>
           {/* Tabs */}
           <div className="flex mb-6">
             <button
@@ -154,7 +164,16 @@ export default function AuthPage({ onSuccess, initialMode = 'login' }: AuthPageP
             </button>
           </form>
         </div>
-      </div>
+    </div>
+  );
+
+  if (variant === 'modal') {
+    return authCard;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-amber-100 via-yellow-100 to-orange-100 flex items-center justify-center p-4">
+      {authCard}
     </div>
   );
 }

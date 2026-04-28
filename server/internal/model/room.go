@@ -89,6 +89,32 @@ func DeleteRoom(ctx context.Context, id string, userID uuid.UUID) error {
 	return err
 }
 
+func UpdateRoom(ctx context.Context, id, name string, userID uuid.UUID) (*Room, error) {
+	room, err := GetRoom(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if room.OwnerID != userID {
+		return nil, ErrNotRoomOwner
+	}
+
+	updated := &Room{}
+	err = db.Pool().QueryRow(ctx, `
+		UPDATE rooms
+		SET name = $1, updated_at = NOW()
+		WHERE id = $2
+		RETURNING id, name, owner_id, created_at, updated_at
+	`, name, id).Scan(&updated.ID, &updated.Name, &updated.OwnerID, &updated.CreatedAt, &updated.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRoomNotFound
+		}
+		return nil, err
+	}
+
+	return updated, nil
+}
+
 func EnsureRoom(ctx context.Context, id, name string, ownerID uuid.UUID) (*Room, error) {
 	room, err := GetRoom(ctx, id)
 	if err == nil {

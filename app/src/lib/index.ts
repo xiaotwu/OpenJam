@@ -11,6 +11,7 @@ export {
   createRoom,
   listRooms,
   getRoom,
+  updateRoom,
   deleteRoom,
   saveBoard,
   loadBoard,

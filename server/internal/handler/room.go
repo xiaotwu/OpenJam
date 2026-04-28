@@ -15,6 +15,10 @@ type CreateRoomRequest struct {
 	Name string `json:"name" binding:"required,min=1"`
 }
 
+type UpdateRoomRequest struct {
+	Name string `json:"name" binding:"required,min=1"`
+}
+
 func CreateRoom(c *gin.Context) {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -85,6 +89,48 @@ func GetRoom(c *gin.Context) {
 	// Only the room owner can access the room (TODO: expand to room members)
 	if room.OwnerID != user.ID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+		return
+	}
+
+	c.JSON(http.StatusOK, room)
+}
+
+func UpdateRoom(c *gin.Context) {
+	user := middleware.GetUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	roomID := c.Param("id")
+	if roomID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID required"})
+		return
+	}
+
+	var req UpdateRoomRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Room name required"})
+		return
+	}
+
+	room, err := model.UpdateRoom(c.Request.Context(), roomID, name, user.ID)
+	if err != nil {
+		if errors.Is(err, model.ErrRoomNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
+			return
+		}
+		if errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update room"})
 		return
 	}
 

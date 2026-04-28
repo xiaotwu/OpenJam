@@ -155,6 +155,13 @@ export async function getRoom(id: string): Promise<Room> {
   return request(`/api/rooms/${id}`);
 }
 
+export async function updateRoom(id: string, name: string): Promise<Room> {
+  return request(`/api/rooms/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  });
+}
+
 export async function deleteRoom(id: string): Promise<void> {
   await request(`/api/rooms/${id}`, { method: 'DELETE' });
 }
