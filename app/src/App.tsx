@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth, AuthProvider } from './components/AuthContext';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import OpenJamCanvas from './components/OpenJamCanvas';
+import type { User } from './lib/api';
 import './App.css';
 
 function generateColor(): string {
@@ -31,10 +32,6 @@ function AppContent() {
     );
   }
 
-  if (!user) {
-    return <AuthPage />;
-  }
-
   const handleLogout = async () => {
     await logout();
   };
@@ -42,9 +39,12 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<HomeRoute user={user} onLogout={handleLogout} />} />
+      <Route path="/auth" element={<AuthRoute user={user} />} />
+      <Route path="/login" element={<Navigate to="/auth?mode=login" replace />} />
+      <Route path="/register" element={<Navigate to="/auth?mode=register" replace />} />
       <Route
         path="/board/:boardId"
-        element={<BoardRoute userId={user.id} username={user.displayName} color={user.avatarColor || userColor} />}
+        element={<BoardRoute user={user} fallbackColor={userColor} />}
       />
       <Route path="/room/:boardId" element={<LegacyRoomRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -52,7 +52,7 @@ function AppContent() {
   );
 }
 
-function HomeRoute({ user, onLogout }: { user: NonNullable<ReturnType<typeof useAuth>['user']>; onLogout: () => Promise<void> }) {
+function HomeRoute({ user, onLogout }: { user: User | null; onLogout: () => Promise<void> }) {
   const location = useLocation();
   const roomId = new URLSearchParams(location.search).get('room');
 
@@ -63,22 +63,57 @@ function HomeRoute({ user, onLogout }: { user: NonNullable<ReturnType<typeof use
   return <Dashboard user={user} onLogout={onLogout} />;
 }
 
+function AuthRoute({ user }: { user: User | null }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
+  const next = getSafeNextPath(searchParams.get('next'));
+
+  if (user) {
+    return <Navigate to={next || '/'} replace />;
+  }
+
+  return (
+    <AuthPage
+      initialMode={mode}
+      onSuccess={() => {
+        navigate(next || '/', { replace: true });
+      }}
+    />
+  );
+}
+
 function LegacyRoomRoute() {
   const { boardId } = useParams();
   return <Navigate to={`/board/${encodeURIComponent(boardId || 'default')}`} replace />;
 }
 
-function BoardRoute({ userId, username, color }: { userId: string; username: string; color: string }) {
+function BoardRoute({ user, fallbackColor }: { user: User | null; fallbackColor: string }) {
+  const location = useLocation();
   const { boardId } = useParams();
+
+  if (!user) {
+    const next = encodeURIComponent(`${location.pathname}${location.search}`);
+    return <Navigate to={`/auth?mode=login&next=${next}`} replace />;
+  }
 
   return (
     <OpenJamCanvas
       boardId={boardId || 'default'}
-      userId={userId}
-      username={username}
-      color={color}
+      userId={user.id}
+      username={user.displayName}
+      color={user.avatarColor || fallbackColor}
     />
   );
+}
+
+function getSafeNextPath(next: string | null): string | null {
+  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+    return null;
+  }
+
+  return next;
 }
 
 function App() {

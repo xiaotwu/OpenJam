@@ -1,18 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 interface AuthPageProps {
   onSuccess?: () => void;
+  initialMode?: 'login' | 'register';
 }
 
-export default function AuthPage({ onSuccess }: AuthPageProps) {
+export default function AuthPage({ onSuccess, initialMode = 'login' }: AuthPageProps) {
   const { login, register } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setMode(initialMode);
+    setError(null);
+  }, [initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +45,9 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/icons/openjam.png" alt="OpenJam" className="w-20 h-20 mx-auto rounded-2xl shadow-lg" />
+          <Link to="/" aria-label="Back to OpenJam home">
+            <img src="/icons/openjam.png" alt="OpenJam" className="w-20 h-20 mx-auto rounded-2xl shadow-lg" />
+          </Link>
         </div>
 
         {/* Auth Card */}

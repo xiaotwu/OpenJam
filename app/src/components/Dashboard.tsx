@@ -2,8 +2,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { User } from '../lib/api';
 
 interface DashboardProps {
-  user: User;
-  onLogout: () => void;
+  user: User | null;
+  onLogout?: () => void;
 }
 
 interface RecentBoard {
@@ -49,8 +49,14 @@ function createBoardId(): string {
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const navigate = useNavigate();
 
+  const getBoardHref = (boardId: string) => {
+    const path = `/board/${boardId}`;
+    return user ? path : `/auth?mode=login&next=${encodeURIComponent(path)}`;
+  };
+
   const handleNewBoard = () => {
-    navigate(`/board/${createBoardId()}`);
+    const path = `/board/${createBoardId()}`;
+    navigate(user ? path : `/auth?mode=login&next=${encodeURIComponent(path)}`);
   };
 
   return (
@@ -65,20 +71,39 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{user.displayName}</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
+          {user ? (
+            <div className="flex items-center gap-3">
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-medium">{user.displayName}</p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="min-h-11 rounded-xl px-4 text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Sign out
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="min-h-11 rounded-xl px-4 text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Sign out
-            </button>
-          </div>
+          ) : (
+            <nav className="flex items-center gap-2" aria-label="Account">
+              <Link
+                to="/auth?mode=login"
+                className="flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/auth?mode=register"
+                className="flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                style={{ background: 'var(--accent-gradient)' }}
+              >
+                Create account
+              </Link>
+            </nav>
+          )}
         </header>
 
         <section className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[0.9fr_1.1fr]">
@@ -102,7 +127,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 New Board
               </button>
               <Link
-                to="/board/default"
+                to={getBoardHref('default')}
                 className="flex min-h-11 items-center rounded-xl px-5 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 style={{ color: 'var(--text-primary)' }}
               >
@@ -123,7 +148,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               {recentBoards.map((board) => (
                 <Link
                   key={board.id}
-                  to={`/board/${board.id}`}
+                  to={getBoardHref(board.id)}
                   className="group grid min-h-[116px] grid-cols-[72px_1fr] gap-4 rounded-xl border p-4 transition hover:-translate-y-0.5 hover:bg-white/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                   style={{ borderColor: 'var(--glass-border-strong)' }}
                 >
