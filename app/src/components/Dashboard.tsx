@@ -9,7 +9,6 @@ interface DashboardProps {
   user: User | null;
   onLogout?: () => void | Promise<void>;
   initialMode?: AuthMode | null;
-  authNext?: string | null;
   onSuccess?: () => void;
   onAuthClose?: () => void;
 }
@@ -24,7 +23,6 @@ export default function Dashboard({
   user,
   onLogout,
   initialMode = null,
-  authNext,
   onSuccess,
   onAuthClose,
 }: DashboardProps) {
@@ -51,7 +49,6 @@ export default function Dashboard({
             <img src="/icons/openjam.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
             <div>
               <h1 className="text-xl font-semibold leading-tight">OpenJam</h1>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Collaborative whiteboards</p>
             </div>
           </Link>
 
@@ -95,9 +92,6 @@ export default function Dashboard({
             <h2 className="max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
               Pick up the room where the work is already moving.
             </h2>
-            <p className="mt-5 max-w-xl text-lg" style={{ color: 'var(--text-secondary)' }}>
-              A collaborative canvas for mapping ideas, shaping decisions, and returning to the exact boards your team left in motion.
-            </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {user ? (
                 <Link
@@ -135,7 +129,6 @@ export default function Dashboard({
             <div className="relative z-10 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Product Sprint</p>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Live canvas demo</p>
               </div>
               <div className="flex -space-x-2" aria-label="Demo collaborators">
                 {['AM', 'JT', 'SK'].map((initials, index) => (
@@ -201,11 +194,6 @@ export default function Dashboard({
                 onSuccess?.();
               }}
             />
-            {authNext && (
-              <p className="mt-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                You will continue after signing in.
-              </p>
-            )}
           </section>
         </div>
       )}

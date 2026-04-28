@@ -88,7 +88,6 @@ function AuthRoute({ user }: { user: User | null }) {
     <Dashboard
       user={null}
       initialMode={mode}
-      authNext={next}
       onSuccess={() => {
         navigate(next || '/workplace', { replace: true });
       }}

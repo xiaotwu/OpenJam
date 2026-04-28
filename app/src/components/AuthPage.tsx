@@ -56,7 +56,6 @@ export default function AuthPage({ onSuccess, initialMode = 'login', variant = '
           <img src="/icons/openjam.png" alt="" className="h-11 w-11 rounded-xl shadow-sm" />
           <div>
             <h2 className="text-xl font-semibold">OpenJam</h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Enter your workplace</p>
           </div>
         </div>
       )}

@@ -228,54 +228,84 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
 
   return (
     <main className="min-h-screen overflow-auto" style={{ background: 'var(--surface-canvas)', color: 'var(--text-primary)' }}>
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_520px]">
-        <aside className="border-b border-black/5 bg-white/50 p-5 backdrop-blur-xl lg:border-b-0 lg:border-r">
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="flex flex-col border-b border-black/5 bg-white/55 p-5 backdrop-blur-xl lg:min-h-screen lg:border-b-0 lg:border-r">
           <Link to="/" className="flex min-h-11 items-center gap-3 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
             <img src="/icons/openjam.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
-            <div>
-              <p className="font-semibold leading-tight">OpenJam</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Workplace</p>
-            </div>
+            <p className="font-semibold leading-tight">OpenJam</p>
           </Link>
 
-          <div className="mt-8">
+          <button
+            type="button"
+            onClick={handleNewBoard}
+            disabled={creating}
+            className="mt-8 flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            style={{ background: 'var(--accent-gradient)' }}
+          >
+            {creating ? 'Creating...' : 'New'}
+          </button>
+
+          <section className="mt-8">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>
+                Categories
+              </h2>
+              <button
+                type="button"
+                onClick={handleAddWorkspace}
+                className="min-h-11 rounded-xl px-3 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {groupedWorkspaces.map((workspace) => (
+                <button
+                  key={workspace.id}
+                  type="button"
+                  onClick={() => handleToggleWorkspace(workspace.id)}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                  aria-expanded={!workspace.collapsed}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="h-3 w-3 rounded-full" style={{ background: workspace.color }} />
+                    <span className="truncate text-sm font-semibold">{workspace.name}</span>
+                  </span>
+                  <span className="rounded-full px-2 py-1 text-xs" style={{ background: 'var(--badge-bg)', color: 'var(--text-secondary)' }}>
+                    {workspace.rooms.length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="mt-8 border-t border-black/5 pt-5 lg:mt-auto">
+            <p className="truncate text-sm font-semibold">{user.displayName}</p>
+            <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
             <button
               type="button"
-              onClick={handleNewBoard}
-              disabled={creating}
-              className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              style={{ background: 'var(--accent-gradient)' }}
+              onClick={onLogout}
+              className="mt-4 min-h-11 w-full rounded-xl px-4 text-left text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              style={{ color: 'var(--text-secondary)' }}
             >
-              {creating ? 'Creating...' : 'New'}
+              Sign out
             </button>
           </div>
         </aside>
 
-        <section className="min-w-0 px-6 py-6 lg:px-8">
-          <header className="flex flex-wrap items-start justify-between gap-4">
+        <section className="min-w-0 px-5 py-6 sm:px-8">
+          <header className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
                 Workplace
               </p>
               <h1 className="mt-2 text-3xl font-semibold">Good to see you, {user.displayName}.</h1>
-              <p className="mt-2 max-w-2xl text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Projects, drafts, and workspace categories for your saved OpenJam boards.
-              </p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium">{user.displayName}</p>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
-              </div>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="min-h-11 rounded-xl px-4 text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                Sign out
-              </button>
+            <div className="rounded-2xl border bg-white/60 px-4 py-3 text-right" style={{ borderColor: 'var(--glass-border-strong)' }}>
+              <p className="text-2xl font-semibold">{rooms.length}</p>
+              <p className="text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--text-secondary)' }}>Projects</p>
             </div>
           </header>
 
@@ -285,72 +315,27 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             </div>
           )}
 
-          <section className="mt-8 glass-elevated rounded-3xl p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">Categorization</h2>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{rooms.length} saved projects</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddWorkspace}
-                className="min-h-11 rounded-xl px-4 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                Add workspace
-              </button>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {groupedWorkspaces.map((workspace) => (
-                <button
-                  key={workspace.id}
-                  type="button"
-                  onClick={() => handleToggleWorkspace(workspace.id)}
-                  className="min-h-[112px] rounded-2xl border bg-white/55 p-4 text-left transition hover:-translate-y-0.5 hover:bg-white/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  style={{ borderColor: 'var(--glass-border-strong)' }}
-                  aria-expanded={!workspace.collapsed}
-                >
-                  <span className="block h-2 w-12 rounded-full" style={{ background: workspace.color }} />
-                  <span className="mt-4 block text-base font-semibold">{workspace.name}</span>
-                  <span className="mt-1 block text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {workspace.rooms.length} {workspace.rooms.length === 1 ? 'project' : 'projects'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
-        </section>
-
-        <aside className="border-t border-black/5 bg-white/55 p-5 backdrop-blur-xl lg:border-l lg:border-t-0">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Workspaces</h2>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Saved projects and drafts</p>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-4">
+          <div className="mt-8 space-y-5">
             {loading ? (
               <div className="glass-subtle rounded-2xl p-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Loading projects...
               </div>
             ) : rooms.length === 0 ? (
-              <div className="glass-subtle rounded-2xl p-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <div className="glass-subtle rounded-2xl p-8 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 No saved projects yet.
               </div>
             ) : (
               groupedWorkspaces.map((workspace) => (
-                <section key={workspace.id} className="rounded-2xl border bg-white/55" style={{ borderColor: 'var(--glass-border-strong)' }}>
+                <section key={workspace.id} className="glass-elevated rounded-3xl p-4">
                   <button
                     type="button"
                     onClick={() => handleToggleWorkspace(workspace.id)}
-                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                    className="flex min-h-11 w-full items-center justify-between gap-4 rounded-2xl px-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                     aria-expanded={!workspace.collapsed}
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       <span className="h-3 w-3 rounded-full" style={{ background: workspace.color }} />
-                      <span className="truncate font-semibold">{workspace.name}</span>
+                      <span className="truncate text-lg font-semibold">{workspace.name}</span>
                     </span>
                     <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                       {workspace.collapsed ? '+' : '-'} {workspace.rooms.length}
@@ -358,28 +343,26 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                   </button>
 
                   {!workspace.collapsed && (
-                    <div className="space-y-3 px-3 pb-3">
+                    <div className="mt-4 grid gap-3 xl:grid-cols-2">
                       {workspace.rooms.length === 0 ? (
-                        <div className="rounded-xl bg-white/50 px-3 py-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="rounded-2xl bg-white/55 px-4 py-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                           Empty workspace
                         </div>
                       ) : (
                         workspace.rooms.map((room) => (
-                          <article key={room.id} className="rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: 'var(--glass-border-strong)' }}>
-                            <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-3">
-                              <div className="rounded-xl" style={{ background: roomAccent(room.id) }}>
-                                <div className="h-full min-h-[52px] w-full rounded-xl bg-white/20" />
+                          <article key={room.id} className="rounded-2xl border bg-white/78 p-4 shadow-sm" style={{ borderColor: 'var(--glass-border-strong)' }}>
+                            <div className="grid gap-4 sm:grid-cols-[68px_minmax(0,1fr)]">
+                              <div className="aspect-square rounded-2xl" style={{ background: roomAccent(room.id) }}>
+                                <div className="h-full w-full rounded-2xl bg-white/20" />
                               </div>
                               <div className="min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <h3 className="truncate text-sm font-semibold">{room.name}</h3>
-                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                      Updated {formatDate(room.updatedAt)}
-                                    </p>
-                                  </div>
+                                <div className="min-w-0">
+                                  <h3 className="truncate text-base font-semibold">{room.name}</h3>
+                                  <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                    Updated {formatDate(room.updatedAt)}
+                                  </p>
                                 </div>
-                                <div className="mt-3 flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${room.name} actions`}>
+                                <div className="mt-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${room.name} actions`}>
                                   <Link
                                     to={`/board/${room.id}`}
                                     className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-white transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
@@ -424,7 +407,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
               ))
             )}
           </div>
-        </aside>
+        </section>
       </div>
     </main>
   );
