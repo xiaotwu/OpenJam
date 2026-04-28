@@ -60,7 +60,7 @@ docker compose -f docker-compose.dev.yml up -d
 cd server
 cp .env.example .env   # Linux/macOS
 # copy .env.example .env  # Windows
-go run main.go
+go run .
 ```
 
 ### 3. Run Frontend

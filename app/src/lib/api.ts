@@ -23,6 +23,8 @@ export interface AuthResponse {
 }
 
 const TOKEN_KEY = 'wb_token';
+const DEV_API_URL = 'http://localhost:8080';
+const BACKEND_UNAVAILABLE_MESSAGE = `OpenJam API is unavailable. Start the Go backend on ${DEV_API_URL} and try again.`;
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -34,6 +36,30 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+async function getErrorMessage(response: Response): Promise<string> {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    const error = await response.json().catch(() => null);
+    if (typeof error?.error === 'string') {
+      return error.error;
+    }
+    if (typeof error?.message === 'string') {
+      return error.message;
+    }
+  }
+
+  const body = await response.text().catch(() => '');
+  const isUnavailableStatus = [500, 502, 503, 504].includes(response.status);
+  const isDevProxyRequest = API_BASE === '';
+
+  if (isDevProxyRequest && isUnavailableStatus) {
+    return BACKEND_UNAVAILABLE_MESSAGE;
+  }
+
+  return body.trim() || `Request failed with HTTP ${response.status}`;
 }
 
 async function request<T>(
@@ -51,15 +77,20 @@ async function request<T>(
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+  } catch {
+    throw new Error(BACKEND_UNAVAILABLE_MESSAGE);
+  }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `HTTP ${response.status}`);
+    throw new Error(await getErrorMessage(response));
   }
 
   return response.json();

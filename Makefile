@@ -20,7 +20,7 @@ dev:
 	@echo "Starting dev servers..."
 	@echo "Run: docker compose -f docker-compose.dev.yml up -d"
 	@echo "Then in separate terminals:"
-	@echo "  cd server && go run main.go"
+	@echo "  cd server && go run ."
 	@echo "  cd app && bun run dev"
 
 # Docker compose build and up
