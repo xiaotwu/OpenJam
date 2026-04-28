@@ -1754,9 +1754,17 @@ export default function OpenJamCanvas({
       </div>
       
       {/* Status bar */}
-      <div className="glass-subtle absolute bottom-6 left-4 z-40 flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        <span>{elements.length} elements</span>
-        {selectedIds.size > 0 && <span className="badge rounded-full px-2 py-0.5">{selectedIds.size} selected</span>}
+      <div className="glass-subtle absolute bottom-6 left-4 z-40 flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <span className="flex items-center gap-1.5 rounded-lg px-2" title={`${elements.length} elements`} aria-label={`${elements.length} elements`}>
+          <ElementsIcon />
+          <span>{elements.length}</span>
+        </span>
+        {selectedIds.size > 0 && (
+          <span className="badge flex items-center gap-1.5 rounded-lg px-2 py-1" title={`${selectedIds.size} selected`} aria-label={`${selectedIds.size} selected`}>
+            <SelectionCountIcon />
+            <span>{selectedIds.size}</span>
+          </span>
+        )}
       </div>
 
       {/* Property Inspector */}
@@ -1826,5 +1834,25 @@ export default function OpenJamCanvas({
         </div>
       )}
     </div>
+  );
+}
+
+function ElementsIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="4" width="7" height="7" rx="1" />
+      <rect x="13" y="4" width="7" height="7" rx="1" />
+      <rect x="4" y="13" width="7" height="7" rx="1" />
+      <rect x="13" y="13" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function SelectionCountIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" rx="2" strokeDasharray="3 2" />
+      <path d="M9 12l2 2 4-5" />
+    </svg>
   );
 }

@@ -22,9 +22,17 @@ const colors: Record<ConnectionState, string> = {
 
 export default function ConnectionStatus({ state }: ConnectionStatusProps) {
   return (
-    <div className="hidden items-center gap-1.5 rounded-full px-2 py-1 text-xs sm:flex" style={{ background: 'var(--glass-bg-subtle)', color: 'var(--text-secondary)' }}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: colors[state] }} />
-      <span>{labels[state]}</span>
+    <div
+      className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl sm:flex"
+      style={{ color: colors[state] }}
+      title={labels[state]}
+      aria-label={labels[state]}
+      role="status"
+    >
+      <span className="relative flex h-3 w-3">
+        {state === 'connected' && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: colors[state] }} />}
+        <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: colors[state] }} />
+      </span>
     </div>
   );
 }
