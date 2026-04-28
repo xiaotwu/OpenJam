@@ -367,6 +367,23 @@ export default function OpenJamCanvas({
     { userId: 'mock-ana', name: 'Ana', color: '#10B981', x: 380, y: 180 },
     { userId: 'mock-lee', name: 'Lee', color: '#3B82F6', x: 620, y: 360 },
   ], []);
+  const [autosaveReady, setAutosaveReady] = useState(false);
+
+  // Debounced autosave
+  const { saveStatus, saveError, markDirty, saveToDatabase } = useAutoSave({
+    boardId: _boardId,
+    getElements: () => elementStoreRef.current.getElements(),
+    getBoardName: () => boardName,
+    getStamps: () => stamps,
+    getPages: () => pages,
+    getCurrentPageId: () => currentPageId,
+    enabled: autosaveReady,
+  });
+
+  const handleBoardNameChange = useCallback((name: string) => {
+    setBoardName(name);
+    markDirty();
+  }, [markDirty]);
   
   // Interaction state
   const [isPanning, setIsPanning] = useState(false);
@@ -388,8 +405,16 @@ export default function OpenJamCanvas({
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const store = elementStoreRef.current;
+    return store.on('operation', () => {
+      markDirty();
+    });
+  }, [markDirty]);
+
   // Load board data from database on mount
   useEffect(() => {
+    setAutosaveReady(false);
     const loadBoardFromDatabase = async () => {
       try {
         const { loadBoard } = await import('../lib/api');
@@ -413,6 +438,8 @@ export default function OpenJamCanvas({
         }
       } catch (err) {
         console.error('Failed to load board data:', err);
+      } finally {
+        setAutosaveReady(true);
       }
     };
     loadBoardFromDatabase();
@@ -507,8 +534,9 @@ export default function OpenJamCanvas({
       elementStoreRef.current.deleteElement(id);
     });
     setStamps((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+    markDirty();
     setSelectedIds(new Set());
-  }, [selectedIds]);
+  }, [selectedIds, markDirty]);
   
   // Clipboard operations
   const { clipboard, duplicateSelected, copySelected, cutSelected, pasteElements } = useClipboard({
@@ -570,15 +598,18 @@ export default function OpenJamCanvas({
     };
     setPages((prev) => [...prev, newPage]);
     setCurrentPageId(newPage.id);
-  }, [pages.length]);
+    markDirty();
+  }, [pages.length, markDirty]);
   
   const handleSelectPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
-  }, []);
+    markDirty();
+  }, [markDirty]);
   
   const handleRenamePage = useCallback((pageId: string, name: string) => {
     setPages((prev) => prev.map((p) => (p.id === pageId ? { ...p, name } : p)));
-  }, []);
+    markDirty();
+  }, [markDirty]);
   
   const handleDuplicatePage = useCallback((pageId: string) => {
     const pageToDuplicate = pages.find((p) => p.id === pageId);
@@ -592,7 +623,8 @@ export default function OpenJamCanvas({
     newPages.splice(index + 1, 0, newPage);
     setPages(newPages);
     setCurrentPageId(newPage.id);
-  }, [pages]);
+    markDirty();
+  }, [pages, markDirty]);
   
   const handleDeletePage = useCallback((pageId: string) => {
     if (pages.length <= 1) return; // Can't delete last page
@@ -601,7 +633,8 @@ export default function OpenJamCanvas({
       const remaining = pages.filter((p) => p.id !== pageId);
       setCurrentPageId(remaining[0]?.id || '');
     }
-  }, [pages, currentPageId]);
+    markDirty();
+  }, [pages, currentPageId, markDirty]);
   
   // User profile update handler
   const handleUpdateProfile = useCallback((settings: { username: string; color: string; avatarUrl?: string }) => {
@@ -759,16 +792,6 @@ export default function OpenJamCanvas({
     link.href = canvas.toDataURL('image/png');
     link.click();
   }, [elements, boardName]);
-  
-  // Save to database
-  const { saveStatus, saveError, saveToDatabase } = useAutoSave({
-    boardId: _boardId,
-    getElements: () => elementStoreRef.current.getElements(),
-    getBoardName: () => boardName,
-    getStamps: () => stamps,
-    getPages: () => pages,
-    getCurrentPageId: () => currentPageId,
-  });
   
   // Export to JSON file (for download)
   const exportToJSONFile = useCallback(() => {
@@ -1015,6 +1038,7 @@ export default function OpenJamCanvas({
           createdAt: Date.now(),
         };
         setStamps((prev) => [...prev, newStamp]);
+        markDirty();
         return;
       }
       
@@ -1030,7 +1054,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing, selectedIds, startDragMove, elementStoreRef]
+    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing, selectedIds, startDragMove, elementStoreRef, markDirty]
   );
   
   // Handle canvas mouse move
@@ -1135,12 +1159,13 @@ export default function OpenJamCanvas({
   // Delete stamp by id
   const deleteStamp = useCallback((stampId: string) => {
     setStamps((prev) => prev.filter((s) => s.id !== stampId));
+    markDirty();
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
       newSet.delete(stampId);
       return newSet;
     });
-  }, []);
+  }, [markDirty]);
 
   // Handle right-click context menu
   const handleContextMenu = useCallback(
@@ -1385,7 +1410,7 @@ export default function OpenJamCanvas({
       {/* Menu Bar — self-positions absolute top-right, includes avatar stack */}
       <MenuBar
         boardName={boardName}
-        onBoardNameChange={setBoardName}
+        onBoardNameChange={handleBoardNameChange}
         onUndo={() => elementStoreRef.current.undo()}
         onRedo={() => elementStoreRef.current.redo()}
         onSelectAll={selectAll}
@@ -1427,6 +1452,7 @@ export default function OpenJamCanvas({
           };
           setPages((prev) => [...prev, newPage]);
           setCurrentPageId(newPage.id);
+          markDirty();
         }}
         // User settings
         username={currentUsername}
@@ -1659,8 +1685,14 @@ export default function OpenJamCanvas({
               stamp={stamp}
               isSelected={selectedIds.has(stamp.id)}
               onSelect={handleSelect}
-              onDelete={(id) => setStamps((prev) => prev.filter((s) => s.id !== id))}
-              onMove={(id, x, y) => setStamps((prev) => prev.map((s) => s.id === id ? { ...s, x, y } : s))}
+              onDelete={(id) => {
+                setStamps((prev) => prev.filter((s) => s.id !== id));
+                markDirty();
+              }}
+              onMove={(id, x, y) => {
+                setStamps((prev) => prev.map((s) => s.id === id ? { ...s, x, y } : s));
+                markDirty();
+              }}
             />
           ))}
           
@@ -1784,11 +1816,16 @@ export default function OpenJamCanvas({
         <div className={`absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-all ${
           saveStatus === 'saving' ? 'bg-blue-500 text-white' :
           saveStatus === 'saved' ? 'bg-green-500 text-white' :
+          saveStatus === 'dirty' ? 'bg-amber-500 text-white' :
+          saveStatus === 'offline' ? 'bg-gray-700 text-white' :
           'bg-red-500 text-white'
         }`}>
+          {saveStatus === 'dirty' && 'Unsaved changes'}
           {saveStatus === 'saving' && 'Saving...'}
           {saveStatus === 'saved' && 'Saved successfully'}
           {saveStatus === 'error' && `Failed to save: ${saveError}`}
+          {saveStatus === 'offline' && 'Offline - changes will save when reconnected'}
+          {saveStatus === 'conflict' && 'Save conflict detected'}
         </div>
       )}
     </div>
