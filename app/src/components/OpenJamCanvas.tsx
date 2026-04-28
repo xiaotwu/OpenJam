@@ -71,7 +71,6 @@ import VersionHistoryPanel, { generateMockVersions } from './VersionHistoryPanel
 import ImageUploadDialog from './ImageUploadDialog';
 import FileInfoDialog from './FileInfoDialog';
 import FloatingObjectToolbar from './FloatingObjectToolbar';
-import LiveCursorLayer, { type LiveCursor } from './collaboration/LiveCursorLayer';
 import { type Page } from './PagesPanel';
 
 // Tool options interface
@@ -356,17 +355,19 @@ export default function OpenJamCanvas({
     elementsCount: elements.length,
   }), [_boardId, boardName, currentUsername, elements.length]);
   
-  // Collaborators (mock data for now)
-  const [collaborators] = useState<Collaborator[]>([
-    { id: userId, name: username, email: `${username}@example.com`, color, permission: 'edit', isOnline: true },
-    { id: 'mock-ana', name: 'Ana', email: 'ana@example.com', color: '#10B981', permission: 'edit', isOnline: true },
-    { id: 'mock-lee', name: 'Lee', email: 'lee@example.com', color: '#3B82F6', permission: 'comment', isOnline: true },
-  ]);
+  // Current-user presence only. Real remote collaborators should be injected by collaboration hooks.
+  const collaborators = useMemo<Collaborator[]>(() => [
+    {
+      id: userId,
+      name: currentUsername,
+      email: `${currentUsername.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+      avatarUrl: currentUserAvatarUrl,
+      color: currentUserColor,
+      permission: 'edit',
+      isOnline: true,
+    },
+  ], [userId, currentUsername, currentUserAvatarUrl, currentUserColor]);
   const [linkPermission, setLinkPermission] = useState<'restricted' | 'anyone-view' | 'anyone-comment' | 'anyone-edit'>('restricted');
-  const mockLiveCursors = useMemo<LiveCursor[]>(() => [
-    { userId: 'mock-ana', name: 'Ana', color: '#10B981', x: 380, y: 180 },
-    { userId: 'mock-lee', name: 'Lee', color: '#3B82F6', x: 620, y: 360 },
-  ], []);
   const [autosaveReady, setAutosaveReady] = useState(false);
 
   // Debounced autosave
@@ -422,19 +423,16 @@ export default function OpenJamCanvas({
         if (data) {
           if (data.name) setBoardName(data.name);
           // Load elements directly without creating operations
-          if (data.elements && Array.isArray(data.elements) && data.elements.length > 0) {
-            const store = elementStoreRef.current;
-            store.loadSavedElements(data.elements as Element[]);
-          }
-          if (data.stamps && Array.isArray(data.stamps) && data.stamps.length > 0) {
-            setStamps(data.stamps as Stamp[]);
-          }
-          if (data.pages && Array.isArray(data.pages) && data.pages.length > 0) {
-            setPages(data.pages as Page[]);
-          }
-          if (data.currentPageId) {
-            setCurrentPageId(data.currentPageId);
-          }
+          const savedElements = Array.isArray(data.elements) ? data.elements as Element[] : [];
+          const savedStamps = Array.isArray(data.stamps) ? data.stamps as Stamp[] : [];
+          const savedPages = Array.isArray(data.pages) && data.pages.length > 0
+            ? data.pages as Page[]
+            : [{ id: 'page-1', name: 'Page 1' }];
+
+          elementStoreRef.current.loadSavedElements(savedElements);
+          setStamps(savedStamps);
+          setPages(savedPages);
+          setCurrentPageId(data.currentPageId || savedPages[0]?.id || 'page-1');
         }
       } catch (err) {
         console.error('Failed to load board data:', err);
@@ -1605,8 +1603,6 @@ export default function OpenJamCanvas({
         onDelete={deleteSelected}
       />
 
-      <LiveCursorLayer cursors={mockLiveCursors} scale={scale} offset={offset} />
-      
       {/* Canvas */}
       <div
         ref={containerRef}
