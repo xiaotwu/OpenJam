@@ -71,6 +71,7 @@ import VersionHistoryPanel, { generateMockVersions } from './VersionHistoryPanel
 import ImageUploadDialog from './ImageUploadDialog';
 import FileInfoDialog from './FileInfoDialog';
 import FloatingObjectToolbar from './FloatingObjectToolbar';
+import LiveCursorLayer, { type LiveCursor } from './collaboration/LiveCursorLayer';
 import { type Page } from './PagesPanel';
 
 // Tool options interface
@@ -356,11 +357,16 @@ export default function OpenJamCanvas({
   }), [_boardId, boardName, currentUsername, elements.length]);
   
   // Collaborators (mock data for now)
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([
+  const [collaborators] = useState<Collaborator[]>([
     { id: userId, name: username, email: `${username}@example.com`, color, permission: 'edit', isOnline: true },
+    { id: 'mock-ana', name: 'Ana', email: 'ana@example.com', color: '#10B981', permission: 'edit', isOnline: true },
+    { id: 'mock-lee', name: 'Lee', email: 'lee@example.com', color: '#3B82F6', permission: 'comment', isOnline: true },
   ]);
-  void setCollaborators; // Will be used when real-time updates are implemented
   const [linkPermission, setLinkPermission] = useState<'restricted' | 'anyone-view' | 'anyone-comment' | 'anyone-edit'>('restricted');
+  const mockLiveCursors = useMemo<LiveCursor[]>(() => [
+    { userId: 'mock-ana', name: 'Ana', color: '#10B981', x: 380, y: 180 },
+    { userId: 'mock-lee', name: 'Lee', color: '#3B82F6', x: 620, y: 360 },
+  ], []);
   
   // Interaction state
   const [isPanning, setIsPanning] = useState(false);
@@ -1571,6 +1577,8 @@ export default function OpenJamCanvas({
         onDuplicate={duplicateSelected}
         onDelete={deleteSelected}
       />
+
+      <LiveCursorLayer cursors={mockLiveCursors} scale={scale} offset={offset} />
       
       {/* Canvas */}
       <div

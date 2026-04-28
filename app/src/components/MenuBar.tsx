@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import CollaborationPresence, { type PresenceCollaborator } from './collaboration/CollaborationPresence';
+import ConnectionStatus from './collaboration/ConnectionStatus';
+import SaveStatusIndicator from './collaboration/SaveStatusIndicator';
 import { ProfileSettingsDialog } from './UserMenu';
 
 type MenuKey = 'board' | 'view' | 'export' | 'account';
 
-interface Collaborator {
-  id: string;
-  name: string;
-  color: string;
-  avatarUrl?: string;
-}
+type Collaborator = PresenceCollaborator;
 
 interface MenuBarProps {
   boardName: string;
@@ -190,7 +188,7 @@ export default function MenuBar(props: MenuBarProps) {
               <PencilIcon className="h-3.5 w-3.5 opacity-55 transition group-hover:opacity-100" />
             </button>
           )}
-          <SaveSummary status={saveStatus} error={saveError} />
+          <SaveStatusIndicator status={saveStatus} error={saveError} compact />
         </div>
 
         <div className="hidden h-7 w-px sm:block" style={{ background: 'var(--glass-border-strong)' }} />
@@ -238,7 +236,8 @@ export default function MenuBar(props: MenuBarProps) {
       </section>
 
       <section className="pointer-events-auto glass-elevated flex min-h-12 items-center gap-1 rounded-2xl px-2 py-2">
-        <AvatarStack collaborators={collaborators.filter((collaborator) => collaborator.name !== username)} />
+        <CollaborationPresence collaborators={collaborators} currentUserName={username} />
+        <ConnectionStatus state="connected" />
 
         <button
           type="button"
@@ -311,56 +310,6 @@ export default function MenuBar(props: MenuBarProps) {
           avatarUrl={userAvatarUrl}
           onSave={onUpdateProfile}
         />
-      )}
-    </div>
-  );
-}
-
-function SaveSummary({ status, error }: { status: string; error?: string }) {
-  const labels: Record<string, string> = {
-    idle: 'Ready',
-    dirty: 'Unsaved changes',
-    saving: 'Saving...',
-    saved: 'Saved',
-    error: 'Save failed',
-    offline: 'Offline',
-    conflict: 'Conflict',
-  };
-
-  const tone = status === 'error' || status === 'conflict'
-    ? '#EF4444'
-    : status === 'saving' || status === 'dirty'
-      ? '#F59E0B'
-      : '#10B981';
-
-  return (
-    <p className="flex items-center gap-1.5 px-2 text-xs" title={error}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} />
-      <span style={{ color: 'var(--text-secondary)' }}>{labels[status] || status}</span>
-    </p>
-  );
-}
-
-function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
-  if (collaborators.length === 0) return null;
-
-  return (
-    <div className="hidden items-center -space-x-2 px-2 sm:flex" aria-label={`${collaborators.length} collaborators online`}>
-      {collaborators.slice(0, 4).map((collaborator) => (
-        <div
-          key={collaborator.id}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold text-white shadow-sm"
-          style={{ backgroundColor: collaborator.color, borderColor: 'var(--glass-bg-elevated)' }}
-          title={collaborator.name}
-        >
-          {collaborator.avatarUrl ? <img src={collaborator.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : collaborator.name.charAt(0).toUpperCase()}
-          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500" style={{ border: '1.5px solid var(--glass-bg-elevated)' }} />
-        </div>
-      ))}
-      {collaborators.length > 4 && (
-        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold" style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-bg-elevated)', color: 'var(--text-secondary)' }}>
-          +{collaborators.length - 4}
-        </div>
       )}
     </div>
   );

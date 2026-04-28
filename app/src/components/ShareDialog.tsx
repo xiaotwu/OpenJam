@@ -85,18 +85,19 @@ export default function ShareDialog({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0" style={{ background: 'var(--surface-overlay)' }} onClick={onClose} />
+      <button className="absolute inset-0 cursor-default" style={{ background: 'var(--surface-overlay)' }} onClick={onClose} aria-label="Close share dialog" />
 
       {/* Dialog */}
-      <div className="relative glass-elevated rounded-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative glass-elevated rounded-2xl w-full max-w-lg mx-4 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title">
         {/* Header */}
         <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--glass-border-strong)' }}>
           <div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Share "{boardName}"</h2>
+            <h2 id="share-dialog-title" className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Share "{boardName}"</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded-md transition-colors"
+            className="min-h-11 min-w-11 rounded-lg hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            aria-label="Close share dialog"
           >
             <svg className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -118,12 +119,14 @@ export default function ShareDialog({
                 onChange={(e) => setInviteEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                 placeholder="Enter email address"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="min-h-11 flex-1 rounded-lg border px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-border-strong)', color: 'var(--text-primary)' }}
               />
               <select
                 value={invitePermission}
                 onChange={(e) => setInvitePermission(e.target.value as 'view' | 'comment' | 'edit')}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="min-h-11 rounded-lg border px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-border-strong)', color: 'var(--text-primary)' }}
               >
                 <option value="view">Can view</option>
                 <option value="comment">Can comment</option>
@@ -132,7 +135,7 @@ export default function ShareDialog({
               <button
                 onClick={handleInvite}
                 disabled={!inviteEmail.trim()}
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-h-11 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
                 Invite
               </button>
@@ -154,7 +157,8 @@ export default function ShareDialog({
                 <select
                   value={linkPermission}
                   onChange={(e) => onChangeLinkPermission(e.target.value as 'restricted' | 'anyone-view' | 'anyone-comment' | 'anyone-edit')}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="min-h-11 flex-1 rounded-lg border px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                  style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-border-strong)', color: 'var(--text-primary)' }}
                 >
                   {linkPermissionOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -169,11 +173,12 @@ export default function ShareDialog({
                   type="text"
                   value={shareLink}
                   readOnly
-                  className="flex-1 px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-600"
+                  className="min-h-11 flex-1 rounded-lg border px-3 text-sm"
+                  style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-border-strong)', color: 'var(--text-secondary)' }}
                 />
                 <button
                   onClick={handleCopyLink}
-                  className="px-4 py-2 text-sm font-medium text-purple-600 bg-white border border-purple-600 rounded-lg hover:bg-purple-50 flex items-center gap-2"
+                  className="flex min-h-11 items-center gap-2 rounded-lg border border-blue-600 px-4 text-sm font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
                   {copied ? (
                     <>
@@ -200,8 +205,9 @@ export default function ShareDialog({
             <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Share via:</span>
             <button
               onClick={() => window.open(`mailto:?subject=${encodeURIComponent(`Check out "${boardName}" on OpenJam`)}&body=${encodeURIComponent(`I'd like to share this board with you: ${shareLink}`)}`)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="min-h-11 min-w-11 rounded-lg hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Email"
+              aria-label="Share by email"
             >
               <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -209,16 +215,18 @@ export default function ShareDialog({
             </button>
             <button
               onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareLink)}`, '_blank')}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="min-h-11 min-w-11 rounded-lg hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="LinkedIn"
+              aria-label="Share on LinkedIn"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#0A66C2">
                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
               </svg>
             </button>
             <button
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="min-h-11 min-w-11 rounded-lg hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Slack"
+              aria-label="Share on Slack"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#4A154B">
                 <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
@@ -226,8 +234,9 @@ export default function ShareDialog({
             </button>
             <button
               onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out "${boardName}" on OpenJam`)}&url=${encodeURIComponent(shareLink)}`, '_blank')}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="min-h-11 min-w-11 rounded-lg hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Twitter/X"
+              aria-label="Share on Twitter or X"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#000000">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -240,7 +249,7 @@ export default function ShareDialog({
         <div className="px-6 py-4 border-t flex justify-end" style={{ borderColor: 'var(--glass-border-strong)' }}>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium hover:bg-white/10 rounded-lg transition-colors" style={{ color: 'var(--text-primary)' }}
+            className="min-h-11 rounded-lg px-4 text-sm font-medium hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]" style={{ color: 'var(--text-primary)' }}
           >
             Done
           </button>
