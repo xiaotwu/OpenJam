@@ -175,6 +175,8 @@ type SaveBoardRequest struct {
 	CurrentPageId string      `json:"currentPageId,omitempty"`
 }
 
+const maxBoardPayloadBytes = 25 * 1024 * 1024
+
 func SaveBoard(c *gin.Context) {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -188,28 +190,53 @@ func SaveBoard(c *gin.Context) {
 		return
 	}
 
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBoardPayloadBytes)
+
 	var req SaveBoardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Board payload is too large"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
 	}
 
-	_, err := model.EnsureRoom(c.Request.Context(), roomID, req.Name, user.ID)
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = "Untitled Board"
+	}
+
+	_, err := model.EnsureRoomOwned(c.Request.Context(), roomID, name, user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure room exists: " + err.Error()})
+		if errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure room exists"})
 		return
 	}
 
+	elements := req.Elements
+	if elements == nil {
+		elements = []interface{}{}
+	}
+
 	boardData := &model.BoardData{
-		Name:          req.Name,
-		Elements:      req.Elements,
+		Name:          name,
+		Elements:      elements,
 		Stamps:        req.Stamps,
 		Pages:         req.Pages,
 		CurrentPageId: req.CurrentPageId,
 	}
 
-	if err := model.SaveBoardData(c.Request.Context(), roomID, boardData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save board: " + err.Error()})
+	if err := model.SaveBoardDataForOwner(c.Request.Context(), roomID, user.ID, boardData); err != nil {
+		if errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save board"})
 		return
 	}
 
@@ -232,13 +259,17 @@ func LoadBoard(c *gin.Context) {
 		return
 	}
 
-	data, err := model.LoadBoardData(c.Request.Context(), roomID)
+	data, err := model.LoadBoardDataForOwner(c.Request.Context(), roomID, user.ID)
 	if err != nil {
 		if errors.Is(err, model.ErrRoomNotFound) {
 			c.JSON(http.StatusOK, gin.H{
 				"name":     "Untitled Board",
 				"elements": []interface{}{},
 			})
+			return
+		}
+		if errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load board"})

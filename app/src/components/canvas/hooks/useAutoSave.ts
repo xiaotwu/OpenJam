@@ -28,6 +28,7 @@ export function useAutoSave({
   const [saveError, setSaveError] = useState<string>('');
   const timeoutRef = useRef<number | null>(null);
   const saveStatusRef = useRef<SaveStatus>('idle');
+  const dirtyVersionRef = useRef(0);
   const latestRef = useRef({
     getElements,
     getBoardName,
@@ -69,6 +70,7 @@ export function useAutoSave({
 
     setSaveStatus('saving');
     setSaveError('');
+    const versionAtStart = dirtyVersionRef.current;
     try {
       const { saveBoard } = await import('../../../lib/api');
       const current = latestRef.current;
@@ -80,14 +82,21 @@ export function useAutoSave({
         pages: current.getPages(),
         currentPageId: current.getCurrentPageId(),
       });
-      setSaveStatus('saved');
+      if (dirtyVersionRef.current === versionAtStart) {
+        setSaveStatus('saved');
+      } else {
+        setSaveStatus('dirty');
+        timeoutRef.current = window.setTimeout(() => {
+          void saveNow();
+        }, debounceMs);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Failed to save board:', errorMessage);
       setSaveError(errorMessage);
       setSaveStatus('error');
     }
-  }, [boardId, clearPendingSave, enabled]);
+  }, [boardId, clearPendingSave, debounceMs, enabled]);
 
   const markDirty = useCallback(() => {
     if (!enabled) return;
@@ -99,6 +108,7 @@ export function useAutoSave({
     }
 
     setSaveError('');
+    dirtyVersionRef.current += 1;
     setSaveStatus('dirty');
     clearPendingSave();
     timeoutRef.current = window.setTimeout(() => {

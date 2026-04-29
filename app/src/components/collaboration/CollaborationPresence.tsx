@@ -8,11 +8,14 @@ export interface PresenceCollaborator {
 
 interface CollaborationPresenceProps {
   collaborators: PresenceCollaborator[];
+  currentUserId?: string;
   currentUserName?: string;
 }
 
-export default function CollaborationPresence({ collaborators, currentUserName }: CollaborationPresenceProps) {
-  const visibleCollaborators = collaborators.filter((collaborator) => collaborator.name !== currentUserName);
+export default function CollaborationPresence({ collaborators, currentUserId, currentUserName }: CollaborationPresenceProps) {
+  const visibleCollaborators = collaborators.filter((collaborator) => (
+    currentUserId ? collaborator.id !== currentUserId : collaborator.name !== currentUserName
+  ));
 
   if (visibleCollaborators.length === 0) {
     return null;

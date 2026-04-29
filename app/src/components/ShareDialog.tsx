@@ -1,18 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-
-function getBaseUrl(): string {
-  return window.location.origin;
-}
-
-// Generate a random, hard-to-guess share ID
-function generateShareId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 24; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
+import { useState, useEffect } from 'react';
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -29,7 +15,7 @@ export default function ShareDialog({
   isOpen,
   onClose,
   boardName,
-  shareLink: _shareLink,
+  shareLink,
   linkPermission,
   onChangeLinkPermission,
   onInvite,
@@ -38,15 +24,6 @@ export default function ShareDialog({
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePermission, setInvitePermission] = useState<'view' | 'comment' | 'edit'>('edit');
   const [copied, setCopied] = useState(false);
-  
-  // Generate a random share link with dynamic base URL
-  const shareLink = useMemo(() => {
-    // Use provided link if it already has a random ID, otherwise generate one
-    if (_shareLink && _shareLink.includes('/share/')) {
-      return _shareLink;
-    }
-    return `${getBaseUrl()}/share/${generateShareId()}`;
-  }, [_shareLink]);
 
   // Close on escape
   useEffect(() => {

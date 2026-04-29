@@ -99,6 +99,7 @@ class WebSocketClient {
   private handlers: Set<MessageHandler> = new Set();
   private pendingMessages: string[] = [];
   private roomId: string | null = null;
+  private shouldReconnect = false;
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -108,6 +109,12 @@ class WebSocketClient {
         return;
       }
 
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        resolve();
+        return;
+      }
+
+      this.shouldReconnect = true;
       const url = `${WS_URL}?token=${encodeURIComponent(token)}`;
       this.ws = new WebSocket(url);
 
@@ -138,7 +145,9 @@ class WebSocketClient {
 
       this.ws.onclose = (event) => {
         console.log('[WS] Disconnected:', event.code, event.reason);
-        this.attemptReconnect();
+        if (this.shouldReconnect) {
+          this.attemptReconnect();
+        }
       };
 
       this.ws.onerror = (error) => {
@@ -165,6 +174,7 @@ class WebSocketClient {
   }
 
   disconnect() {
+    this.shouldReconnect = false;
     this.roomId = null;
     if (this.ws) {
       this.ws.close();

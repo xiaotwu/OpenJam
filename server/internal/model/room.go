@@ -116,19 +116,29 @@ func UpdateRoom(ctx context.Context, id, name string, userID uuid.UUID) (*Room, 
 }
 
 func EnsureRoom(ctx context.Context, id, name string, ownerID uuid.UUID) (*Room, error) {
+	return EnsureRoomOwned(ctx, id, name, ownerID)
+}
+
+func EnsureRoomOwned(ctx context.Context, id, name string, ownerID uuid.UUID) (*Room, error) {
 	room, err := GetRoom(ctx, id)
 	if err == nil {
+		if room.OwnerID != ownerID {
+			return nil, ErrNotRoomOwner
+		}
 		return room, nil
 	}
 	if !errors.Is(err, ErrRoomNotFound) {
 		return nil, err
 	}
 
+	if name == "" {
+		name = "Untitled Board"
+	}
+
 	room = &Room{}
 	err = db.Pool().QueryRow(ctx, `
 		INSERT INTO rooms (id, name, owner_id, board_data)
 		VALUES ($1, $2, $3, '{}')
-		ON CONFLICT (id) DO UPDATE SET updated_at = NOW()
 		RETURNING id, name, owner_id, created_at, updated_at
 	`, id, name, ownerID).Scan(&room.ID, &room.Name, &room.OwnerID, &room.CreatedAt, &room.UpdatedAt)
 	if err != nil {
@@ -153,7 +163,7 @@ func SaveBoardData(ctx context.Context, roomID string, data *BoardData) error {
 	}
 
 	result, err := db.Pool().Exec(ctx, `
-		UPDATE rooms 
+		UPDATE rooms
 		SET board_data = $1::jsonb, name = $2, updated_at = NOW()
 		WHERE id = $3
 	`, jsonData, data.Name, roomID)
@@ -163,6 +173,28 @@ func SaveBoardData(ctx context.Context, roomID string, data *BoardData) error {
 
 	if result.RowsAffected() == 0 {
 		return ErrRoomNotFound
+	}
+
+	return nil
+}
+
+func SaveBoardDataForOwner(ctx context.Context, roomID string, ownerID uuid.UUID, data *BoardData) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.Pool().Exec(ctx, `
+		UPDATE rooms
+		SET board_data = $1::jsonb, name = $2, updated_at = NOW()
+		WHERE id = $3 AND owner_id = $4
+	`, jsonData, data.Name, roomID, ownerID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrNotRoomOwner
 	}
 
 	return nil
@@ -185,4 +217,15 @@ func LoadBoardData(ctx context.Context, roomID string) (*BoardData, error) {
 		return nil, err
 	}
 	return &data, nil
+}
+
+func LoadBoardDataForOwner(ctx context.Context, roomID string, ownerID uuid.UUID) (*BoardData, error) {
+	room, err := GetRoom(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if room.OwnerID != ownerID {
+		return nil, ErrNotRoomOwner
+	}
+	return LoadBoardData(ctx, roomID)
 }

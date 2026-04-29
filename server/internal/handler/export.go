@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +17,8 @@ import (
 	"github.com/project-wb/server/internal/model"
 	"github.com/project-wb/server/internal/storage"
 )
+
+const maxExportImageBytes = 15 * 1024 * 1024
 
 type ExportPNGRequest struct {
 	ImageData string `json:"imageData" binding:"required"`
@@ -36,6 +40,9 @@ func ExportPNG(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID required"})
 		return
 	}
+	if !requireRoomOwner(c, roomID, user) {
+		return
+	}
 
 	var req ExportPNGRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,9 +50,18 @@ func ExportPNG(c *gin.Context) {
 		return
 	}
 
+	if len(req.ImageData) > (maxExportImageBytes*4/3)+4 {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image export is too large"})
+		return
+	}
+
 	imageData, err := base64.StdEncoding.DecodeString(req.ImageData)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image data"})
+		return
+	}
+	if len(imageData) > maxExportImageBytes {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image export is too large"})
 		return
 	}
 
@@ -76,6 +92,9 @@ func ExportJSON(c *gin.Context) {
 	roomID := c.Param("id")
 	if roomID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID required"})
+		return
+	}
+	if !requireRoomOwner(c, roomID, user) {
 		return
 	}
 
@@ -116,9 +135,24 @@ func ExportJSON(c *gin.Context) {
 }
 
 func GetExport(c *gin.Context) {
-	key := c.Param("key")
+	user := middleware.GetUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	key := strings.TrimPrefix(c.Param("key"), "/")
 	if key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Export key required"})
+		return
+	}
+
+	parts := strings.Split(key, "/")
+	if len(parts) < 3 || parts[0] != "exports" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid export key"})
+		return
+	}
+	if !requireRoomOwner(c, parts[1], user) {
 		return
 	}
 
@@ -132,4 +166,21 @@ func GetExport(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"url": url})
+}
+
+func requireRoomOwner(c *gin.Context, roomID string, user *model.User) bool {
+	room, err := model.GetRoom(c.Request.Context(), roomID)
+	if err != nil {
+		if errors.Is(err, model.ErrRoomNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
+			return false
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get room"})
+		return false
+	}
+	if room.OwnerID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+		return false
+	}
+	return true
 }

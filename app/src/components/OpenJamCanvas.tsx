@@ -13,6 +13,7 @@ import DrawingPreview from './canvas/DrawingPreview';
 import EraserCursor from './canvas/EraserCursor';
 import DragCreatePreview from './canvas/DragCreatePreview';
 import { ElementStore } from '../lib/elementStore';
+import { useCollaboration } from '../lib/useCollaboration';
 import {
   type Element,
   type ElementType,
@@ -51,6 +52,7 @@ import ZoomControls from './ZoomControls';
 import { StampElement, type Stamp } from './StampTool';
 import { type Collaborator } from './CollaboratorPanel';
 import ShareDialog from './ShareDialog';
+import LiveCursorLayer from './collaboration/LiveCursorLayer';
 import ContextMenu, {
   getElementContextMenuItems,
   getCanvasContextMenuItems,
@@ -353,8 +355,34 @@ export default function OpenJamCanvas({
     size: '2.4 KB',
     elementsCount: elements.length,
   }), [_boardId, boardName, currentUsername, elements.length]);
-  
-  // Current-user presence only. Real remote collaborators should be injected by collaboration hooks.
+
+  const handleRemoteElementsChanged = useCallback(() => {
+    setElements(elementStoreRef.current.getElements());
+  }, []);
+
+  const collaboration = useCollaboration({
+    roomId: _boardId,
+    userId,
+    elementStore: elementStoreRef.current,
+    onElementsChanged: handleRemoteElementsChanged,
+  });
+  const {
+    isConnected: isCollaborationConnected,
+    collaborators: remoteCollaborators,
+    cursors: remoteCursors,
+    sendCursor,
+  } = collaboration;
+
+  const liveCursors = useMemo(() => (
+    Array.from(remoteCursors.values()).map((cursor) => ({
+      userId: cursor.userId,
+      name: cursor.name,
+      color: cursor.color,
+      x: cursor.x,
+      y: cursor.y,
+    }))
+  ), [remoteCursors]);
+
   const collaborators = useMemo<Collaborator[]>(() => [
     {
       id: userId,
@@ -365,9 +393,20 @@ export default function OpenJamCanvas({
       permission: 'edit',
       isOnline: true,
     },
-  ], [userId, currentUsername, currentUserAvatarUrl, currentUserColor]);
+    ...remoteCollaborators
+      .filter((collaborator) => collaborator.id !== userId)
+      .map((collaborator) => ({
+        id: collaborator.id,
+        name: collaborator.displayName,
+        email: '',
+        color: collaborator.avatarColor,
+        permission: 'edit' as const,
+        isOnline: true,
+      })),
+  ], [userId, currentUsername, currentUserAvatarUrl, currentUserColor, remoteCollaborators]);
   const [linkPermission, setLinkPermission] = useState<'restricted' | 'anyone-view' | 'anyone-comment' | 'anyone-edit'>('restricted');
   const [autosaveReady, setAutosaveReady] = useState(false);
+  const [boardLoadError, setBoardLoadError] = useState<string | null>(null);
 
   // Debounced autosave
   const { saveStatus, saveError, markDirty, saveToDatabase } = useAutoSave({
@@ -377,8 +416,10 @@ export default function OpenJamCanvas({
     getStamps: () => stamps,
     getPages: () => pages,
     getCurrentPageId: () => currentPageId,
-    enabled: autosaveReady,
+    enabled: autosaveReady && !boardLoadError,
   });
+
+  const connectionState = isCollaborationConnected ? 'connected' : saveStatus === 'offline' ? 'offline' : 'connecting';
 
   const handleBoardNameChange = useCallback((name: string) => {
     setBoardName(name);
@@ -415,7 +456,9 @@ export default function OpenJamCanvas({
   // Load board data from database on mount
   useEffect(() => {
     setAutosaveReady(false);
+    setBoardLoadError(null);
     const loadBoardFromDatabase = async () => {
+      let failed = false;
       try {
         const { loadBoard } = await import('../lib/api');
         const data = await loadBoard(_boardId);
@@ -434,9 +477,16 @@ export default function OpenJamCanvas({
           setCurrentPageId(data.currentPageId || savedPages[0]?.id || 'page-1');
         }
       } catch (err) {
-        console.error('Failed to load board data:', err);
+        const message = err instanceof Error ? err.message : 'Failed to load board data';
+        console.error('Failed to load board data:', message);
+        failed = true;
+        setBoardLoadError(message);
+        setAutosaveReady(false);
+        return;
       } finally {
-        setAutosaveReady(true);
+        if (!failed) {
+          setAutosaveReady(true);
+        }
       }
     };
     loadBoardFromDatabase();
@@ -1058,6 +1108,7 @@ export default function OpenJamCanvas({
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       const canvas = screenToCanvas(e.clientX, e.clientY);
+      sendCursor(canvas.x, canvas.y);
       
       // Track eraser position for visual cursor
       if (currentTool === 'eraser') {
@@ -1102,7 +1153,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, continueDrawing, continueErasing, updateDragCreate, updateDragMove]
+    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, continueDrawing, continueErasing, updateDragCreate, updateDragMove, sendCursor]
   );
   
   // Handle canvas mouse up
@@ -1430,9 +1481,15 @@ export default function OpenJamCanvas({
         showGrid={showGrid}
         onVersionHistory={() => setShowVersionHistory(true)}
         onFileInfo={() => setShowFileInfo(true)}
-        onDeleteBoard={() => {
+        onDeleteBoard={async () => {
           if (confirm('Are you sure you want to delete this board?')) {
-            window.location.href = '/';
+            try {
+              const { deleteRoom } = await import('../lib/api');
+              await deleteRoom(_boardId);
+              window.location.href = '/workplace';
+            } catch (err) {
+              alert(err instanceof Error ? err.message : 'Failed to delete board');
+            }
           }
         }}
         // Page management
@@ -1443,19 +1500,28 @@ export default function OpenJamCanvas({
         onRenamePage={handleRenamePage}
         onDuplicatePage={handleDuplicatePage}
         onDeletePage={handleDeletePage}
-        onDuplicateBoard={() => {
-          const newPage: Page = {
-            id: `page-${Date.now()}`,
-            name: `${boardName} (Copy)`,
-          };
-          setPages((prev) => [...prev, newPage]);
-          setCurrentPageId(newPage.id);
-          markDirty();
+        onDuplicateBoard={async () => {
+          try {
+            const { createRoom, saveBoard } = await import('../lib/api');
+            const name = `${boardName} (Copy)`;
+            const room = await createRoom(name);
+            await saveBoard(room.id, {
+              name,
+              elements: elementStoreRef.current.getElements(),
+              stamps,
+              pages,
+              currentPageId,
+            });
+            window.location.href = `/board/${room.id}`;
+          } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to duplicate board');
+          }
         }}
         // User settings
         username={currentUsername}
         userEmail={`${currentUsername.toLowerCase().replace(/\s+/g, '.')}@example.com`}
         userColor={currentUserColor}
+        userId={userId}
         userAvatarUrl={currentUserAvatarUrl}
         isPinned={isPinned}
         onTogglePin={() => setIsPinned((p) => !p)}
@@ -1476,10 +1542,26 @@ export default function OpenJamCanvas({
         onUnlockAll={unlockAll}
         onGroup={groupSelected}
         onUngroup={ungroupSelected}
-        collaborators={collaborators.map(c => ({ id: c.id, name: c.name, color: c.color, avatarUrl: undefined }))}
+        collaborators={collaborators.filter(c => c.id !== userId).map(c => ({ id: c.id, name: c.name, color: c.color, avatarUrl: undefined }))}
+        connectionState={connectionState}
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
       />
+
+      {boardLoadError && (
+        <div className="pointer-events-auto absolute left-1/2 top-24 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg" role="alert">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>Could not load this board. Autosave is paused to protect existing content.</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="min-h-11 rounded-xl bg-red-600 px-3 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Command Palette */}
       <CommandPalette
@@ -1496,8 +1578,8 @@ export default function OpenJamCanvas({
         shareLink={`${window.location.origin}/board/${_boardId}`}
         linkPermission={linkPermission}
         onChangeLinkPermission={setLinkPermission}
-        onInvite={() => {}}
-        onCopyLink={() => navigator.clipboard.writeText(`${window.location.origin}/board/${_boardId}`)}
+        onInvite={() => alert('Invites are not available yet. Copy the board link to share with people who already have access.')}
+        onCopyLink={() => {}}
       />
       
       {/* Help Panel */}
@@ -1601,6 +1683,8 @@ export default function OpenJamCanvas({
         onDuplicate={duplicateSelected}
         onDelete={deleteSelected}
       />
+
+      <LiveCursorLayer cursors={liveCursors} scale={scale} offset={offset} />
 
       {/* Canvas */}
       <div

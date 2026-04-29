@@ -30,7 +30,8 @@ WebSocket connections are authenticated before upgrade:
 
 - Rooms are owned by the user who created them
 - Room list only shows rooms owned by the current user
-- Room deletion is restricted to the owner
+- Room load, save, export, deletion, and WebSocket join flows are restricted to the owner
+- Link sharing currently shares a board URL only; invite and public-link permissions require a future access-control model
 
 ## Security Headers
 

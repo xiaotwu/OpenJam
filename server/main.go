@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/project-wb/server/internal/config"
 	"github.com/project-wb/server/internal/db"
 	"github.com/project-wb/server/internal/handler"
 	"github.com/project-wb/server/internal/middleware"
+	"github.com/project-wb/server/internal/model"
 	"github.com/project-wb/server/internal/storage"
 	"github.com/project-wb/server/internal/ws"
 
@@ -27,6 +30,7 @@ func main() {
 	if err := db.Migrate(); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
+	go cleanupExpiredSessions()
 
 	if cfg.RedisURL != "" {
 		if err := db.InitRedis(cfg.RedisURL); err != nil {
@@ -46,6 +50,7 @@ func main() {
 	}
 
 	r := gin.Default()
+	handler.InitWebSocket(cfg.CorsOrigins)
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.CorsOrigins,
@@ -82,7 +87,7 @@ func main() {
 
 		api.POST("/rooms/:id/export/png", handler.ExportPNG)
 		api.POST("/rooms/:id/export/json", handler.ExportJSON)
-		api.GET("/exports/:key", handler.GetExport)
+		api.GET("/exports/*key", handler.GetExport)
 	}
 
 	r.GET("/ws", func(c *gin.Context) {
@@ -128,5 +133,16 @@ func main() {
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 		os.Exit(1)
+	}
+}
+
+func cleanupExpiredSessions() {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := model.DeleteExpiredSessions(context.Background()); err != nil {
+			log.Printf("Warning: failed to delete expired sessions: %v", err)
+		}
 	}
 }

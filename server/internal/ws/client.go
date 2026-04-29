@@ -184,7 +184,7 @@ func (c *Client) handleJoin(payload json.RawMessage) {
 
 	ctx := context.Background()
 
-	_, err := model.EnsureRoom(ctx, join.RoomID, "Whiteboard", c.user.ID)
+	_, err := model.EnsureRoomOwned(ctx, join.RoomID, "Whiteboard", c.user.ID)
 	if err != nil {
 		c.sendError("Failed to join room")
 		return

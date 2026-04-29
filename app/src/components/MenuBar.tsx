@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import CollaborationPresence, { type PresenceCollaborator } from './collaboration/CollaborationPresence';
-import ConnectionStatus from './collaboration/ConnectionStatus';
+import ConnectionStatus, { type ConnectionState } from './collaboration/ConnectionStatus';
 import SaveStatusIndicator from './collaboration/SaveStatusIndicator';
 import { ProfileSettingsDialog } from './UserMenu';
 
@@ -44,6 +44,7 @@ interface MenuBarProps {
   username?: string;
   userEmail?: string;
   userColor?: string;
+  userId?: string;
   userAvatarUrl?: string;
   isPinned?: boolean;
   onTogglePin?: () => void;
@@ -56,6 +57,7 @@ interface MenuBarProps {
   onGroup?: () => void;
   onUngroup?: () => void;
   collaborators?: Collaborator[];
+  connectionState?: ConnectionState;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -90,6 +92,7 @@ export default function MenuBar(props: MenuBarProps) {
     username,
     userEmail,
     userColor,
+    userId,
     userAvatarUrl,
     isPinned,
     onTogglePin,
@@ -102,6 +105,7 @@ export default function MenuBar(props: MenuBarProps) {
     onGroup,
     onUngroup,
     collaborators = [],
+    connectionState = 'connected',
     isDark,
     onToggleTheme,
   } = props;
@@ -249,8 +253,8 @@ export default function MenuBar(props: MenuBarProps) {
       </section>
 
       <section className="pointer-events-auto glass-elevated flex min-h-12 items-center gap-1 rounded-2xl px-1.5 py-1.5">
-        <CollaborationPresence collaborators={collaborators} currentUserName={username} />
-        <ConnectionStatus state="connected" />
+        <CollaborationPresence collaborators={collaborators} currentUserId={userId} currentUserName={username} />
+        <ConnectionStatus state={connectionState} />
 
         <button
           type="button"
