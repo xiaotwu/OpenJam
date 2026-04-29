@@ -42,7 +42,6 @@ import {
   createDefaultDotVoting,
   createDefaultReactionCounter,
 } from './widgets';
-import PropertyInspector from './PropertyInspector';
 import TableCreationDialog from './widgets/TableCreationDialog';
 import TimerCreationDialog from './widgets/TimerCreationDialog';
 import MenuBar from './MenuBar';
@@ -1767,16 +1766,6 @@ export default function OpenJamCanvas({
         )}
       </div>
 
-      {/* Property Inspector */}
-      {selectedElement && (
-        <div className="absolute top-16 right-0 bottom-0 z-40 pointer-events-auto">
-          <PropertyInspector
-            element={selectedElement}
-            elementStore={elementStoreRef.current}
-          />
-        </div>
-      )}
-
       {/* Table Creation Dialog */}
       {showTableCreation && (
         <TableCreationDialog
@@ -1816,23 +1805,6 @@ export default function OpenJamCanvas({
         />
       )}
 
-      {/* Save status toast */}
-      {saveStatus !== 'idle' && (
-        <div className={`toast-surface absolute top-16 left-1/2 z-50 -translate-x-1/2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-          saveStatus === 'saving' ? 'bg-blue-500 text-white' :
-          saveStatus === 'saved' ? 'bg-green-500 text-white' :
-          saveStatus === 'dirty' ? 'bg-amber-500 text-white' :
-          saveStatus === 'offline' ? 'bg-gray-700 text-white' :
-          'bg-red-500 text-white'
-        }`}>
-          {saveStatus === 'dirty' && 'Unsaved changes'}
-          {saveStatus === 'saving' && 'Saving...'}
-          {saveStatus === 'saved' && 'Saved successfully'}
-          {saveStatus === 'error' && `Failed to save: ${saveError}`}
-          {saveStatus === 'offline' && 'Offline - changes will save when reconnected'}
-          {saveStatus === 'conflict' && 'Save conflict detected'}
-        </div>
-      )}
     </div>
   );
 }

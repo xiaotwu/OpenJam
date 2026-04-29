@@ -129,8 +129,8 @@ export default function BottomToolbar({
   };
 
   return (
-    <div ref={toolbarRef} className="absolute bottom-6 left-1/2 z-40 -translate-x-1/2">
-      <div className="glass-elevated flex items-center gap-1 rounded-2xl px-2 py-1.5">
+    <div ref={toolbarRef} className="absolute bottom-5 left-1/2 z-40 -translate-x-1/2">
+      <div className="glass-elevated flex items-center gap-0.5 rounded-2xl px-1.5 py-1.5">
         <ToolButton active={currentTool === 'select'} label="Select tool (V)" onClick={() => chooseTool('select')}>
           <CursorIcon />
         </ToolButton>
@@ -167,8 +167,7 @@ export default function BottomToolbar({
           </ToolButton>
           {popup === 'sticky' && (
             <PopupPanel>
-              <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>Sticky color</div>
-              <div className="flex gap-1">
+              <div className="grid w-[188px] grid-cols-4 gap-1" aria-label="Sticky colors">
                 {(Object.keys(STICKY_COLORS) as StickyColor[]).map((color) => (
                   <button
                     key={color}
@@ -191,8 +190,7 @@ export default function BottomToolbar({
           </ToolButton>
           {popup === 'shape' && (
             <PopupPanel>
-              <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>Shapes</div>
-              <div className="grid w-40 grid-cols-3 gap-1">
+              <div className="grid w-[140px] grid-cols-3 gap-1" aria-label="Shapes">
                 {SHAPE_OPTIONS.map(({ type, icon }) => (
                   <button
                     key={type}
@@ -260,7 +258,7 @@ export default function BottomToolbar({
             <PlusIcon />
           </ToolButton>
           {popup === 'insert' && (
-            <PopupPanel width="w-56" align="right">
+            <PopupPanel width="w-52" align="right">
               <ToolMenuItem label="Image" onClick={() => { onInsertImage(); setPopup(null); }} icon={<ImageIcon />} />
               <ToolMenuItem label="Widgets" onClick={() => { setShowWidgets(true); }} icon={<WidgetIcon />} />
               <div className="my-2 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
@@ -305,7 +303,7 @@ function ToolMenuItem({ active, label, shortcut, icon, onClick }: { active?: boo
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${active ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
+      className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${active ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
       style={active ? undefined : { color: 'var(--text-primary)' }}
     >
       <span className="flex items-center gap-2">{icon}{label}</span>
@@ -316,7 +314,7 @@ function ToolMenuItem({ active, label, shortcut, icon, onClick }: { active?: boo
 
 function PopupPanel({ children, width = 'w-auto', align = 'left' }: { children: ReactNode; width?: string; align?: 'left' | 'right' }) {
   return (
-    <div className={`glass-elevated glass-panel-enter absolute bottom-full mb-2 rounded-xl p-3 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}>
+    <div className={`glass-elevated glass-panel-enter absolute bottom-full mb-2 rounded-2xl p-2 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}>
       {children}
     </div>
   );
@@ -326,7 +324,7 @@ function ColorGrid({ label, colors, selectedColor, onSelect }: { label: string; 
   return (
     <>
       <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-      <div className="mb-3 grid grid-cols-7 gap-1">
+      <div className="mb-3 grid grid-cols-6 gap-0.5">
         {colors.map((color) => (
           <button
             key={color}
@@ -369,7 +367,7 @@ function SizeRow({ label, values, selected, onSelect }: { label: string; values:
 function StampGrid({ onSelect }: { onSelect: (emoji: string) => void }) {
   const stamps = ['👍', '👎', '❤️', '🎉', '🤔', '👀', '🔥', '⭐', '✅', '❌', '💡', '🚀'];
   return (
-    <div className="grid grid-cols-6 gap-1">
+    <div className="grid grid-cols-4 gap-1">
       {stamps.map((stamp) => (
         <button
           key={stamp}
@@ -387,7 +385,7 @@ function StampGrid({ onSelect }: { onSelect: (emoji: string) => void }) {
 }
 
 function ToolDivider() {
-  return <div className="mx-1 h-7 w-px" style={{ background: 'var(--glass-border-strong)' }} />;
+  return <div className="mx-0.5 h-7 w-px" style={{ background: 'var(--glass-border-strong)' }} />;
 }
 
 function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptions: ToolOptions; onToolOptionsChange: (options: Partial<ToolOptions>) => void }) {

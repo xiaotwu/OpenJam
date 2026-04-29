@@ -149,7 +149,7 @@ export default function MenuBar(props: MenuBarProps) {
 
   return (
     <div ref={barRef} className="pointer-events-none absolute left-3 right-3 top-3 z-50 flex items-start justify-between gap-3">
-      <section className="pointer-events-auto glass-elevated flex min-h-12 min-w-0 items-center gap-2 rounded-2xl px-2 py-2">
+      <section className="pointer-events-auto glass-elevated flex min-h-12 min-w-0 items-center gap-1.5 rounded-2xl px-1.5 py-1.5">
         <button
           type="button"
           onClick={() => { window.location.href = '/'; }}
@@ -202,34 +202,42 @@ export default function MenuBar(props: MenuBarProps) {
         </MenuTrigger>
 
         {activeMenu === 'board' && (
-          <MenuPanel align="left">
-            <MenuItemButton label="Save" shortcut="Ctrl+S" icon={<SaveIcon />} onClick={() => handleMenuAction(onSave || onExportJSON)} />
-            <MenuItemButton label="Rename board" icon={<PencilIcon />} onClick={() => { setIsEditingName(true); closeMenu(); }} />
+          <MenuPanel align="left" width="w-[21rem]">
+            <MenuGrid>
+              <MenuItemButton compact label="Save" shortcut="Ctrl+S" icon={<SaveIcon />} onClick={() => handleMenuAction(onSave || onExportJSON)} />
+              <MenuItemButton compact label="Rename" icon={<PencilIcon />} onClick={() => { setIsEditingName(true); closeMenu(); }} />
+            </MenuGrid>
             <MenuDivider />
-            <MenuItemButton label="Undo" shortcut="Ctrl+Z" icon={<UndoIcon />} onClick={() => handleMenuAction(onUndo)} />
-            <MenuItemButton label="Redo" shortcut="Ctrl+Y" icon={<RedoIcon />} onClick={() => handleMenuAction(onRedo)} />
-            <MenuItemButton label="Copy" shortcut="Ctrl+C" icon={<CopyIcon />} onClick={() => handleMenuAction(onCopy)} />
-            <MenuItemButton label="Paste" shortcut="Ctrl+V" icon={<ClipboardIcon />} onClick={() => handleMenuAction(onPaste)} />
-            <MenuItemButton label="Duplicate" shortcut="Ctrl+D" icon={<DuplicateIcon />} onClick={() => handleMenuAction(onDuplicate)} />
-            <MenuItemButton label="Delete selection" shortcut="Del" icon={<TrashIcon />} onClick={() => handleMenuAction(onDelete)} />
-            <MenuItemButton label="Select all" shortcut="Ctrl+A" icon={<SelectAllIcon />} onClick={() => handleMenuAction(onSelectAll)} />
+            <MenuGrid>
+              <MenuItemButton compact label="Undo" shortcut="Ctrl+Z" icon={<UndoIcon />} onClick={() => handleMenuAction(onUndo)} />
+              <MenuItemButton compact label="Redo" shortcut="Ctrl+Y" icon={<RedoIcon />} onClick={() => handleMenuAction(onRedo)} />
+              <MenuItemButton compact label="Copy" shortcut="Ctrl+C" icon={<CopyIcon />} onClick={() => handleMenuAction(onCopy)} />
+              <MenuItemButton compact label="Paste" shortcut="Ctrl+V" icon={<ClipboardIcon />} onClick={() => handleMenuAction(onPaste)} />
+              <MenuItemButton compact label="Duplicate" shortcut="Ctrl+D" icon={<DuplicateIcon />} onClick={() => handleMenuAction(onDuplicate)} />
+              <MenuItemButton compact label="Delete" shortcut="Del" icon={<TrashIcon />} onClick={() => handleMenuAction(onDelete)} />
+              <MenuItemButton compact label="Select all" shortcut="Ctrl+A" icon={<SelectAllIcon />} onClick={() => handleMenuAction(onSelectAll)} />
+            </MenuGrid>
             <MenuDivider />
-            <MenuItemButton label="Bring to front" shortcut="]" icon={<BringFrontIcon />} onClick={() => handleMenuAction(onBringToFront)} />
-            <MenuItemButton label="Send to back" shortcut="[" icon={<SendBackIcon />} onClick={() => handleMenuAction(onSendToBack)} />
-            <MenuItemButton label="Lock" shortcut="Ctrl+Shift+L" icon={<LockIcon />} onClick={() => handleMenuAction(onLock)} />
-            <MenuItemButton label="Unlock all" icon={<UnlockIcon />} onClick={() => handleMenuAction(onUnlockAll)} />
-            <MenuItemButton label="Group" shortcut="Ctrl+G" icon={<GroupIcon />} onClick={() => handleMenuAction(onGroup)} />
-            <MenuItemButton label="Ungroup" shortcut="Ctrl+Shift+G" icon={<UngroupIcon />} onClick={() => handleMenuAction(onUngroup)} />
+            <MenuGrid>
+              <MenuItemButton compact label="Front" shortcut="]" icon={<BringFrontIcon />} onClick={() => handleMenuAction(onBringToFront)} />
+              <MenuItemButton compact label="Back" shortcut="[" icon={<SendBackIcon />} onClick={() => handleMenuAction(onSendToBack)} />
+              <MenuItemButton compact label="Lock" shortcut="Shift+L" icon={<LockIcon />} onClick={() => handleMenuAction(onLock)} />
+              <MenuItemButton compact label="Unlock" icon={<UnlockIcon />} onClick={() => handleMenuAction(onUnlockAll)} />
+              <MenuItemButton compact label="Group" shortcut="Ctrl+G" icon={<GroupIcon />} onClick={() => handleMenuAction(onGroup)} />
+              <MenuItemButton compact label="Ungroup" shortcut="Shift+G" icon={<UngroupIcon />} onClick={() => handleMenuAction(onUngroup)} />
+            </MenuGrid>
             <MenuDivider />
-            <MenuItemButton label="Duplicate board" icon={<DuplicateIcon />} onClick={() => handleMenuAction(onDuplicateBoard || onDuplicate)} />
-            <MenuItemButton label="Version history" icon={<ClockIcon />} onClick={() => handleMenuAction(onVersionHistory)} />
-            <MenuItemButton label="Board info" icon={<InfoIcon />} onClick={() => handleMenuAction(onFileInfo)} />
-            <MenuItemButton label="Delete board" icon={<TrashIcon />} danger onClick={() => handleMenuAction(onDeleteBoard)} />
+            <MenuGrid>
+              <MenuItemButton compact label="Clone board" icon={<DuplicateIcon />} onClick={() => handleMenuAction(onDuplicateBoard || onDuplicate)} />
+              <MenuItemButton compact label="History" icon={<ClockIcon />} onClick={() => handleMenuAction(onVersionHistory)} />
+              <MenuItemButton compact label="Info" icon={<InfoIcon />} onClick={() => handleMenuAction(onFileInfo)} />
+              <MenuItemButton compact label="Delete board" icon={<TrashIcon />} danger onClick={() => handleMenuAction(onDeleteBoard)} />
+            </MenuGrid>
           </MenuPanel>
         )}
 
         {activeMenu === 'view' && (
-          <MenuPanel align="left">
+          <MenuPanel align="left" width="w-56">
             <MenuItemButton label="Zoom in" shortcut="Ctrl++" icon={<ZoomInIcon />} onClick={() => handleMenuAction(onZoomIn)} />
             <MenuItemButton label="Zoom out" shortcut="Ctrl+-" icon={<ZoomOutIcon />} onClick={() => handleMenuAction(onZoomOut)} />
             <MenuItemButton label="Zoom 100%" shortcut="Ctrl+0" icon={<ZoomResetIcon />} onClick={() => handleMenuAction(onZoomReset)} />
@@ -240,7 +248,7 @@ export default function MenuBar(props: MenuBarProps) {
         )}
       </section>
 
-      <section className="pointer-events-auto glass-elevated flex min-h-12 items-center gap-1 rounded-2xl px-2 py-2">
+      <section className="pointer-events-auto glass-elevated flex min-h-12 items-center gap-1 rounded-2xl px-1.5 py-1.5">
         <CollaborationPresence collaborators={collaborators} currentUserName={username} />
         <ConnectionStatus state="connected" />
 
@@ -259,7 +267,7 @@ export default function MenuBar(props: MenuBarProps) {
             <DownloadIcon className="h-5 w-5" />
           </IconButton>
           {activeMenu === 'export' && (
-            <MenuPanel align="right">
+            <MenuPanel align="right" width="w-52">
               <MenuItemButton label="Export as PNG" icon={<ImageFileIcon />} onClick={() => handleMenuAction(onExportPNG)} />
               <MenuItemButton label="Export as JSON" icon={<CodeFileIcon />} onClick={() => handleMenuAction(onExportJSON)} />
             </MenuPanel>
@@ -286,7 +294,7 @@ export default function MenuBar(props: MenuBarProps) {
           </button>
 
           {activeMenu === 'account' && (
-            <MenuPanel align="right" width="w-72">
+            <MenuPanel align="right" width="w-64">
               <div className="px-3 py-2">
                 <p className="truncate text-sm font-semibold">{username || 'User'}</p>
                 {userEmail && <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>{userEmail}</p>}
@@ -353,15 +361,19 @@ function IconButton({ label, active, onClick, children }: { label: string; activ
   );
 }
 
-function MenuPanel({ align, width = 'w-64', children }: { align: 'left' | 'right'; width?: string; children: ReactNode }) {
+function MenuPanel({ align, width = 'w-56', children }: { align: 'left' | 'right'; width?: string; children: ReactNode }) {
   return (
     <div
-      className={`glass-elevated glass-panel-enter absolute top-full mt-2 max-h-[70vh] overflow-y-auto rounded-xl p-2 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-0'}`}
+      className={`glass-elevated glass-panel-enter absolute top-full mt-2 max-h-[58vh] overflow-y-auto rounded-2xl p-1.5 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-0'}`}
       style={{ color: 'var(--text-primary)' }}
     >
       {children}
     </div>
   );
+}
+
+function MenuGrid({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-2 gap-1">{children}</div>;
 }
 
 function MenuItemButton({
@@ -370,6 +382,7 @@ function MenuItemButton({
   icon,
   checked,
   danger,
+  compact,
   onClick,
 }: {
   label: string;
@@ -377,6 +390,7 @@ function MenuItemButton({
   icon?: ReactNode;
   checked?: boolean;
   danger?: boolean;
+  compact?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -384,7 +398,7 @@ function MenuItemButton({
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${onClick ? 'hover:bg-white/15' : 'cursor-not-allowed opacity-40'}`}
+      className={`flex min-h-11 w-full items-center justify-between rounded-xl text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${compact ? 'gap-2 px-2 text-[13px]' : 'gap-3 px-3 text-sm'} ${onClick ? 'hover:bg-white/15' : 'cursor-not-allowed opacity-40'}`}
       style={{ color: danger ? '#EF4444' : 'var(--text-primary)' }}
     >
       <span className="flex min-w-0 items-center gap-2">

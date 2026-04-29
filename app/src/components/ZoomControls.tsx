@@ -17,7 +17,7 @@ export default function ZoomControls({
   onHelp,
 }: ZoomControlsProps) {
   return (
-    <div className="flex items-center gap-1 glass rounded-xl p-1">
+    <div className="glass flex items-center gap-0.5 rounded-xl p-0.5">
       <button
         type="button"
         onClick={onZoomOut}
@@ -33,7 +33,7 @@ export default function ZoomControls({
       <button
         type="button"
         onClick={onZoomReset}
-        className="glass-btn min-h-11 min-w-[64px] rounded-lg px-2 text-sm transition-colors"
+        className="glass-btn min-h-11 min-w-[58px] rounded-lg px-2 text-sm transition-colors"
         style={{ color: 'var(--text-primary)' }}
         title="Reset zoom (Ctrl+0)"
         aria-label={`Reset zoom, current zoom ${Math.round(scale * 100)} percent`}

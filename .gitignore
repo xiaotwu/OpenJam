@@ -61,6 +61,7 @@ ehthumbs.db
 # Test and coverage
 coverage/
 .nyc_output/
+.playwright-mcp/
 
 # Lock files (optional - uncomment if you want to ignore)
 # bun.lock
