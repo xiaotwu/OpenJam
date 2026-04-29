@@ -80,6 +80,33 @@ func Migrate() error {
 	_, _ = pool.Exec(ctx, `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS board_data JSONB DEFAULT '{}'`)
 
 	_, err = pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS room_members (
+			room_id VARCHAR(36) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			permission VARCHAR(12) NOT NULL CHECK (permission IN ('view', 'comment', 'edit')),
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (room_id, user_id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create room_members table: %w", err)
+	}
+
+	_, err = pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS room_share_settings (
+			room_id VARCHAR(36) PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
+			link_permission VARCHAR(24) NOT NULL DEFAULT 'restricted'
+				CHECK (link_permission IN ('restricted', 'anyone-view', 'anyone-comment', 'anyone-edit')),
+			updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create room_share_settings table: %w", err)
+	}
+
+	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS operations (
 			id BIGSERIAL PRIMARY KEY,
 			room_id VARCHAR(36) NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -101,6 +128,7 @@ func Migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 		CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 		CREATE INDEX IF NOT EXISTS idx_rooms_owner_id ON rooms(owner_id);
+		CREATE INDEX IF NOT EXISTS idx_room_members_user_id ON room_members(user_id);
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to create indexes: %w", err)

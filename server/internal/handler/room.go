@@ -50,7 +50,7 @@ func ListRooms(c *gin.Context) {
 		return
 	}
 
-	rooms, err := model.GetRoomsByOwner(c.Request.Context(), user.ID)
+	rooms, err := model.GetRoomsAccessibleByUser(c.Request.Context(), user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list rooms"})
 		return
@@ -86,10 +86,19 @@ func GetRoom(c *gin.Context) {
 		return
 	}
 
-	// Only the room owner can access the room (TODO: expand to room members)
-	if room.OwnerID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+	access, err := model.GetRoomAccess(c.Request.Context(), roomID, user.ID)
+	if err != nil {
+		if errors.Is(err, model.ErrRoomAccessDenied) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Room access denied"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify room access"})
 		return
+	}
+	if access.IsOwner {
+		room.Permission = "owner"
+	} else {
+		room.Permission = string(access.Permission)
 	}
 
 	c.JSON(http.StatusOK, room)
@@ -208,10 +217,10 @@ func SaveBoard(c *gin.Context) {
 		name = "Untitled Board"
 	}
 
-	_, err := model.EnsureRoomOwned(c.Request.Context(), roomID, name, user.ID)
+	_, err := model.EnsureRoomEditable(c.Request.Context(), roomID, name, user.ID)
 	if err != nil {
-		if errors.Is(err, model.ErrNotRoomOwner) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Room edit access denied"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure room exists"})
@@ -231,9 +240,9 @@ func SaveBoard(c *gin.Context) {
 		CurrentPageId: req.CurrentPageId,
 	}
 
-	if err := model.SaveBoardDataForOwner(c.Request.Context(), roomID, user.ID, boardData); err != nil {
-		if errors.Is(err, model.ErrNotRoomOwner) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+	if err := model.SaveBoardDataForEditor(c.Request.Context(), roomID, user.ID, boardData); err != nil {
+		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Room edit access denied"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save board"})
@@ -259,7 +268,7 @@ func LoadBoard(c *gin.Context) {
 		return
 	}
 
-	data, err := model.LoadBoardDataForOwner(c.Request.Context(), roomID, user.ID)
+	data, err := model.LoadBoardDataForUser(c.Request.Context(), roomID, user.ID)
 	if err != nil {
 		if errors.Is(err, model.ErrRoomNotFound) {
 			c.JSON(http.StatusOK, gin.H{
@@ -268,8 +277,8 @@ func LoadBoard(c *gin.Context) {
 			})
 			return
 		}
-		if errors.Is(err, model.ErrNotRoomOwner) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Room access denied"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load board"})

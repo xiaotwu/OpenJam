@@ -81,6 +81,10 @@ func main() {
 		api.GET("/rooms/:id", handler.GetRoom)
 		api.PUT("/rooms/:id", handler.UpdateRoom)
 		api.DELETE("/rooms/:id", handler.DeleteRoom)
+		api.GET("/rooms/:id/share", handler.GetShareSettings)
+		api.PUT("/rooms/:id/share", handler.UpdateShareSettings)
+		api.POST("/rooms/:id/invites", handler.InviteRoomMember)
+		api.DELETE("/rooms/:id/members/:userId", handler.RemoveRoomMember)
 
 		api.POST("/rooms/:id/save", handler.SaveBoard)
 		api.GET("/rooms/:id/load", handler.LoadBoard)

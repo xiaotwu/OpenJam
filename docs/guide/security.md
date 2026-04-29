@@ -29,9 +29,13 @@ WebSocket connections are authenticated before upgrade:
 ## Room Access Control
 
 - Rooms are owned by the user who created them
-- Room list only shows rooms owned by the current user
-- Room load, save, export, deletion, and WebSocket join flows are restricted to the owner
-- Link sharing currently shares a board URL only; invite and public-link permissions require a future access-control model
+- Room list shows owned rooms and rooms where the current user is an invited member
+- Owners can invite registered OpenJam users by email with `view`, `comment`, or `edit` permission
+- Owners can configure board-link permissions: `restricted`, `anyone-view`, `anyone-comment`, or `anyone-edit`
+- Public link permissions apply to authenticated users who have the board URL; unauthenticated viewers still need to sign in first
+- Room load, export, and WebSocket join flows allow owners, invited members, and authenticated link viewers
+- Room save and WebSocket operation flows require owner or edit permission
+- Room rename through the room API and deletion remain owner-only
 
 ## Security Headers
 

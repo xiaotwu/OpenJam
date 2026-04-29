@@ -19,12 +19,13 @@ const (
 )
 
 type Client struct {
-	hub    *Hub
-	conn   *websocket.Conn
-	send   chan []byte
-	user   *model.User
-	roomID string
-	clock  map[string]int64
+	hub        *Hub
+	conn       *websocket.Conn
+	send       chan []byte
+	user       *model.User
+	roomID     string
+	permission model.RoomPermission
+	clock      map[string]int64
 }
 
 type MessageType string
@@ -184,11 +185,17 @@ func (c *Client) handleJoin(payload json.RawMessage) {
 
 	ctx := context.Background()
 
-	_, err := model.EnsureRoomOwned(ctx, join.RoomID, "Whiteboard", c.user.ID)
+	_, err := model.EnsureRoomAccessible(ctx, join.RoomID, "Whiteboard", c.user.ID)
 	if err != nil {
 		c.sendError("Failed to join room")
 		return
 	}
+	access, err := model.GetRoomAccess(ctx, join.RoomID, c.user.ID)
+	if err != nil {
+		c.sendError("Failed to join room")
+		return
+	}
+	c.permission = access.Permission
 
 	c.hub.JoinRoom(c, join.RoomID)
 
@@ -250,6 +257,10 @@ func (c *Client) handleLeave() {
 func (c *Client) handleOperation(payload json.RawMessage) {
 	if c.roomID == "" {
 		c.sendError("Not in a room")
+		return
+	}
+	if !model.RoomPermissionAllowsEdit(c.permission) {
+		c.sendError("You do not have permission to edit this board")
 		return
 	}
 

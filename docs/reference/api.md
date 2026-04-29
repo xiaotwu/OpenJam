@@ -72,13 +72,50 @@ Create a new room.
 ```
 
 ### GET `/api/rooms`
-List rooms owned by the current user.
+List rooms owned by the current user plus boards shared with them as a member.
 
 ### GET `/api/rooms/:id`
 Get room details.
 
+### PUT `/api/rooms/:id`
+Rename a room (owner only).
+
+**Request:**
+```json
+{ "name": "Updated Board Name" }
+```
+
 ### DELETE `/api/rooms/:id`
 Delete a room (owner only).
+
+### GET `/api/rooms/:id/share`
+Get link permission and invited members for a room.
+
+### PUT `/api/rooms/:id/share`
+Update room link permission (owner only).
+
+**Request:**
+```json
+{ "linkPermission": "restricted" }
+```
+
+Valid values: `restricted`, `anyone-view`, `anyone-comment`, `anyone-edit`.
+
+### POST `/api/rooms/:id/invites`
+Invite an existing OpenJam user to a room by email (owner only).
+
+**Request:**
+```json
+{
+  "email": "teammate@example.com",
+  "permission": "edit"
+}
+```
+
+Valid permissions: `view`, `comment`, `edit`.
+
+### DELETE `/api/rooms/:id/members/:userId`
+Remove an invited member from a room (owner only).
 
 ## Board Data
 

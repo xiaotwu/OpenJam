@@ -40,7 +40,7 @@ func ExportPNG(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID required"})
 		return
 	}
-	if !requireRoomOwner(c, roomID, user) {
+	if !requireRoomAccess(c, roomID, user) {
 		return
 	}
 
@@ -94,7 +94,7 @@ func ExportJSON(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID required"})
 		return
 	}
-	if !requireRoomOwner(c, roomID, user) {
+	if !requireRoomAccess(c, roomID, user) {
 		return
 	}
 
@@ -152,7 +152,7 @@ func GetExport(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid export key"})
 		return
 	}
-	if !requireRoomOwner(c, parts[1], user) {
+	if !requireRoomAccess(c, parts[1], user) {
 		return
 	}
 
@@ -168,18 +168,18 @@ func GetExport(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
-func requireRoomOwner(c *gin.Context, roomID string, user *model.User) bool {
-	room, err := model.GetRoom(c.Request.Context(), roomID)
+func requireRoomAccess(c *gin.Context, roomID string, user *model.User) bool {
+	err := model.UserCanAccessRoom(c.Request.Context(), roomID, user.ID)
 	if err != nil {
 		if errors.Is(err, model.ErrRoomNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
 			return false
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get room"})
-		return false
-	}
-	if room.OwnerID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
+		if errors.Is(err, model.ErrRoomAccessDenied) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Room access denied"})
+			return false
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify room access"})
 		return false
 	}
 	return true

@@ -74,6 +74,10 @@ sessions (token VARCHAR(64), user_id, expires_at, ...)
 -- Rooms (boards) with JSONB board data
 rooms (id VARCHAR(36), name, owner_id, board_data JSONB, ...)
 
+-- Board sharing and registered-user membership
+room_members (room_id, user_id, permission, ...)
+room_share_settings (room_id, link_permission, updated_by, ...)
+
 -- Operations for CRDT sync
 operations (id BIGSERIAL, room_id, user_id, op_id, op_type, payload JSONB, vector_clock JSONB, ...)
 ```

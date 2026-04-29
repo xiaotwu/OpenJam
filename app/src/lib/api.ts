@@ -13,8 +13,27 @@ export interface Room {
   id: string;
   name: string;
   ownerId: string;
+  permission?: 'owner' | MemberPermission;
   createdAt: string;
   updatedAt: string;
+}
+
+export type LinkPermission = 'restricted' | 'anyone-view' | 'anyone-comment' | 'anyone-edit';
+export type MemberPermission = 'view' | 'comment' | 'edit';
+
+export interface RoomMember {
+  userId: string;
+  email: string;
+  displayName: string;
+  avatarColor: string;
+  permission: MemberPermission;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoomShareSettings {
+  linkPermission: LinkPermission;
+  members: RoomMember[];
 }
 
 export interface AuthResponse {
@@ -164,6 +183,35 @@ export async function updateRoom(id: string, name: string): Promise<Room> {
 
 export async function deleteRoom(id: string): Promise<void> {
   await request(`/api/rooms/${id}`, { method: 'DELETE' });
+}
+
+export async function getRoomShareSettings(id: string): Promise<RoomShareSettings> {
+  return request(`/api/rooms/${id}/share`);
+}
+
+export async function updateRoomShareSettings(
+  id: string,
+  linkPermission: LinkPermission
+): Promise<RoomShareSettings> {
+  return request(`/api/rooms/${id}/share`, {
+    method: 'PUT',
+    body: JSON.stringify({ linkPermission }),
+  });
+}
+
+export async function inviteRoomMember(
+  id: string,
+  email: string,
+  permission: MemberPermission
+): Promise<RoomMember> {
+  return request(`/api/rooms/${id}/invites`, {
+    method: 'POST',
+    body: JSON.stringify({ email, permission }),
+  });
+}
+
+export async function removeRoomMember(id: string, userId: string): Promise<void> {
+  await request(`/api/rooms/${id}/members/${userId}`, { method: 'DELETE' });
 }
 
 export interface BoardData {

@@ -116,6 +116,24 @@ func GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return user, nil
 }
 
+func GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	user := &User{}
+	err := db.Pool().QueryRow(ctx, `
+		SELECT id, email, display_name, avatar_color, created_at, updated_at
+		FROM users WHERE email = $1
+	`, email).Scan(
+		&user.ID, &user.Email, &user.DisplayName, &user.AvatarColor, &user.CreatedAt, &user.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func UpdateUserProfile(ctx context.Context, id uuid.UUID, displayName, avatarColor string) (*User, error) {
 	user := &User{}
 	err := db.Pool().QueryRow(ctx, `

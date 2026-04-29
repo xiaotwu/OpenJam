@@ -15,6 +15,18 @@ import DragCreatePreview from './canvas/DragCreatePreview';
 import { ElementStore } from '../lib/elementStore';
 import { useCollaboration } from '../lib/useCollaboration';
 import {
+  createRoom,
+  deleteRoom as deleteRoomApi,
+  getRoomShareSettings,
+  inviteRoomMember,
+  removeRoomMember,
+  saveBoard,
+  updateRoomShareSettings,
+  type LinkPermission,
+  type MemberPermission,
+  type RoomMember,
+} from '../lib/api';
+import {
   type Element,
   type ElementType,
   type DrawingElement,
@@ -72,6 +84,7 @@ import VersionHistoryPanel, { generateMockVersions } from './VersionHistoryPanel
 import ImageUploadDialog from './ImageUploadDialog';
 import FileInfoDialog from './FileInfoDialog';
 import FloatingObjectToolbar from './FloatingObjectToolbar';
+import { ConfirmDialog, NoticeDialog } from './AppDialog';
 import { type Page } from './PagesPanel';
 
 // Tool options interface
@@ -334,6 +347,9 @@ export default function OpenJamCanvas({
   const [showTableCreation, setShowTableCreation] = useState(false);
   const [showTimerCreation, setShowTimerCreation] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  const [noticeDialog, setNoticeDialog] = useState<{ title: string; message: string } | null>(null);
+  const [deleteBoardDialogOpen, setDeleteBoardDialogOpen] = useState(false);
+  const [boardActionBusy, setBoardActionBusy] = useState(false);
   
   // Mock version history
   const versions = useMemo(() => generateMockVersions(userId, currentUsername, currentUserColor), [userId, currentUsername, currentUserColor]);
@@ -404,7 +420,11 @@ export default function OpenJamCanvas({
         isOnline: true,
       })),
   ], [userId, currentUsername, currentUserAvatarUrl, currentUserColor, remoteCollaborators]);
-  const [linkPermission, setLinkPermission] = useState<'restricted' | 'anyone-view' | 'anyone-comment' | 'anyone-edit'>('restricted');
+  const [shareLinkPermission, setShareLinkPermission] = useState<LinkPermission>('restricted');
+  const [shareMembers, setShareMembers] = useState<RoomMember[]>([]);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareSaving, setShareSaving] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [autosaveReady, setAutosaveReady] = useState(false);
   const [boardLoadError, setBoardLoadError] = useState<string | null>(null);
 
@@ -425,6 +445,82 @@ export default function OpenJamCanvas({
     setBoardName(name);
     markDirty();
   }, [markDirty]);
+
+  const loadShareSettings = useCallback(async () => {
+    setShareLoading(true);
+    setShareError(null);
+
+    try {
+      const settings = await getRoomShareSettings(_boardId);
+      setShareLinkPermission(settings.linkPermission);
+      setShareMembers(settings.members || []);
+    } catch (err) {
+      setShareError(err instanceof Error ? err.message : 'Failed to load sharing settings');
+    } finally {
+      setShareLoading(false);
+    }
+  }, [_boardId]);
+
+  useEffect(() => {
+    if (showShareDialog) {
+      void loadShareSettings();
+    }
+  }, [loadShareSettings, showShareDialog]);
+
+  const handleChangeLinkPermission = useCallback(async (permission: LinkPermission) => {
+    const previousPermission = shareLinkPermission;
+    setShareSaving(true);
+    setShareError(null);
+    setShareLinkPermission(permission);
+
+    try {
+      const settings = await updateRoomShareSettings(_boardId, permission);
+      setShareLinkPermission(settings.linkPermission);
+      setShareMembers(settings.members || []);
+    } catch (err) {
+      setShareLinkPermission(previousPermission);
+      const message = err instanceof Error ? err.message : 'Failed to update sharing settings';
+      setShareError(message);
+      throw err;
+    } finally {
+      setShareSaving(false);
+    }
+  }, [_boardId, shareLinkPermission]);
+
+  const handleInviteMember = useCallback(async (email: string, permission: MemberPermission) => {
+    setShareSaving(true);
+    setShareError(null);
+
+    try {
+      const member = await inviteRoomMember(_boardId, email, permission);
+      setShareMembers((current) => {
+        const withoutExisting = current.filter((item) => item.userId !== member.userId);
+        return [member, ...withoutExisting];
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to invite member';
+      setShareError(message);
+      throw err;
+    } finally {
+      setShareSaving(false);
+    }
+  }, [_boardId]);
+
+  const handleRemoveMember = useCallback(async (memberId: string) => {
+    setShareSaving(true);
+    setShareError(null);
+
+    try {
+      await removeRoomMember(_boardId, memberId);
+      setShareMembers((current) => current.filter((member) => member.userId !== memberId));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to remove member';
+      setShareError(message);
+      throw err;
+    } finally {
+      setShareSaving(false);
+    }
+  }, [_boardId]);
   
   // Interaction state
   const [isPanning, setIsPanning] = useState(false);
@@ -793,7 +889,10 @@ export default function OpenJamCanvas({
     
     // Calculate bounds of all elements
     if (elements.length === 0) {
-      alert('No elements to export');
+      setNoticeDialog({
+        title: 'Nothing to export',
+        message: 'Add at least one element to the board before exporting a PNG.',
+      });
       return;
     }
     
@@ -1101,7 +1200,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing, selectedIds, startDragMove, elementStoreRef, markDirty]
+    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing, selectedIds, startDragMove, startDragCreate, setSelectionBox, elementStoreRef, markDirty]
   );
   
   // Handle canvas mouse move
@@ -1153,7 +1252,7 @@ export default function OpenJamCanvas({
         return;
       }
     },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, continueDrawing, continueErasing, updateDragCreate, updateDragMove, sendCursor]
+    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, setEraserPosition, setSelectionBox, continueDrawing, continueErasing, updateDragCreate, updateDragMove, sendCursor]
   );
   
   // Handle canvas mouse up
@@ -1193,7 +1292,7 @@ export default function OpenJamCanvas({
     }
 
     endDrawing();
-  }, [isPanning, selectionBox, isDrawing, drawingPath, elements, dragCreateStart, isErasing, dragMoveStart, currentTool, endDrawing, endErasingHook, endDragCreate, endDragMove]);
+  }, [isPanning, selectionBox, isDrawing, dragCreateStart, isErasing, dragMoveStart, getSelectedFromBox, setSelectionBox, endDrawing, endErasingHook, endDragCreate, endDragMove]);
   
   // Zoom functions (defined early for use in context menu)
   const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.2, 5)), []);
@@ -1481,17 +1580,7 @@ export default function OpenJamCanvas({
         showGrid={showGrid}
         onVersionHistory={() => setShowVersionHistory(true)}
         onFileInfo={() => setShowFileInfo(true)}
-        onDeleteBoard={async () => {
-          if (confirm('Are you sure you want to delete this board?')) {
-            try {
-              const { deleteRoom } = await import('../lib/api');
-              await deleteRoom(_boardId);
-              window.location.href = '/workplace';
-            } catch (err) {
-              alert(err instanceof Error ? err.message : 'Failed to delete board');
-            }
-          }
-        }}
+        onDeleteBoard={() => setDeleteBoardDialogOpen(true)}
         // Page management
         pages={pages}
         currentPageId={currentPageId}
@@ -1501,8 +1590,8 @@ export default function OpenJamCanvas({
         onDuplicatePage={handleDuplicatePage}
         onDeletePage={handleDeletePage}
         onDuplicateBoard={async () => {
+          setBoardActionBusy(true);
           try {
-            const { createRoom, saveBoard } = await import('../lib/api');
             const name = `${boardName} (Copy)`;
             const room = await createRoom(name);
             await saveBoard(room.id, {
@@ -1514,7 +1603,12 @@ export default function OpenJamCanvas({
             });
             window.location.href = `/board/${room.id}`;
           } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to duplicate board');
+            setNoticeDialog({
+              title: 'Could not duplicate board',
+              message: err instanceof Error ? err.message : 'Failed to duplicate board',
+            });
+          } finally {
+            setBoardActionBusy(false);
           }
         }}
         // User settings
@@ -1576,9 +1670,14 @@ export default function OpenJamCanvas({
         onClose={() => setShowShareDialog(false)}
         boardName={boardName}
         shareLink={`${window.location.origin}/board/${_boardId}`}
-        linkPermission={linkPermission}
-        onChangeLinkPermission={setLinkPermission}
-        onInvite={() => alert('Invites are not available yet. Copy the board link to share with people who already have access.')}
+        linkPermission={shareLinkPermission}
+        members={shareMembers}
+        isLoading={shareLoading}
+        isSaving={shareSaving}
+        error={shareError}
+        onChangeLinkPermission={handleChangeLinkPermission}
+        onInvite={handleInviteMember}
+        onRemoveMember={handleRemoveMember}
         onCopyLink={() => {}}
       />
       
@@ -1643,6 +1742,42 @@ export default function OpenJamCanvas({
         onClose={() => setShowFileInfo(false)}
         fileInfo={fileInfo}
         collaborators={collaborators}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteBoardDialogOpen}
+        title="Delete Board"
+        message={(
+          <span>
+            Delete <strong style={{ color: 'var(--text-primary)' }}>{boardName}</strong>? This cannot be undone.
+          </span>
+        )}
+        confirmLabel="Delete"
+        tone="danger"
+        isBusy={boardActionBusy}
+        onConfirm={async () => {
+          setBoardActionBusy(true);
+          try {
+            await deleteRoomApi(_boardId);
+            window.location.href = '/workplace';
+          } catch (err) {
+            setNoticeDialog({
+              title: 'Could not delete board',
+              message: err instanceof Error ? err.message : 'Failed to delete board',
+            });
+            setDeleteBoardDialogOpen(false);
+          } finally {
+            setBoardActionBusy(false);
+          }
+        }}
+        onClose={() => setDeleteBoardDialogOpen(false)}
+      />
+
+      <NoticeDialog
+        isOpen={noticeDialog !== null}
+        title={noticeDialog?.title || ''}
+        message={noticeDialog?.message || ''}
+        onClose={() => setNoticeDialog(null)}
       />
       
       {/* Context Menu */}

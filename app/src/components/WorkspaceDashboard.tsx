@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Room, User } from '../lib/api';
 import { createRoom, deleteRoom, listRooms, updateRoom } from '../lib/api';
+import { ConfirmDialog, TextInputDialog } from './AppDialog';
 
 interface WorkspaceDashboardProps {
   user: User;
@@ -91,6 +92,10 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [renameRoom, setRenameRoom] = useState<Room | null>(null);
+  const [deleteRoomTarget, setDeleteRoomTarget] = useState<Room | null>(null);
+  const [isWorkspaceDialogOpen, setIsWorkspaceDialogOpen] = useState(false);
+  const [dialogBusy, setDialogBusy] = useState(false);
 
   useEffect(() => {
     saveWorkspaceState(user.id, workspaceState);
@@ -160,36 +165,45 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     }
   };
 
-  const handleRename = async (room: Room) => {
-    const nextName = window.prompt('Rename project', room.name)?.trim();
-    if (!nextName || nextName === room.name) {
+  const submitRename = async (nextName: string) => {
+    if (!renameRoom) {
+      return;
+    }
+    if (!nextName || nextName === renameRoom.name) {
       return;
     }
 
+    setDialogBusy(true);
     try {
-      const updated = await updateRoom(room.id, nextName);
+      const updated = await updateRoom(renameRoom.id, nextName);
       setRooms((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setRenameRoom(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rename project');
+    } finally {
+      setDialogBusy(false);
     }
   };
 
-  const handleDelete = async (room: Room) => {
-    const confirmed = window.confirm(`Delete "${room.name}"? This cannot be undone.`);
-    if (!confirmed) {
+  const confirmDelete = async () => {
+    if (!deleteRoomTarget) {
       return;
     }
 
+    setDialogBusy(true);
     try {
-      await deleteRoom(room.id);
-      setRooms((current) => current.filter((item) => item.id !== room.id));
+      await deleteRoom(deleteRoomTarget.id);
+      setRooms((current) => current.filter((item) => item.id !== deleteRoomTarget.id));
       setWorkspaceState((current) => {
         const assignments = { ...current.assignments };
-        delete assignments[room.id];
+        delete assignments[deleteRoomTarget.id];
         return { ...current, assignments };
       });
+      setDeleteRoomTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete project');
+    } finally {
+      setDialogBusy(false);
     }
   };
 
@@ -212,8 +226,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     }));
   };
 
-  const handleAddWorkspace = () => {
-    const name = window.prompt('Workspace name')?.trim();
+  const submitWorkspace = (name: string) => {
     if (!name) {
       return;
     }
@@ -224,6 +237,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       ...current,
       workspaces: [...current.workspaces, { id, name, color, collapsed: false }],
     }));
+    setIsWorkspaceDialogOpen(false);
   };
 
   return (
@@ -252,7 +266,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
               </h2>
               <button
                 type="button"
-                onClick={handleAddWorkspace}
+                onClick={() => setIsWorkspaceDialogOpen(true)}
                 className="min-h-11 rounded-xl px-3 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 style={{ color: 'var(--text-primary)' }}
               >
@@ -349,57 +363,69 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                           Empty workspace
                         </div>
                       ) : (
-                        workspace.rooms.map((room) => (
-                          <article key={room.id} className="rounded-2xl border bg-white/78 p-4 shadow-sm" style={{ borderColor: 'var(--glass-border-strong)' }}>
-                            <div className="grid gap-4 sm:grid-cols-[68px_minmax(0,1fr)]">
-                              <div className="aspect-square rounded-2xl" style={{ background: roomAccent(room.id) }}>
-                                <div className="h-full w-full rounded-2xl bg-white/20" />
-                              </div>
-                              <div className="min-w-0">
+                        workspace.rooms.map((room) => {
+                          const canManageRoom = room.permission === 'owner' || room.ownerId === user.id || !room.permission;
+
+                          return (
+                            <article key={room.id} className="rounded-2xl border bg-white/78 p-4 shadow-sm" style={{ borderColor: 'var(--glass-border-strong)' }}>
+                              <div className="grid gap-4 sm:grid-cols-[68px_minmax(0,1fr)]">
+                                <div className="aspect-square rounded-2xl" style={{ background: roomAccent(room.id) }}>
+                                  <div className="h-full w-full rounded-2xl bg-white/20" />
+                                </div>
                                 <div className="min-w-0">
-                                  <h3 className="truncate text-base font-semibold">{room.name}</h3>
-                                  <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                    Updated {formatDate(room.updatedAt)}
-                                  </p>
-                                </div>
-                                <div className="mt-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${room.name} actions`}>
-                                  <Link
-                                    to={`/board/${room.id}`}
-                                    className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-white transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                    style={{ background: roomAccent(room.id) }}
-                                  >
-                                    Open
-                                  </Link>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRename(room)}
-                                    className="min-h-11 rounded-lg px-3 text-xs font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                  >
-                                    Rename
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete(room)}
-                                    className="min-h-11 rounded-lg px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                                  >
-                                    Delete
-                                  </button>
-                                  <label className="sr-only" htmlFor={`move-${room.id}`}>Move {room.name}</label>
-                                  <select
-                                    id={`move-${room.id}`}
-                                    value={assignedWorkspace(room.id)}
-                                    onChange={(event) => handleMove(room.id, event.target.value)}
-                                    className="min-h-11 rounded-lg border border-black/10 bg-white px-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                  >
-                                    {workspaceState.workspaces.map((option) => (
-                                      <option key={option.id} value={option.id}>{option.name}</option>
-                                    ))}
-                                  </select>
+                                  <div className="min-w-0">
+                                    <h3 className="truncate text-base font-semibold">{room.name}</h3>
+                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                      Updated {formatDate(room.updatedAt)}
+                                    </p>
+                                  </div>
+                                  <div className="mt-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${room.name} actions`}>
+                                    <Link
+                                      to={`/board/${room.id}`}
+                                      className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-white transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                                      style={{ background: roomAccent(room.id) }}
+                                    >
+                                      Open
+                                    </Link>
+                                    {canManageRoom ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => setRenameRoom(room)}
+                                          className="min-h-11 rounded-lg px-3 text-xs font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                                        >
+                                          Rename
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setDeleteRoomTarget(room)}
+                                          className="min-h-11 rounded-lg px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                                        >
+                                          Delete
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold" style={{ background: 'var(--badge-bg)', color: 'var(--text-secondary)' }}>
+                                        Shared
+                                      </span>
+                                    )}
+                                    <label className="sr-only" htmlFor={`move-${room.id}`}>Move {room.name}</label>
+                                    <select
+                                      id={`move-${room.id}`}
+                                      value={assignedWorkspace(room.id)}
+                                      onChange={(event) => handleMove(room.id, event.target.value)}
+                                      className="min-h-11 rounded-lg border border-black/10 bg-white px-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                                    >
+                                      {workspaceState.workspaces.map((option) => (
+                                        <option key={option.id} value={option.id}>{option.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </article>
-                        ))
+                            </article>
+                          );
+                        })
                       )}
                     </div>
                   )}
@@ -409,6 +435,43 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
           </div>
         </section>
       </div>
+
+      <TextInputDialog
+        isOpen={renameRoom !== null}
+        title="Rename Project"
+        label="Project name"
+        initialValue={renameRoom?.name || ''}
+        submitLabel="Rename"
+        isBusy={dialogBusy}
+        onSubmit={submitRename}
+        onClose={() => setRenameRoom(null)}
+      />
+
+      <TextInputDialog
+        isOpen={isWorkspaceDialogOpen}
+        title="New Workspace"
+        label="Workspace name"
+        placeholder="Design reviews"
+        submitLabel="Create"
+        isBusy={dialogBusy}
+        onSubmit={submitWorkspace}
+        onClose={() => setIsWorkspaceDialogOpen(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteRoomTarget !== null}
+        title="Delete Project"
+        message={(
+          <span>
+            Delete <strong style={{ color: 'var(--text-primary)' }}>{deleteRoomTarget?.name}</strong>? This cannot be undone.
+          </span>
+        )}
+        confirmLabel="Delete"
+        tone="danger"
+        isBusy={dialogBusy}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteRoomTarget(null)}
+      />
     </main>
   );
 }
