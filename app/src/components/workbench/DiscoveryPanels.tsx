@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   useWorkshopResource, workshopPath, type RecentResource, type SearchHit, type SearchKind,
 } from '../../lib/workshop';
 import { useI18n } from '../../i18n';
+import { resourceIcon } from '../../lib/directory';
 import WorkbenchIcon, { type WorkbenchIconName } from './WorkbenchIcon';
 
 const categories: Record<SearchKind, { label: string; icon: WorkbenchIconName }> = {
@@ -20,6 +21,7 @@ export function WorkshopSearch({ query, teamId, teamName, onOpen }: {
   onOpen: () => void;
 }) {
   const [debounced, setDebounced] = useState('');
+  const location = useLocation();
   const [category, setCategory] = useState<SearchKind | 'all'>('all');
   const [global, setGlobal] = useState(false);
   useEffect(() => {
@@ -57,8 +59,8 @@ export function WorkshopSearch({ query, teamId, teamName, onOpen }: {
       {filtered.length > 0 && <ul className="wb-result-list">
         {filtered.map((hit, index) => (
           <li key={[hit.kind, hit.url, index].join(':')}>
-            <Link to={hit.url} onClick={onOpen} className="wb-result-row">
-              <span className="wb-result-icon"><WorkbenchIcon name={hit.resourceKind === 'doc' ? 'document' : categories[hit.kind].icon} /></span>
+            <Link to={hit.url} onClick={onOpen} className="wb-result-row" state={{ workshop: location.pathname + location.search }}>
+              <span className="wb-result-icon"><WorkbenchIcon name={hit.resourceKind && hit.resourceKind !== 'board' ? resourceIcon(hit.resourceKind) : categories[hit.kind].icon} /></span>
               <span className="wb-row-content">
                 <strong>{hit.title}</strong>
                 {hit.snippet && <span>{hit.snippet}</span>}
@@ -84,7 +86,7 @@ export function WorkshopRecents() {
       {!!result.data?.items.length && <ul className="wb-result-list">
         {result.data.items.map(item => <li key={item.id}>
           <Link className="wb-result-row" to={item.url}>
-            <span className="wb-result-icon"><WorkbenchIcon name={item.resourceKind === 'doc' ? 'document' : 'board'} /></span>
+            <span className="wb-result-icon"><WorkbenchIcon name={resourceIcon(item.resourceKind)} /></span>
             <span className="wb-row-content"><strong>{item.title}</strong>{item.context && <span>{item.context}</span>}</span>
             <span className="wb-row-context">{formatDate(item.openedAt, 'compact')}</span>
             <WorkbenchIcon name="arrow" />

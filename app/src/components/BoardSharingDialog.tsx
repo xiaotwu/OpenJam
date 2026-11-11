@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { MemberPermission } from '../lib/api';
+import { resourceNames, type ResourceKind } from '../lib/directory';
 import {
   boardCredentialURL, closeLegacyBoardLink, getBoardSharing, getEffectiveBoardAccess, issueBoardInvitation,
   issueBoardShareLink, removeBoardMember, revokeBoardInvitation, revokeBoardShareLink, updateBoardMemberRole,
@@ -11,7 +12,7 @@ interface BoardSharingDialogProps {
   onClose: () => void;
   boardId: string;
   boardName: string;
-  resourceKind?: 'board' | 'doc';
+  resourceKind?: ResourceKind;
 }
 
 const permissionLabels: Record<EffectiveBoardAccess['permission'], string> = {
@@ -165,7 +166,7 @@ function BoardSharingPanel({ onClose, boardId, boardName, resourceKind = 'board'
       <section className="p-4 sm:p-6">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 id={heading} className="truncate text-xl font-semibold">Share {boardName || (resourceKind === 'doc' ? 'document' : 'board')}</h2>
+            <h2 id={heading} className="truncate text-xl font-semibold">Share {boardName || resourceNames[resourceKind].toLowerCase()}</h2>
             {access && <p className={`${muted} mt-1`}>{permissionLabels[access.permission]} · {sources[access.source]}</p>}
           </div>
           <button type="button" onClick={onClose} className={secondary}>Close</button>

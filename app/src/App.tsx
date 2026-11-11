@@ -10,10 +10,12 @@ import type { User } from './lib/api';
 import { useI18n } from './i18n';
 import { useAppearance } from './lib/useAppearance';
 import { boardCredentialFragment, readBoardCredential } from './lib/boardSharing';
+import type { ResourceKind } from './lib/directory';
 import './App.css';
 
 const OpenJamCanvas = lazy(() => import('./components/OpenJamCanvas'));
 const OpenJamDoc = lazy(() => import('./components/docs/OpenJamDoc'));
+const OpenJamSheet = lazy(() => import('./components/sheets/OpenJamSheet'));
 
 function LoadingScreen({ message }: { message: string }) {
   return (
@@ -65,6 +67,7 @@ function AppContent() {
         element={<BoardRoute user={user} fallbackColor={userColor} />}
       />
       <Route path="/doc/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="doc" />} />
+      <Route path="/sheet/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="sheet" />} />
       <Route path="/room/:boardId" element={<LegacyRoomRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -98,7 +101,7 @@ function AuthRoute({ user }: { user: User | null }) {
   const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
   const next = getSafeNextPath(searchParams.get('next'));
   const credential = readBoardCredential(location.hash);
-  const acceptsCredential = next && (/^\/(?:board|doc)\/[^/?#]+(?:\?[^#]*)?$/.test(next)
+  const acceptsCredential = next && (/^\/(?:board|doc|sheet)\/[^/?#]+(?:\?[^#]*)?$/.test(next)
     || (credential?.kind === 'invite' && /^\/teams\/[^/?#]+\/invite$/.test(next)));
   const destination = next && credential && acceptsCredential
     ? `${next}${boardCredentialFragment(credential)}` : next || '/workplace';
@@ -156,7 +159,7 @@ function LegacyRoomRoute() {
 }
 
 function BoardRoute({ user, fallbackColor, kind = 'board' }: {
-  user: User | null; fallbackColor: string; kind?: 'board' | 'doc';
+  user: User | null; fallbackColor: string; kind?: ResourceKind;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -176,8 +179,9 @@ function BoardRoute({ user, fallbackColor, kind = 'board' }: {
   }
 
   return (
-    <Suspense fallback={<LoadingScreen message={kind === 'doc' ? 'Opening document…' : text.opening} />}>
-      {kind === 'doc' ? <OpenJamDoc key={`${user.id}:${boardId}`} docId={boardId || ''} user={user} /> : <OpenJamCanvas
+    <Suspense fallback={<LoadingScreen message={kind === 'sheet' ? 'Opening spreadsheet…' : kind === 'doc' ? 'Opening document…' : text.opening} />}>
+      {kind === 'sheet' ? <OpenJamSheet key={`${user.id}:${boardId}`} sheetId={boardId || ''} user={user} />
+        : kind === 'doc' ? <OpenJamDoc key={`${user.id}:${boardId}`} docId={boardId || ''} user={user} /> : <OpenJamCanvas
         key={`${user.id}:${boardId}`}
         boardId={boardId || 'default'}
         userId={user.id}

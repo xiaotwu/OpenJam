@@ -44,6 +44,7 @@ type Project struct {
 const (
 	ResourceBoard = "board"
 	ResourceDoc   = "doc"
+	ResourceSheet = "sheet"
 )
 
 type DirectoryBoard struct {
@@ -60,6 +61,7 @@ type Directory struct {
 	Projects      []Project        `json:"projects"`
 	Boards        []DirectoryBoard `json:"boards"`
 	Docs          []DirectoryBoard `json:"docs"`
+	Sheets        []DirectoryBoard `json:"sheets"`
 }
 
 var (
@@ -190,7 +192,8 @@ func ListDirectory(ctx context.Context, userID uuid.UUID) (Directory, error) {
 			'workspaces', COALESCE((SELECT jsonb_agg(w ORDER BY NOT w."isDefault", LOWER(w.name), w.id) FROM visible_workspaces w), '[]'::jsonb),
 			'projects', COALESCE((SELECT jsonb_agg(p ORDER BY LOWER(p.name), p.id) FROM visible_projects p), '[]'::jsonb),
 			'boards', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'board'), '[]'::jsonb),
-			'docs', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'doc'), '[]'::jsonb)
+			'docs', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'doc'), '[]'::jsonb),
+			'sheets', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'sheet'), '[]'::jsonb)
 		)
 	`, userID, draftsID).Scan(&directory)
 	return directory, err
@@ -242,7 +245,7 @@ func CreateProjectBoard(ctx context.Context, userID, projectID uuid.UUID, name s
 	return insertProjectResource(ctx, db.Pool(), userID, projectID, name, ResourceBoard)
 }
 
-func CreateProjectDoc(ctx context.Context, tx pgx.Tx, userID, projectID uuid.UUID, name string) (DirectoryBoard, error) {
+func CreateProjectCollaborativeResource(ctx context.Context, tx pgx.Tx, userID, projectID uuid.UUID, name, kind string) (DirectoryBoard, error) {
 	var organization uuid.UUID
 	err := tx.QueryRow(ctx, `
 		SELECT o.id FROM projects p JOIN workspaces w ON w.id = p.workspace_id
@@ -251,7 +254,7 @@ func CreateProjectDoc(ctx context.Context, tx pgx.Tx, userID, projectID uuid.UUI
 	if err != nil {
 		return DirectoryBoard{}, directoryLookupError(err)
 	}
-	return insertProjectResource(ctx, tx, userID, projectID, name, ResourceDoc)
+	return insertProjectResource(ctx, tx, userID, projectID, name, kind)
 }
 
 func CheckProjectEdit(ctx context.Context, userID, projectID uuid.UUID) error {

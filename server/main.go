@@ -210,6 +210,7 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 	handler.RegisterDirectoryRoutes(syncAPI, hub.NotifyAccessChanged)
 	handler.RegisterWorkshopRoutes(syncAPI)
 	handler.RegisterDocsRoutes(syncAPI)
+	handler.RegisterSheetsRoutes(syncAPI)
 	handler.RegisterDocumentRoutes(syncAPI, hub.NotifyDocument, hub.NotifyAccessChanged, agentConfig)
 	handler.RegisterAgentOrganizationRoutes(syncAPI, agentConfig)
 	handler.RegisterAgentProfileRoutes(syncAPI)

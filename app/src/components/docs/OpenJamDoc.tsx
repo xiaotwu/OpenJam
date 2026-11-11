@@ -311,7 +311,7 @@ export default function OpenJamDoc({ docId, user }: { docId: string; user: User 
     blockElement(id)?.scrollIntoView({ block: 'center', behavior: 'instant' });
   }
 
-  if (sync.resourceKind === 'board') return <Navigate replace to={resourcePath('board', docId) + location.search} />;
+  if (sync.resourceKind && sync.resourceKind !== 'doc') return <Navigate replace to={resourcePath(sync.resourceKind, docId) + location.search} />;
 
   const activeText = active && (draft?.id === active.id ? draft.value : active.text);
   const outline = blocks.flatMap(block => {

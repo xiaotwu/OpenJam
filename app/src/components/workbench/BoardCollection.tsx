@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { resourcePath, type DirectoryBoard } from '../../lib/directory';
+import { resourceIcon, resourceNames, resourcePath, type DirectoryBoard } from '../../lib/directory';
 import { readBoardThumbnail } from '../../lib/boardFiles';
 import { useI18n } from '../../i18n';
 import WorkbenchIcon from './WorkbenchIcon';
@@ -106,9 +106,9 @@ function BoardTile({ board, theme, location, canMove, isBusy, menuOpen, onMenuCh
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const updatedLabel = formatDate(board.updatedAt, 'date');
   const owned = board.permission === 'owner';
-  const doc = board.kind === 'doc';
+  const nativeFile = board.kind !== 'board';
   const favoriteLabel = board.favorite ? text.removeFavorite(board.name) : text.addFavorite(board.name);
-  const archiveLabel = doc ? (board.archivedAt ? 'Restore Document' : 'Archive Document')
+  const archiveLabel = nativeFile ? (board.archivedAt ? 'Restore ' : 'Archive ') + resourceNames[board.kind]
     : board.archivedAt ? directory.restoreBoard : directory.archiveBoard;
 
   return (
@@ -120,8 +120,8 @@ function BoardTile({ board, theme, location, canMove, isBusy, menuOpen, onMenuCh
         aria-label={text.open(board.name)}
         aria-describedby={`${menuId}-location ${menuId}-detail`}
       >
-        {doc ? <div className="wb-board-preview wb-doc-preview" aria-hidden="true">
-          <span className="wb-file-glyph"><WorkbenchIcon name="document" /></span>
+        {nativeFile ? <div className="wb-board-preview wb-doc-preview" aria-hidden="true">
+          <span className="wb-file-glyph"><WorkbenchIcon name={resourceIcon(board.kind)} /></span>
         </div> : <BoardPreview key={`${board.updatedAt}/${theme}`} boardId={board.id} theme={theme} />}
         <div className="wb-board-meta">
           <strong title={board.name}>{board.name}</strong>

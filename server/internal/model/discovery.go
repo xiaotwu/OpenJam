@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"net/url"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -102,9 +103,12 @@ func SearchWorkshop(ctx context.Context, actor uuid.UUID, team *uuid.UUID, query
 		UNION ALL
 		SELECT 'content', b.id, b.name,
 			btrim(substring(i.body from greatest(strpos(lower(i.body), q.needle) - 40, 1) for 230)),
-			NULL, b.project_id, coalesce(i.page_id, ''), coalesce(i.element_id, ''), b.project_name, b.resource_kind,
+			NULL, b.project_id, coalesce(i.page_id, ''), coalesce(i.element_id, ''),
+			concat_ws(' · ', nullif(b.project_name, ''), tab.data->>'name' || '!' || split_part(i.element_id, ':', 2)), b.resource_kind,
 			1 + ts_rank(i.terms, q.terms)
-		FROM visible_boards b JOIN workshop_board_index i ON i.board_id = b.id CROSS JOIN query q
+		FROM visible_boards b JOIN workshop_board_index i ON i.board_id = b.id
+		LEFT JOIN board_pages tab ON b.resource_kind = 'sheet' AND tab.board_id = b.id AND tab.id = i.page_id AND NOT tab.deleted
+		CROSS JOIN query q
 		WHERE (`+currentIndexedSource+`) AND (i.terms @@ q.terms OR strpos(lower(i.body), q.needle) > 0)
 	), ranked AS (
 		SELECT *, row_number() OVER (PARTITION BY kind, id, organization_id ORDER BY score DESC, page_id, element_id) AS source_rank
@@ -213,6 +217,13 @@ func directoryURL(kind, id string, organization uuid.UUID) string {
 }
 
 func resourceSourceURL(kind, resource, page, element string) string {
+	if kind == ResourceSheet {
+		path := "/sheet/" + url.PathEscape(resource)
+		if address, ok := strings.CutPrefix(element, page+":"); ok && page != "" {
+			path += "?" + (url.Values{"sheet": {page}, "cell": {address}}).Encode()
+		}
+		return path
+	}
 	if kind == ResourceDoc {
 		path := "/doc/" + url.PathEscape(resource)
 		if page != "" {

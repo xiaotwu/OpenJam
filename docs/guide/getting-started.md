@@ -86,17 +86,27 @@ Editors can work in different blocks at the same time. If two edits change the s
 
 From a project, choose **Import → Markdown or DOCX** to create a document from a file. In the editor, **Export Document** downloads the saved content as Markdown or Word. Word conversion supports paragraphs, headings, lists, bold, italics, links, quotes, and code. It uses the chosen block fonts when Word has them installed. OpenJam links in a Word export use the address of the exporting instance. Markdown carries the text and formatting syntax. Word tables are linearized to text, and images, comments, track changes markup, and page layout are outside the conversion. Imports accept up to 4 MiB, and a document supports up to 400 blocks and 1 MiB of text.
 
+## Sheets
+
+In a personal or Team project, choose **New → New Spreadsheet**. Select a cell, then type, press Enter, or double-click to edit it in the formula bar. Enter saves the edit and moves down. Escape cancels it. Use **Go to Cell** to jump to an address and **Copy Cell Link** to share that location with someone who already has access.
+
+Start formulas with an equals sign. Use arithmetic, cell and range references, and `SUM`, `AVERAGE`, `MIN`, `MAX`, or `COUNT`. For example, `=SUM(B2:B8)` adds a range and `='April Plan'!B2*2` reads a cell on another worksheet. Prefix a value with an apostrophe to enter it as text. Formula results recalculate after sync. Editors can change different cells at the same time. If a cell has changed since you started editing it, OpenJam keeps the attempted edit for review. Use **Spreadsheet History** to preview, name, copy, or restore versions according to your existing permissions.
+
+Choose **Import → CSV or XLSX** in a project to create a spreadsheet. CSV imports UTF-8 data into one worksheet and exports the current worksheet’s displayed values. Formula-like CSV text receives a protective apostrophe on export. XLSX carries worksheets, cell values, and supported formulas. Unsupported formulas appear as errors in OpenJam and export as text. Formatting, charts, merged cells, and date display formats are outside the conversion.
+
+Workbooks support up to eight worksheets with addresses from A1 through AZ1000, 6,000 filled cells, 512 formulas, and 1 MiB of cell text. Each cell supports 1,024 bytes of text, and imports accept files up to 4 MiB.
+
 ## Relationships and search
 
-Open a Team’s Overview to see its relationship network alongside projects and members. Select a node to highlight its connections and open its source. To make a reference, choose **Copy Reference** in a file’s project menu and paste the relative link into a document or a text object on a board. The network displays references between accessible active files in the Team.
+Open a Team’s Overview to see its relationship network alongside projects and members. Select a node to highlight its connections and open its source. To make a reference, choose **Copy Reference** in a file’s project menu and paste the relative link into a spreadsheet cell, document, or a text object on a board. The network displays references between accessible active files in the Team.
 
-Use **Search Workshop** for projects, Team members, file names, and body text. In a Team, the search defaults to that Team and offers **All Workshop** as a scope. A content result opens its board page, object, or document block. The results and network reflect committed changes and current access. The index and file conversion run locally.
+Use **Search Workshop** for projects, Team members, file names, body text, and cell values. In a Team, the search defaults to that Team and offers **All Workshop** as a scope. A content result opens its board page, object, document block, or spreadsheet cell. The results and network reflect committed changes and current access. The index and file conversion run locally.
 
 The selected object’s **Font Family** menu on a board and the document toolbar use the same bundled fonts. The rest of the interface uses IBM Plex Sans with system fallbacks for other scripts.
 
 ## Upgrading an existing directory
 
-Back up PostgreSQL and referenced attachments before upgrading. Migration 015 adds Team membership and Project access to the existing directory. Existing team organizations appear under **Teams** with the same IDs and projects. Legacy boards without a project appear in their owner's personal Drafts. Existing board links, assets, direct grants, comments, and versions stay available under their original permissions. Migrations 016 and 017 index existing board text and add the Workshop data tables. Migration 018 adds the Docs resource type. Existing rooms are boards.
+Back up PostgreSQL and referenced attachments before upgrading. Migration 015 adds Team membership and Project access to the existing directory. Existing team organizations appear under **Teams** with the same IDs and projects. Legacy boards without a project appear in their owner's personal Drafts. Existing board links, assets, direct grants, comments, and versions stay available under their original permissions. Migrations 016 and 017 index existing board text and add the Workshop data tables. Migration 018 adds Docs. Migration 019 adds Sheets and indexes their cells and references.
 
 Removing a Project role removes access inherited from the project. An independent board share can still give access to that board. Removing a Team member or leaving a Team ends their access to its content, including direct grants held by that member. The Team keeps its files and version history. A new Team invitation restores Team membership with fresh Project grants.
 
@@ -107,5 +117,6 @@ With two local OpenJam API instances connected to the same disposable PostgreSQL
 Run the same checks against a local test database named `openjam_cluster_test` from the `server` directory. Set `OPENJAM_CLUSTER_PRIMARY` and `OPENJAM_CLUSTER_SECONDARY` to the loopback API URLs, and `OPENJAM_CLUSTER_DATABASE_URL` to the disposable database URL.
 
 ```bash
-OPENJAM_CLUSTER_WORKSHOP=1 OPENJAM_CLUSTER_DOCS=1 go test -race -count=1 -v ./tests -run '^Test(Workshop|Docs)Cluster$'
+OPENJAM_CLUSTER_WORKSHOP=1 OPENJAM_CLUSTER_DOCS=1 OPENJAM_CLUSTER_SHEETS=1 \
+  go test -race -count=1 -v ./tests -run '^Test(Workshop|Docs|Sheets)Cluster$'
 ```

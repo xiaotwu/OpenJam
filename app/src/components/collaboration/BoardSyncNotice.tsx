@@ -1,8 +1,9 @@
 import type { BoardSyncState } from '../../lib/boardSync';
+import { resourceNames, type ResourceKind } from '../../lib/directory';
 
 interface BoardSyncNoticeProps {
   state: BoardSyncState;
-  resourceKind?: 'board' | 'doc';
+  resourceKind?: ResourceKind;
   onRetry: () => void;
   onExportDraft: () => void;
   onDiscard: () => void;
@@ -18,10 +19,11 @@ export default function BoardSyncNotice({ state, resourceKind = 'board', onRetry
   if (!['offline', 'conflict', 'error', 'revoked'].includes(status)) return null;
   const offline = status === 'offline';
   const revoked = status === 'revoked';
-  const file = resourceKind === 'doc' ? 'document' : 'board';
+  const noun = resourceNames[resourceKind];
+  const file = noun.toLowerCase();
   const localFailure = conflict?.code === 'LOCAL_WRITE_REJECTED';
   const title = offline ? 'Connection lost'
-    : revoked ? resourceKind === 'doc' ? 'Document access unavailable' : 'Board access unavailable'
+    : revoked ? noun + ' access unavailable'
       : localFailure ? 'Could not store the latest edit'
         : conflict ? 'An edit needs review'
         : mode === 'error' ? `Could not open the ${file}` : 'Could not save edits to the device';
@@ -35,7 +37,7 @@ export default function BoardSyncNotice({ state, resourceKind = 'board', onRetry
   const current = conflict?.details?.current;
   const local = conflict?.local;
   const canCompare = current !== undefined || local !== undefined;
-  const actionClass = 'min-h-9 rounded-lg border px-3 text-xs font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
+  const actionClass = 'min-h-9 rounded-full border px-3 text-xs font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
 
   return (
     <section

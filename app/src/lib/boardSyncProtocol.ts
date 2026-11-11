@@ -3,6 +3,7 @@ import type { Stamp } from '../components/StampTool';
 import type { Element } from './elements';
 import type { ResourceKind } from './directory';
 import type { WidgetVoteAction } from './workshopWidgets';
+import type { CellEdit, CellValue, SheetCell } from './sheets';
 
 export type BoardElement = Element & { pageId?: string };
 export type BoardStamp = Stamp & { pageId?: string };
@@ -27,6 +28,7 @@ export type DocumentMutation =
   | { kind: 'rename'; value: string; expected: { name: string } }
   | { kind: 'reorder'; collection: 'pages'; id: string; position: number; expected: { order: string[] } }
   | { kind: 'setDefaultPage'; value: string; expected: { defaultPageId: string } }
+  | { kind: 'setCell'; collection: 'elements'; id: string; value: CellEdit; expected: CellValue }
   | { kind: 'vote'; collection: 'elements'; id: string; value: WidgetVoteAction };
 
 export type DocumentDelta =
@@ -110,10 +112,10 @@ function upsert(
   document: BoardDocument,
   collection: BoardCollection,
   id: string,
-  value: BoardEntity,
+  value: BoardEntity | SheetCell,
   position?: number,
 ): BoardDocument {
-  const records = [...document[collection]];
+  const records: (BoardEntity | SheetCell)[] = [...document[collection]];
   const index = records.findIndex((entry) => entry.id === id);
   if (index >= 0) records.splice(index, 1);
   records.splice(position ?? (index >= 0 ? index : records.length), 0, value);
@@ -149,6 +151,10 @@ export function applyPendingMutation(document: BoardDocument, operation: Documen
   const { collection, id } = operation;
   const current = document[collection].find((record) => record.id === id);
   switch (operation.kind) {
+    case 'setCell':
+      return operation.value.valueType === ''
+        ? remove(document, collection, id)
+        : upsert(document, collection, id, { id, type: 'sheetCell', ...operation.value });
     case 'add':
     case 'restore': {
       if (current) return document;

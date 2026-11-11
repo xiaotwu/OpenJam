@@ -189,8 +189,8 @@ func Rollback(ctx context.Context, boardID string, expectedEpoch, expectedSeq in
 		if err != nil {
 			return err
 		}
-		if room.Kind == model.ResourceDoc {
-			return invalidCommand("Docs use the current sync protocol.")
+		if room.Kind != model.ResourceBoard {
+			return invalidCommand("This file uses the current sync protocol.")
 		}
 		if head.Epoch != expectedEpoch || head.Seq != expectedSeq {
 			return ErrStaleRollback

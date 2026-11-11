@@ -22,6 +22,18 @@ type documentRecord struct {
 }
 
 func applyOperation(ctx context.Context, tx pgx.Tx, state *commitState, operation Operation) (Delta, error) {
+	if state.room.Kind == model.ResourceSheet && operation.Kind != "rename" {
+		switch {
+		case operation.Kind == "setCell":
+			return applySheetCell(ctx, tx, state, operation)
+		case operation.Collection == "pages" && (operation.Kind == "add" || operation.Kind == "delete" || operation.Kind == "restore"):
+			if operation.Kind == "delete" && len(operation.Expected) == 0 {
+				return Delta{}, invalidCommand("Removing a worksheet requires its previous name.")
+			}
+		default:
+			return Delta{}, invalidCommand("Invalid worksheet edit.")
+		}
+	}
 	if state.room.Kind == model.ResourceDoc && operation.Kind != "rename" && operation.Kind != "setDefaultPage" {
 		if err := validateDocOperation(operation); err != nil {
 			return Delta{}, err
@@ -301,6 +313,11 @@ func validateRecord(ctx context.Context, tx pgx.Tx, room lockedRoom, operation O
 	if operation.Collection == "pages" {
 		if room.Kind == model.ResourceDoc {
 			if err := validateDocBlock(fields); err != nil {
+				return nil, "", err
+			}
+		}
+		if room.Kind == model.ResourceSheet {
+			if err := validateSheetTab(fields); err != nil {
 				return nil, "", err
 			}
 		}

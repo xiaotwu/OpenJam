@@ -44,13 +44,17 @@ func CreateDoc(ctx context.Context, actor, projectID uuid.UUID, name string, blo
 		content.Pages = append(content.Pages, value)
 	}
 
+	return createNativeResource(ctx, actor, projectID, content, model.ResourceDoc, "Initial document")
+}
+
+func createNativeResource(ctx context.Context, actor, projectID uuid.UUID, content Document, kind, versionName string) (model.DirectoryBoard, error) {
 	var resource model.DirectoryBoard
 	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
-		created, err := model.CreateProjectDoc(ctx, tx, actor, projectID, name)
+		created, err := model.CreateProjectCollaborativeResource(ctx, tx, actor, projectID, content.Name, kind)
 		if err != nil {
 			return err
 		}
-		room := lockedRoom{ID: created.ID, Name: name, Kind: created.Kind, UpdatedAt: created.UpdatedAt}
+		room := lockedRoom{ID: created.ID, Name: created.Name, Kind: created.Kind, UpdatedAt: created.UpdatedAt}
 		head := Head{Mode: modeActive, Epoch: 1, DefaultPageID: content.DefaultPageID}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO board_heads (board_id, mode, epoch, default_page_id) VALUES ($1, $2, $3, $4)
@@ -64,7 +68,7 @@ func CreateDoc(ctx context.Context, actor, projectID uuid.UUID, name string, blo
 		if err != nil {
 			return err
 		}
-		if _, err := storeVersion(ctx, tx, snapshot, versionMarker{kind: versionCheckpoint, name: "Initial document", actor: &actor}); err != nil {
+		if _, err := storeVersion(ctx, tx, snapshot, versionMarker{kind: versionCheckpoint, name: versionName, actor: &actor}); err != nil {
 			return err
 		}
 		resource = created

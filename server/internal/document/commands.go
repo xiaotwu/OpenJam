@@ -294,6 +294,13 @@ func applyAndRecord(ctx context.Context, tx pgx.Tx, state *commitState, command 
 			return Ack{}, err
 		}
 	}
+	if state.room.Kind == model.ResourceSheet {
+		calculated, err := refreshSheet(ctx, tx, state.room.ID)
+		if err != nil {
+			return Ack{}, err
+		}
+		change.Operations = append(change.Operations, calculated...)
+	}
 	if err := checkRelationships(ctx, tx, state); err != nil {
 		return Ack{}, err
 	}

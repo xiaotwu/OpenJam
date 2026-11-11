@@ -158,6 +158,18 @@ Docs use the project’s existing Team or personal permissions. The directory re
 
 The existing V2 snapshot, changes, commands, review, and versions routes also serve Docs. A Doc snapshot carries `resourceKind: "doc"`. Its `pages` collection stores ordered text blocks. Block patches compare the previous field value, just as other synchronized edits do.
 
+## Sheets
+
+The directory returns workbooks in `sheets`. The browser route is `/sheet/:id`. Search results include `sheet` and `cell` query parameters for a worksheet ID and cell address.
+
+| Endpoint | Behavior |
+| --- | --- |
+| `POST /api/v2/projects/:projectId/sheets` | Creates a workbook with one worksheet from a JSON body with `name`. |
+| `POST /api/v2/projects/:projectId/sheets/import?name=…&format=…` | Creates a workbook from a raw `csv` or `xlsx` body up to 4 MiB. |
+| `GET /api/v2/sheets/:id/export?format=…` | Downloads the saved workbook as `xlsx` or a single worksheet as `csv`. For CSV, `sheet` selects a worksheet ID and defaults to the first worksheet. |
+
+V2 snapshot, changes, commands, review, and versions share the existing file permissions. Sheet snapshots use `resourceKind: "sheet"`. `pages` stores ordered worksheet metadata and `elements` stores filled cells. A `setCell` command uses `collection: "elements"` and an ID made from the worksheet UUID, a colon, and the uppercase address. Its `value` includes `pageId`, `address`, `input`, and `valueType`. The `expected` field includes the previous `input` and `valueType`. Empty strings for both represent a blank cell. The server calculates formula results and updates the search index in the commit transaction.
+
 ## Workshop
 
 Workshop endpoints use `/api/v2/workshop` and require authentication. Reads apply the account’s current Team, Project, and board access.

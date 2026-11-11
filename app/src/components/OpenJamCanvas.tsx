@@ -1661,8 +1661,8 @@ export default function OpenJamCanvas({
   ].filter(command => canEdit || ['select', 'pan', 'copy', 'selectAll', 'share', 'help'].includes(command.id) || command.category === 'View'),
   [canEdit, undo, redo, copySelected, pasteElements, duplicateSelected, selectAll, deleteSelected, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit]);
 
-  if (boardSync.resourceKind === 'doc') {
-    return <Navigate replace to={`/doc/${encodeURIComponent(boardId)}${window.location.search}`} />;
+  if (boardSync.resourceKind && boardSync.resourceKind !== 'board') {
+    return <Navigate replace to={`/${boardSync.resourceKind}/${encodeURIComponent(boardId)}${window.location.search}`} />;
   }
 
   return (

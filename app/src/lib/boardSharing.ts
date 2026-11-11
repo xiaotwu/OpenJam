@@ -1,4 +1,5 @@
 import { request, type LinkPermission, type MemberPermission, type RoomMember } from './api';
+import { resourcePath, type ResourceKind } from './directory';
 
 export type BoardCredential = { kind: 'invite' | 'share'; token: string };
 export type ShareLinkPermission = Exclude<MemberPermission, 'edit'>;
@@ -52,8 +53,8 @@ export function boardCredentialFragment({ kind, token }: BoardCredential): strin
   return `#${kind}=${encodeURIComponent(token)}`;
 }
 
-export function boardCredentialURL(boardId: string, credential: BoardCredential, resourceKind: 'board' | 'doc' = 'board'): string {
-  const url = new URL(`/${resourceKind}/${encodeURIComponent(boardId)}`, window.location.origin);
+export function boardCredentialURL(boardId: string, credential: BoardCredential, resourceKind: ResourceKind = 'board'): string {
+  const url = new URL(resourcePath(resourceKind, boardId), window.location.origin);
   url.hash = boardCredentialFragment(credential);
   return url.href;
 }

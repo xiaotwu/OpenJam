@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useI18n, type MessageCatalog } from '../../i18n';
 import { ApiError } from '../../lib/api';
 import { newCommandId } from '../../lib/boardSyncSession';
+import type { ResourceKind } from '../../lib/directory';
 import {
   boardReviewAPI, type ReviewAnchor, type ReviewComment, type ReviewDraft, type ReviewFilter,
   type ReviewLocation, type ReviewNotification, type ReviewPerson, type ReviewThread,
@@ -11,7 +12,7 @@ import WorkbenchIcon from '../workbench/WorkbenchIcon';
 
 interface BoardReviewPanelProps {
   open: boolean;
-  resourceKind?: 'board' | 'doc';
+  resourceKind?: ResourceKind;
   boardId: string;
   userId: string;
   canComment: boolean;
@@ -275,7 +276,13 @@ export default function BoardReviewPanel({
     try {
       const url = new URL(`/${resourceKind}/${encodeURIComponent(boardId)}`, window.location.origin);
       url.searchParams.set('thread', thread.id);
-      if (thread.anchor.currentPageId) url.searchParams.set(resourceKind === 'doc' ? 'block' : 'page', thread.anchor.currentPageId);
+      if (thread.anchor.currentPageId) {
+        const page = resourceKind === 'doc' ? 'block' : resourceKind === 'sheet' ? 'sheet' : 'page';
+        url.searchParams.set(page, thread.anchor.currentPageId);
+        if (resourceKind === 'sheet' && thread.anchor.elementId?.startsWith(thread.anchor.currentPageId + ':')) {
+          url.searchParams.set('cell', thread.anchor.elementId.split(':')[1]);
+        }
+      }
       await navigator.clipboard.writeText(url.toString());
       setMessage(text.linkCopied);
     } catch {
@@ -385,9 +392,9 @@ export default function BoardReviewPanel({
               <div className="flex flex-wrap gap-1">
                 <button type="button" aria-pressed={anchorMode === 'page'} className={smallButton} onClick={() => {
                   setAnchorMode('page'); setDraftAnchor({ location: { pageId: page.id }, label: page.name });
-                }}>{resourceKind === 'doc' ? 'This Block' : text.thisPage}</button>
+                }}>{resourceKind === 'doc' ? 'This Block' : resourceKind === 'sheet' ? 'This Worksheet' : text.thisPage}</button>
                 {selectedObject && <button type="button" aria-pressed={anchorMode === 'object'} className={smallButton}
-                  onClick={() => { setAnchorMode('object'); setDraftAnchor({ location: { pageId: page.id, elementId: selectedObject.id }, label: selectedObject.label }); }}>{text.selectedObject}</button>}
+                  onClick={() => { setAnchorMode('object'); setDraftAnchor({ location: { pageId: page.id, elementId: selectedObject.id }, label: selectedObject.label }); }}>{resourceKind === 'sheet' ? 'Selected Cell' : text.selectedObject}</button>}
                 {resourceKind === 'board' && <button type="button" aria-pressed={anchorMode === 'point'} className={smallButton}
                   onClick={() => { setAnchorMode('point'); onPickPoint(); }}>{text.pickPoint}</button>}
               </div>

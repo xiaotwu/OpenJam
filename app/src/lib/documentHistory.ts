@@ -2,6 +2,7 @@ import {
   applyCanonicalMutation, applyPendingMutation,
   type BoardDocument, type BoardEntity, type DocumentDelta, type DocumentMutation,
 } from './boardSyncProtocol';
+import { asSheetCell, cellEdit, cellValue } from './sheets';
 
 type Fields = Record<string, unknown>;
 type HistoryPlan = { operations: DocumentMutation[] } | { reason: string };
@@ -108,6 +109,14 @@ function invertOne(
     return { operations: before.defaultPageId === after.defaultPageId ? [] : [{
       kind: 'setDefaultPage', value: before.defaultPageId, expected: { defaultPageId: after.defaultPageId },
     }] };
+  }
+  if (mutation.kind === 'setCell') {
+    const previous = cellValue(asSheetCell(before.elements.find(item => item.id === mutation.id)));
+    if (!jsonEqual(previous, mutation.expected)) return { reason: 'The cell has changed.' };
+    const next = cellValue(asSheetCell(after.elements.find(item => item.id === mutation.id)));
+    return { operations: jsonEqual(previous, next) ? [] : [
+      cellEdit(mutation.value.pageId, mutation.value.address, previous, next),
+    ] };
   }
 
   const { collection, id } = mutation;

@@ -1,5 +1,7 @@
 const paths = {
   document: 'M5 3h9l5 5v13H5z M14 3v5h5 M8 12h8 M8 16h8',
+  sheet: 'M5 3h9l5 5v13H5z M14 3v5h5 M5 11h14 M5 16h14 M11 11v10',
+  formula: 'M14 4h-2a3 3 0 0 0-3 3v9a3 3 0 0 1-3 3H4 M5 9h9 M14 13l6 7m0-7-6 7',
   back: 'm11 5-7 7 7 7 M4 12h16',
   download: 'M12 4v11m-4-4 4 4 4-4M4 17v4h16v-4',
   undo: 'm9 6-5 5 5 5 M4 11h10a5 5 0 0 1 0 10',

@@ -1,6 +1,7 @@
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { resourceIcon } from '../../lib/directory';
 import { useWorkshopResource, workshopPath, type GraphNode, type TeamGraph } from '../../lib/workshop';
 import WorkbenchIcon from './WorkbenchIcon';
 
@@ -23,7 +24,7 @@ function radius(node: GraphNode) {
 
 function icon(node: GraphNode) {
   return node.kind === 'project' ? 'folder' : node.kind === 'member' ? 'shared'
-    : node.resourceKind === 'doc' ? 'document' : 'board';
+    : resourceIcon(node.resourceKind);
 }
 
 function edgePath(from: Position, to: Position, fromRadius: number, toRadius: number, reference: boolean) {
