@@ -22,6 +22,11 @@ type documentRecord struct {
 }
 
 func applyOperation(ctx context.Context, tx pgx.Tx, state *commitState, operation Operation) (Delta, error) {
+	if state.room.Kind == model.ResourceDoc && operation.Kind != "rename" && operation.Kind != "setDefaultPage" {
+		if err := validateDocOperation(operation); err != nil {
+			return Delta{}, err
+		}
+	}
 	switch operation.Kind {
 	case "rename":
 		return renameDocument(state, operation)
@@ -123,7 +128,7 @@ func renameDocument(state *commitState, operation Operation) (Delta, error) {
 	}
 	name := strings.TrimSpace(rawString(operation.Value))
 	if name == "" || utf8.RuneCountInString(name) > 255 || strings.ContainsRune(name, 0) {
-		return Delta{}, invalidCommand("A board name must contain between 1 and 255 characters.")
+		return Delta{}, invalidCommand("A file name must contain between 1 and 255 characters.")
 	}
 	current := jsonString(state.room.Name)
 	if expected, supplied := operation.Expected["name"]; supplied {
@@ -157,7 +162,7 @@ func addRecord(ctx context.Context, tx pgx.Tx, state *commitState, table string,
 	if operation.Collection != "pages" && len(fields["pageId"]) == 0 {
 		fields["pageId"] = jsonString(state.head.DefaultPageID)
 	}
-	data, pageID, err := validateRecord(ctx, tx, state.room.ID, operation, fields)
+	data, pageID, err := validateRecord(ctx, tx, state.room, operation, fields)
 	if err != nil {
 		return Delta{}, err
 	}
@@ -252,7 +257,7 @@ func patchRecord(ctx context.Context, tx pgx.Tx, state *commitState, table strin
 			return Delta{}, err
 		}
 	}
-	data, pageID, err := validateRecord(ctx, tx, state.room.ID, operation, fields)
+	data, pageID, err := validateRecord(ctx, tx, state.room, operation, fields)
 	if err != nil {
 		return Delta{}, err
 	}
@@ -282,7 +287,8 @@ func validatePatchField(state *commitState, operation Operation, record document
 	return nil
 }
 
-func validateRecord(ctx context.Context, tx pgx.Tx, boardID string, operation Operation, fields map[string]json.RawMessage) (json.RawMessage, string, error) {
+func validateRecord(ctx context.Context, tx pgx.Tx, room lockedRoom, operation Operation, fields map[string]json.RawMessage) (json.RawMessage, string, error) {
+	boardID := room.ID
 	for _, key := range []string{"__proto__", "constructor", "prototype"} {
 		if _, found := fields[key]; found {
 			return nil, "", invalidCommand("The document contains a reserved field.")
@@ -293,6 +299,11 @@ func validateRecord(ctx context.Context, tx pgx.Tx, boardID string, operation Op
 		return nil, "", invalidCommand("The document object is invalid.")
 	}
 	if operation.Collection == "pages" {
+		if room.Kind == model.ResourceDoc {
+			if err := validateDocBlock(fields); err != nil {
+				return nil, "", err
+			}
+		}
 		if name := rawString(fields["name"]); strings.TrimSpace(name) == "" || strings.ContainsRune(name, 0) {
 			return nil, "", invalidCommand("A page name is required.")
 		}
@@ -352,7 +363,7 @@ func restoreRecord(ctx context.Context, tx pgx.Tx, state *commitState, table str
 		if err := json.Unmarshal(record.data, &fields); err != nil {
 			return Delta{}, err
 		}
-		if _, _, err := validateRecord(ctx, tx, state.room.ID, operation, fields); err != nil {
+		if _, _, err := validateRecord(ctx, tx, state.room, operation, fields); err != nil {
 			return Delta{}, err
 		}
 	}
@@ -411,7 +422,7 @@ func checkPageDelete(ctx context.Context, tx pgx.Tx, boardID string, operation O
 		return err
 	}
 	if count <= 1 {
-		return operationConflict(operation, "", "A board must keep at least one page.")
+		return operationConflict(operation, "", "This file must keep at least one page or block.")
 	}
 	if occupied {
 		return operationConflict(operation, "", "Move or remove the page contents before deleting it.")

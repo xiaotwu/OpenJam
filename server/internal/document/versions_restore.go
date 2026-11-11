@@ -160,7 +160,8 @@ func CopyVersion(ctx context.Context, boardID string, actor, versionID uuid.UUID
 	name = strings.TrimSpace(name)
 	var result VersionBoardState
 	err := pgx.BeginTxFunc(ctx, db.Pool(), pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
-		if _, err := lockRoom(ctx, tx, boardID); err != nil {
+		room, err := lockRoom(ctx, tx, boardID)
+		if err != nil {
 			return err
 		}
 		if _, err := versionAccess(ctx, tx, boardID, actor, false); err != nil {
@@ -170,7 +171,7 @@ func CopyVersion(ctx context.Context, boardID string, actor, versionID uuid.UUID
 		if err != nil {
 			return err
 		}
-		result, err = copyDocumentLocked(ctx, tx, boardID, actor, name, preview.Document)
+		result, err = copyDocumentLocked(ctx, tx, room, actor, name, preview.Document)
 		return err
 	})
 	return result, err
@@ -195,7 +196,7 @@ func CopyCurrent(ctx context.Context, boardID string, actor uuid.UUID, name stri
 		if err != nil {
 			return err
 		}
-		result, err = copyDocumentLocked(ctx, tx, boardID, actor, name, snapshot.Document)
+		result, err = copyDocumentLocked(ctx, tx, room, actor, name, snapshot.Document)
 		return err
 	})
 	if err != nil {
@@ -204,14 +205,14 @@ func CopyCurrent(ctx context.Context, boardID string, actor uuid.UUID, name stri
 	return result, nil
 }
 
-func copyDocumentLocked(ctx context.Context, tx pgx.Tx, sourceID string, actor uuid.UUID, name string, content Document) (VersionBoardState, error) {
+func copyDocumentLocked(ctx context.Context, tx pgx.Tx, source lockedRoom, actor uuid.UUID, name string, content Document) (VersionBoardState, error) {
 	if name == "" || utf8.RuneCountInString(name) > 255 || strings.ContainsRune(name, 0) {
 		return VersionBoardState{}, invalidCommand("Provide a board name of up to 255 characters.")
 	}
-	room := lockedRoom{ID: uuid.NewString(), Name: name}
+	room := lockedRoom{ID: uuid.NewString(), Name: name, Kind: source.Kind}
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO rooms (id, name, owner_id) VALUES ($1, $2, $3) RETURNING updated_at
-	`, room.ID, name, actor).Scan(&room.UpdatedAt); err != nil {
+		INSERT INTO rooms (id, name, owner_id, resource_kind) VALUES ($1, $2, $3, $4) RETURNING updated_at
+	`, room.ID, name, actor, room.Kind).Scan(&room.UpdatedAt); err != nil {
 		return VersionBoardState{}, err
 	}
 	head := Head{Mode: modeActive, Epoch: 1, DefaultPageID: content.DefaultPageID, Extra: json.RawMessage("{}")}
@@ -224,7 +225,7 @@ func copyDocumentLocked(ctx context.Context, tx pgx.Tx, sourceID string, actor u
 	if err != nil {
 		return VersionBoardState{}, err
 	}
-	if err := assets.CopyLinks(ctx, tx, sourceID, room.ID, ids); err != nil {
+	if err := assets.CopyLinks(ctx, tx, source.ID, room.ID, ids); err != nil {
 		return VersionBoardState{}, err
 	}
 	if err := materializeDocument(ctx, tx, room.ID, head.Seq, content); err != nil {

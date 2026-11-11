@@ -172,7 +172,7 @@ input[type="color"]::-webkit-color-swatch {
 
 :root {
   --shell-control-size: 44px;
-  --shell-outline: color-mix(in srgb, var(--text-primary) 15%, transparent);
+  --shell-outline: var(--glass-border-strong);
   --shell-hover: color-mix(in srgb, var(--text-primary) 7%, transparent);
 }
 
@@ -447,7 +447,7 @@ input[type="color"]::-webkit-color-swatch {
   min-height: 31px;
   padding: 3px 6px;
   border: 1px solid var(--shell-outline);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--surface-panel);
   color: var(--text-primary);
 }

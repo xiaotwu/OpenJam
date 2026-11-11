@@ -146,6 +146,18 @@ Export board as JSON.
 ### GET `/exports/:key`
 Download an exported file.
 
+## Docs
+
+Docs use the project’s existing Team or personal permissions. The directory returns documents in its `docs` collection. Open the browser route `/doc/:id` with an optional `block` query parameter for a specific block.
+
+| Method and path | Behavior |
+|:---|:---|
+| `POST /api/v2/projects/:projectId/docs` | Creates an empty document from a JSON body with `name`. |
+| `POST /api/v2/projects/:projectId/docs/import?name=…&format=…` | Creates a document from a raw Markdown (`md`) or `docx` body of up to 4 MiB. |
+| `GET /api/v2/docs/:id/export?format=…` | Downloads the current saved document as `md` or `docx`. |
+
+The existing V2 snapshot, changes, commands, review, and versions routes also serve Docs. A Doc snapshot carries `resourceKind: "doc"`. Its `pages` collection stores ordered text blocks. Block patches compare the previous field value, just as other synchronized edits do.
+
 ## Workshop
 
 Workshop endpoints use `/api/v2/workshop` and require authentication. Reads apply the account’s current Team, Project, and board access.

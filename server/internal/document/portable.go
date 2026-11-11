@@ -39,6 +39,9 @@ func LockFileSnapshot(ctx context.Context, tx pgx.Tx, boardID string, actor uuid
 	if err != nil {
 		return FileSnapshot{}, err
 	}
+	if room.Kind != model.ResourceBoard {
+		return FileSnapshot{}, model.ErrRoomNotFound
+	}
 	if edit && !access.IsOwner && !model.RoomPermissionAllowsEdit(access.Permission) {
 		return FileSnapshot{}, model.ErrRoomAccessDenied
 	}
@@ -200,7 +203,7 @@ func ValidatePortable(content Document) error {
 // ImportPortable must run in the fenced job completion transaction. Linking
 // assets before materialization keeps the board and its assets atomic.
 func ImportPortable(ctx context.Context, tx pgx.Tx, actor uuid.UUID, content Document, link func(string) error) (VersionBoardState, error) {
-	room := lockedRoom{ID: uuid.NewString(), Name: content.Name}
+	room := lockedRoom{ID: uuid.NewString(), Name: content.Name, Kind: model.ResourceBoard}
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO rooms (id, name, owner_id) VALUES ($1, $2, $3) RETURNING updated_at
 	`, room.ID, room.Name, actor).Scan(&room.UpdatedAt); err != nil {

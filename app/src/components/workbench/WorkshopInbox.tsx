@@ -204,14 +204,27 @@ function ThreadReader({ id, summary, onBack, onChange }: {
         follow.current = currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight < 48;
       }}>
         {nextBefore !== undefined && <button type="button" className="wb-button wb-button-secondary wb-load-earlier" onClick={() => void earlier()} disabled={paging}>Earlier Messages</button>}
-        <ol className="wb-message-list">{messages.map(message => <li key={message.id} data-mine={message.mine}>
-          <div><strong>{message.author || 'Former Member'}</strong><time dateTime={message.createdAt}>{formatDate(message.createdAt, 'compact')}</time></div>
-          <p>{message.body}</p>
-        </li>)}</ol>
+        <ol className="wb-message-list">{messages.map((message, index) => {
+          const prior = messages[index - 1];
+          const grouped = prior && message.authorId && prior.authorId === message.authorId &&
+            Date.parse(message.createdAt) - Date.parse(prior.createdAt) < 300_000;
+          const author = message.author || 'Former Member';
+          return <li key={message.id} data-mine={message.mine} data-grouped={Boolean(grouped)}>
+            {!message.mine && <span aria-hidden="true" className="wb-chat-avatar"
+              style={{ backgroundColor: message.avatarColor }}>{Array.from(author)[0]?.toUpperCase()}</span>}
+            <div className="wb-message-bubble">
+              {!grouped && <div className="wb-message-byline">
+                <strong>{message.mine ? 'You' : author}</strong><time dateTime={message.createdAt}>{formatDate(message.createdAt, 'compact')}</time>
+              </div>}
+              {grouped && <time className="sr-only" dateTime={message.createdAt}>{formatDate(message.createdAt, 'compact')}</time>}
+              <p>{message.body}</p>
+            </div>
+          </li>;
+        })}</ol>
       </div>
-      <form className="wb-reply" onSubmit={event => { event.preventDefault(); void reply(); }}>
+      <form className="wb-reply" data-sending={busy} onSubmit={event => { event.preventDefault(); void reply(); }}>
         <label className="wb-field"><span className="sr-only">Reply</span>
-          <textarea rows={2} value={body} maxLength={6000} placeholder="Reply…" disabled={busy} onChange={event => setBody(event.target.value)} />
+          <textarea rows={1} value={body} maxLength={6000} placeholder="Reply…" disabled={busy} onChange={event => setBody(event.target.value)} />
         </label>
         <button type="submit" className="wb-icon-button wb-accent-action" aria-label="Send Reply" title="Send Reply" disabled={busy || !body.trim()}>
           <WorkbenchIcon name="send" />

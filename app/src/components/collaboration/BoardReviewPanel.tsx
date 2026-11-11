@@ -11,6 +11,7 @@ import WorkbenchIcon from '../workbench/WorkbenchIcon';
 
 interface BoardReviewPanelProps {
   open: boolean;
+  resourceKind?: 'board' | 'doc';
   boardId: string;
   userId: string;
   canComment: boolean;
@@ -28,8 +29,8 @@ interface BoardReviewPanelProps {
 
 const emptyDraft: ReviewDraft = { body: '', mentionUserIds: [] };
 const filters: ReviewFilter[] = ['open', 'resolved', 'mentioned', 'all'];
-const smallButton = 'rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-blue-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-45';
-const accentButton = 'rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-45';
+const smallButton = 'rounded-full px-2 py-1.5 text-xs font-semibold hover:bg-blue-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-45';
+const accentButton = 'rounded-full bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-45';
 
 function labelFor(anchor: ReviewAnchor, text: MessageCatalog['review']): string {
   switch (anchor.status) {
@@ -86,7 +87,7 @@ function DraftEditor({ label, draft, people, onChange, onSubmit, submitLabel, di
 }
 
 export default function BoardReviewPanel({
-  open, boardId, userId, canComment, online, epoch, page, selectedObject, pickedLocation, pickingPoint,
+  open, resourceKind = 'board', boardId, userId, canComment, online, epoch, page, selectedObject, pickedLocation, pickingPoint,
   initialThreadId, onPickPoint, onFocusAnchor, onClose,
 }: BoardReviewPanelProps) {
   const { messages: { review: text }, formatNumber } = useI18n();
@@ -272,9 +273,9 @@ export default function BoardReviewPanel({
 
   const copyThreadLink = async (thread: ReviewThread) => {
     try {
-      const url = new URL(`/board/${encodeURIComponent(boardId)}`, window.location.origin);
+      const url = new URL(`/${resourceKind}/${encodeURIComponent(boardId)}`, window.location.origin);
       url.searchParams.set('thread', thread.id);
-      if (thread.anchor.currentPageId) url.searchParams.set('page', thread.anchor.currentPageId);
+      if (thread.anchor.currentPageId) url.searchParams.set(resourceKind === 'doc' ? 'block' : 'page', thread.anchor.currentPageId);
       await navigator.clipboard.writeText(url.toString());
       setMessage(text.linkCopied);
     } catch {
@@ -384,10 +385,11 @@ export default function BoardReviewPanel({
               <div className="flex flex-wrap gap-1">
                 <button type="button" aria-pressed={anchorMode === 'page'} className={smallButton} onClick={() => {
                   setAnchorMode('page'); setDraftAnchor({ location: { pageId: page.id }, label: page.name });
-                }}>{text.thisPage}</button>
+                }}>{resourceKind === 'doc' ? 'This Block' : text.thisPage}</button>
                 {selectedObject && <button type="button" aria-pressed={anchorMode === 'object'} className={smallButton}
                   onClick={() => { setAnchorMode('object'); setDraftAnchor({ location: { pageId: page.id, elementId: selectedObject.id }, label: selectedObject.label }); }}>{text.selectedObject}</button>}
-                <button type="button" aria-pressed={anchorMode === 'point'} className={smallButton} onClick={() => { setAnchorMode('point'); onPickPoint(); }}>{text.pickPoint}</button>
+                {resourceKind === 'board' && <button type="button" aria-pressed={anchorMode === 'point'} className={smallButton}
+                  onClick={() => { setAnchorMode('point'); onPickPoint(); }}>{text.pickPoint}</button>}
               </div>
               <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {pickingPoint ? text.pickHint : anchorMode === 'point' && pickedLocation ? text.pointOnCanvas : draftAnchor?.label ?? page.name}

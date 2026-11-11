@@ -11,6 +11,7 @@ interface BoardSharingDialogProps {
   onClose: () => void;
   boardId: string;
   boardName: string;
+  resourceKind?: 'board' | 'doc';
 }
 
 const permissionLabels: Record<EffectiveBoardAccess['permission'], string> = {
@@ -19,9 +20,9 @@ const permissionLabels: Record<EffectiveBoardAccess['permission'], string> = {
 const sources: Record<EffectiveBoardAccess['source'], string> = {
   owner: 'Board ownership', member: 'Direct access', project: 'Project access', link: 'Redeemed sharing link', 'legacy-link': 'Legacy board link',
 };
-const field = 'min-h-10 min-w-0 rounded-lg border border-[var(--glass-border-strong)] bg-[var(--surface-panel)] px-2.5 text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
-const secondary = 'min-h-10 rounded-lg border border-[var(--glass-border-strong)] px-3 text-sm font-semibold hover:bg-[var(--glass-bg-subtle)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
-const primary = 'min-h-10 rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
+const field = 'min-h-10 min-w-0 rounded-full border border-[var(--glass-border-strong)] bg-[var(--surface-panel)] px-2.5 text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
+const secondary = 'min-h-10 rounded-full border border-[var(--glass-border-strong)] px-3 text-sm font-semibold hover:bg-[var(--glass-bg-subtle)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
+const primary = 'min-h-10 rounded-full bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
 const line = 'rounded-xl border border-[var(--glass-border-strong)]';
 const muted = 'text-sm text-[var(--text-secondary)]';
 
@@ -45,7 +46,7 @@ function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Could not update board sharing.';
 }
 
-function BoardSharingPanel({ onClose, boardId, boardName }: Omit<BoardSharingDialogProps, 'isOpen'>) {
+function BoardSharingPanel({ onClose, boardId, boardName, resourceKind = 'board' }: Omit<BoardSharingDialogProps, 'isOpen'>) {
   const heading = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const copyField = useRef<HTMLInputElement>(null);
@@ -111,7 +112,7 @@ function BoardSharingPanel({ onClose, boardId, boardName }: Omit<BoardSharingDia
 
   function showLink(id: string, label: string, kind: 'invite' | 'share', token: string) {
     setCopied('');
-    setIssued({ id, label, url: boardCredentialURL(boardId, { kind, token }) });
+    setIssued({ id, label, url: boardCredentialURL(boardId, { kind, token }, resourceKind) });
   }
 
   function invite(event: FormEvent<HTMLFormElement>) {
@@ -164,7 +165,7 @@ function BoardSharingPanel({ onClose, boardId, boardName }: Omit<BoardSharingDia
       <section className="p-4 sm:p-6">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 id={heading} className="truncate text-xl font-semibold">Share {boardName || 'board'}</h2>
+            <h2 id={heading} className="truncate text-xl font-semibold">Share {boardName || (resourceKind === 'doc' ? 'document' : 'board')}</h2>
             {access && <p className={`${muted} mt-1`}>{permissionLabels[access.permission]} · {sources[access.source]}</p>}
           </div>
           <button type="button" onClick={onClose} className={secondary}>Close</button>

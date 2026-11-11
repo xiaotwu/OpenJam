@@ -33,15 +33,16 @@ type ThreadSummary struct {
 }
 
 type BoardMention struct {
-	BoardID   string    `json:"boardId"`
-	BoardName string    `json:"boardName"`
-	CommentID uuid.UUID `json:"commentId"`
-	ThreadID  uuid.UUID `json:"threadId"`
-	Author    string    `json:"author"`
-	Preview   string    `json:"preview"`
-	CreatedAt time.Time `json:"createdAt"`
-	Unread    bool      `json:"unread"`
-	URL       string    `json:"url"`
+	ResourceKind string    `json:"resourceKind,omitempty"`
+	BoardID      string    `json:"boardId"`
+	BoardName    string    `json:"boardName"`
+	CommentID    uuid.UUID `json:"commentId"`
+	ThreadID     uuid.UUID `json:"threadId"`
+	Author       string    `json:"author"`
+	Preview      string    `json:"preview"`
+	CreatedAt    time.Time `json:"createdAt"`
+	Unread       bool      `json:"unread"`
+	URL          string    `json:"url"`
 }
 
 type WorkshopInbox struct {
@@ -51,12 +52,14 @@ type WorkshopInbox struct {
 }
 
 type WorkshopMessage struct {
-	ID        uuid.UUID `json:"id"`
-	Sequence  int64     `json:"sequence"`
-	Author    string    `json:"author"`
-	Body      string    `json:"body"`
-	Mine      bool      `json:"mine"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID          uuid.UUID  `json:"id"`
+	Sequence    int64      `json:"sequence"`
+	Author      string     `json:"author"`
+	AuthorID    *uuid.UUID `json:"authorId,omitempty"`
+	AvatarColor string     `json:"avatarColor,omitempty"`
+	Body        string     `json:"body"`
+	Mine        bool       `json:"mine"`
+	CreatedAt   time.Time  `json:"createdAt"`
 }
 
 type WorkshopThread struct {
@@ -98,7 +101,7 @@ func ReadWorkshopInbox(ctx context.Context, actor uuid.UUID) (WorkshopInbox, err
 			JOIN LATERAL (SELECT body FROM workshop_messages msg WHERE msg.thread_id = t.id ORDER BY sequence DESC LIMIT 1) last ON true
 			LEFT JOIN users u ON u.id = CASE WHEN t.creator_id = $1 THEN t.recipient_id ELSE t.creator_id END
 		), notices AS (
-			SELECT n.board_id, r.name, n.comment_id, c.thread_id, coalesce(u.display_name, '') AS author,
+			SELECT n.board_id, r.name, r.resource_kind, n.comment_id, c.thread_id, coalesce(u.display_name, '') AS author,
 				left(c.body, 160) AS preview, n.created_at, n.read_at IS NULL AS unread
 			FROM board_comment_notifications n JOIN board_comments c ON (c.board_id, c.id) = (n.board_id, n.comment_id)
 			JOIN rooms r ON r.id = n.board_id
@@ -114,7 +117,7 @@ func ReadWorkshopInbox(ctx context.Context, actor uuid.UUID) (WorkshopInbox, err
 				ORDER BY t.pinned_at DESC NULLS LAST, t.updated_at DESC, t.id)
 				FROM (SELECT * FROM cards ORDER BY pinned_at DESC NULLS LAST, updated_at DESC, id LIMIT 100) t), '[]'::jsonb),
 			'mentions', coalesce((SELECT jsonb_agg(jsonb_build_object(
-				'boardId', board_id, 'boardName', name, 'commentId', comment_id, 'threadId', thread_id,
+				'boardId', board_id, 'boardName', name, 'resourceKind', resource_kind, 'commentId', comment_id, 'threadId', thread_id,
 				'author', author, 'preview', preview, 'createdAt', created_at, 'unread', unread) ORDER BY created_at DESC, comment_id)
 				FROM (SELECT * FROM notices ORDER BY created_at DESC, comment_id LIMIT 60) n), '[]'::jsonb),
 			'unread', coalesce((SELECT sum(unread) FROM cards), 0) + (SELECT count(*) FROM notices WHERE unread)
@@ -122,7 +125,7 @@ func ReadWorkshopInbox(ctx context.Context, actor uuid.UUID) (WorkshopInbox, err
 	if err == nil {
 		for i := range inbox.Mentions {
 			item := &inbox.Mentions[i]
-			item.URL = boardSourceURL(item.BoardID, "", "") + "?" + (url.Values{"thread": {item.ThreadID.String()}}).Encode()
+			item.URL = resourceSourceURL(item.ResourceKind, item.BoardID, "", "") + "?" + (url.Values{"thread": {item.ThreadID.String()}}).Encode()
 		}
 	}
 	return inbox, err
@@ -133,10 +136,10 @@ func ReadWorkshopThread(ctx context.Context, actor, thread uuid.UUID, before int
 	err := db.Pool().QueryRow(ctx, `
 		SELECT coalesce((
 			SELECT jsonb_agg(jsonb_build_object('id', id, 'sequence', sequence, 'body', body, 'author', author,
-				'mine', mine, 'createdAt', created_at) ORDER BY sequence)
+				'mine', mine, 'createdAt', created_at, 'authorId', author_id, 'avatarColor', avatar_color) ORDER BY sequence)
 			FROM (
-				SELECT m.id, m.sequence, m.body, m.created_at, coalesce(u.display_name, '') AS author,
-					coalesce(m.author_id = $1, false) AS mine
+				SELECT m.id, m.sequence, m.body, m.created_at, m.author_id, coalesce(u.display_name, '') AS author,
+					coalesce(u.avatar_color, '') AS avatar_color, coalesce(m.author_id = $1, false) AS mine
 				FROM workshop_messages m LEFT JOIN users u ON u.id = m.author_id
 				WHERE m.thread_id = t.id AND ($3::bigint = 0 OR m.sequence < $3)
 				ORDER BY m.sequence DESC LIMIT 61

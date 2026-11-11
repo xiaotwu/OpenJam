@@ -131,6 +131,7 @@ export function useBoardSync({ boardId, userId, onDocument }: BoardSyncOptions) 
         const before = previous.state;
         if (previous.key === key && before.mode === state.mode && before.status === state.status
           && before.canEdit === state.canEdit && before.permission === state.permission
+          && before.resourceKind === state.resourceKind
           && before.canUndo === state.canUndo && before.canRedo === state.canRedo
           && before.historyNotice === state.historyNotice && before.epoch === state.epoch && before.seq === state.seq
           && sameIds(before.pendingVoteIds, state.pendingVoteIds)

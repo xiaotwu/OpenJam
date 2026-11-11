@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useI18n, type MessageCatalog } from '../../i18n';
 import { ConfirmDialog } from '../AppDialog';
 import { ApiError, request } from '../../lib/api';
@@ -37,6 +37,8 @@ interface RestorePlan {
 
 interface BoardVersionsPanelProps {
   boardId: string;
+  resourceKind?: 'board' | 'doc';
+  renderPreview?: (document: BoardDocument) => ReactNode;
   permission?: DocumentPermission;
   epoch?: number;
   seq?: number;
@@ -47,8 +49,8 @@ interface BoardVersionsPanelProps {
   onOpenBoard?: (id: string) => void;
 }
 
-const buttonClass = 'min-h-9 rounded-lg border px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50';
-const inputClass = 'min-h-9 min-w-0 rounded-lg border border-[var(--glass-border-strong)] bg-[var(--badge-bg)] px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
+const buttonClass = 'min-h-9 rounded-full border px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50';
+const inputClass = 'min-h-9 min-w-0 rounded-full border border-[var(--glass-border-strong)] bg-[var(--badge-bg)] px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
 const sectionBorder = 'border-[var(--glass-border-strong)]';
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -136,7 +138,7 @@ function SnapshotPreview({ preview }: { preview: VersionPreview }) {
 }
 
 export default function BoardVersionsPanel({
-  boardId, permission, epoch, seq, pendingCount, online, onClose, onRestore, onOpenBoard,
+  boardId, resourceKind = 'board', renderPreview, permission, epoch, seq, pendingCount, online, onClose, onRestore, onOpenBoard,
 }: BoardVersionsPanelProps) {
   const { messages: { versions: text }, formatDate, formatNumber } = useI18n();
   const path = `/api/v2/boards/${encodeURIComponent(boardId)}/versions`;
@@ -272,7 +274,7 @@ export default function BoardVersionsPanel({
       });
       setCopyPlan(undefined);
       if (onOpenBoard) onOpenBoard(board.boardId);
-      else window.location.assign(`/board/${encodeURIComponent(board.boardId)}`);
+      else window.location.assign(`/${resourceKind}/${encodeURIComponent(board.boardId)}`);
     } catch (failure) {
       setError(errorMessage(failure, text.loadError));
     } finally {
@@ -293,7 +295,7 @@ export default function BoardVersionsPanel({
       }}
     >
       <header className={`flex items-center justify-between gap-3 border-b ${sectionBorder} px-4 py-3`}>
-        <h2 id={titleId} className="font-semibold">{text.title}</h2>
+        <h2 id={titleId} className="font-semibold">{resourceKind === 'doc' ? 'Document History' : text.title}</h2>
         <button ref={closeButton} type="button" aria-label={text.close} onClick={onClose} disabled={busy} className="board-action-button"><span className="size-4"><WorkbenchIcon name="close" /></span></button>
       </header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
@@ -304,7 +306,7 @@ export default function BoardVersionsPanel({
               <input aria-label={text.name} placeholder={text.namePlaceholder} maxLength={120} value={name} onChange={(event) => setName(event.target.value)} className={`${inputClass} flex-1`} />
               <button type="submit" className={buttonClass} disabled={!canCaptureHead || busy || !name.trim()}>{text.save}</button>
             </form>
-            {!canCaptureHead && <p className="text-xs text-[var(--text-secondary)]">{text.waitForSync}</p>}
+            {!canCaptureHead && <p className="text-xs text-[var(--text-secondary)]">{resourceKind === 'doc' ? 'Sync the document before naming or restoring a version.' : text.waitForSync}</p>}
             {status && <p role="status" className="text-sm">{status}</p>}
             {error && <p role="alert" className="text-sm text-[var(--text-secondary)]">{error}</p>}
             <section className="space-y-1.5" aria-label={text.list}>
@@ -332,12 +334,12 @@ export default function BoardVersionsPanel({
                   <h3 className="truncate text-sm font-semibold">{selected.version.name}</h3>
                   <span title={selected.version.hash} className="font-mono text-xs text-[var(--text-secondary)]">{selected.version.hash.slice(0, 10)}</span>
                 </div>
-                <SnapshotPreview key={selected.version.id} preview={selected} />
+                {renderPreview ? renderPreview(selected.document) : <SnapshotPreview key={selected.version.id} preview={selected} />}
                 <div className="flex flex-wrap gap-2">
                   <button type="button" disabled={!online || busy} className={buttonClass} onClick={() => {
                     setCopyName(text.copyName(selected.document.name).slice(0, 255));
                     setCopyPlan(selected.version);
-                  }}>{text.copy}</button>
+                  }}>{resourceKind === 'doc' ? 'Copy as Doc' : text.copy}</button>
                   {permission === 'owner' && (
                     <button type="button" disabled={!canCaptureHead || busy} className={buttonClass} onClick={() => {
                       if (epoch !== undefined && seq !== undefined) {
@@ -356,7 +358,7 @@ export default function BoardVersionsPanel({
           isOpen title={text.restoreConfirm} tone="danger" confirmLabel={text.restoreButton}
           isBusy={busy} onClose={() => setRestorePlan(undefined)} onConfirm={restore}
           message={<>
-            <p>{text.restoreExplanation(restorePlan.version.name)}</p>
+            <p>{resourceKind === 'doc' ? `Restore “${restorePlan.version.name}” as the current document. Open editors will reload. Comments and sharing are kept.` : text.restoreExplanation(restorePlan.version.name)}</p>
             <p>{text.restoreCheckpoint}</p>
             {error && <p role="alert">{error}</p>}
           </>}
@@ -364,12 +366,12 @@ export default function BoardVersionsPanel({
       )}
       {copyPlan && canEdit && (
         <ConfirmDialog
-          isOpen title={text.copyConfirm} confirmLabel={text.createCopy}
+          isOpen title={resourceKind === 'doc' ? 'Copy Version to a New Document' : text.copyConfirm} confirmLabel={text.createCopy}
           isBusy={busy} onClose={() => setCopyPlan(undefined)} onConfirm={copy}
           message={<>
-            <label htmlFor={copyNameId} className="block font-medium">{text.newBoardName}</label>
+            <label htmlFor={copyNameId} className="block font-medium">{resourceKind === 'doc' ? 'New Document Name' : text.newBoardName}</label>
             <input id={copyNameId} className={`${inputClass} my-2 w-full`} maxLength={255} value={copyName} onChange={(event) => setCopyName(event.target.value)} />
-            <p>{text.copyLocation}</p>
+            <p>{resourceKind === 'doc' ? 'The copy opens in your personal Drafts.' : text.copyLocation}</p>
             {error && <p role="alert">{error}</p>}
           </>}
         />

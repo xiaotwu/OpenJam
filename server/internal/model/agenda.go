@@ -31,11 +31,12 @@ type AgendaItem struct {
 }
 
 type RecentResource struct {
-	ID       string    `json:"id"`
-	Title    string    `json:"title"`
-	Context  string    `json:"context,omitempty"`
-	OpenedAt time.Time `json:"openedAt"`
-	URL      string    `json:"url"`
+	ResourceKind string    `json:"resourceKind"`
+	ID           string    `json:"id"`
+	Title        string    `json:"title"`
+	Context      string    `json:"context,omitempty"`
+	OpenedAt     time.Time `json:"openedAt"`
+	URL          string    `json:"url"`
 }
 
 func ReadAgenda(ctx context.Context, actor uuid.UUID, from, to time.Time) ([]AgendaItem, error) {
@@ -185,9 +186,9 @@ func ReadRecentResources(ctx context.Context, actor uuid.UUID) ([]RecentResource
 	items := []RecentResource{}
 	err := db.Pool().QueryRow(ctx, `
 		SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'title', name, 'context', context,
-			'openedAt', opened_at) ORDER BY opened_at DESC, id), '[]'::jsonb)
+			'openedAt', opened_at, 'resourceKind', resource_kind) ORDER BY opened_at DESC, id), '[]'::jsonb)
 		FROM (
-			SELECT r.id, r.name, rec.opened_at, coalesce(p.name, '') AS context
+			SELECT r.id, r.name, r.resource_kind, rec.opened_at, coalesce(p.name, '') AS context
 			FROM workshop_recents rec JOIN rooms r ON r.id = rec.board_id
 			CROSS JOIN LATERAL openjam_board_access(r.id, $1) access
 			LEFT JOIN board_directory d ON d.room_id = r.id
@@ -199,7 +200,7 @@ func ReadRecentResources(ctx context.Context, actor uuid.UUID) ([]RecentResource
 	`, actor).Scan(&items)
 	if err == nil {
 		for i := range items {
-			items[i].URL = boardSourceURL(items[i].ID, "", "")
+			items[i].URL = resourceSourceURL(items[i].ResourceKind, items[i].ID, "", "")
 		}
 	}
 	return items, err

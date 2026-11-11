@@ -13,6 +13,7 @@ import { boardCredentialFragment, readBoardCredential } from './lib/boardSharing
 import './App.css';
 
 const OpenJamCanvas = lazy(() => import('./components/OpenJamCanvas'));
+const OpenJamDoc = lazy(() => import('./components/docs/OpenJamDoc'));
 
 function LoadingScreen({ message }: { message: string }) {
   return (
@@ -63,6 +64,7 @@ function AppContent() {
         path="/board/:boardId"
         element={<BoardRoute user={user} fallbackColor={userColor} />}
       />
+      <Route path="/doc/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="doc" />} />
       <Route path="/room/:boardId" element={<LegacyRoomRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -96,7 +98,7 @@ function AuthRoute({ user }: { user: User | null }) {
   const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
   const next = getSafeNextPath(searchParams.get('next'));
   const credential = readBoardCredential(location.hash);
-  const acceptsCredential = next && (/^\/board\/[^/?#]+(?:\?[^#]*)?$/.test(next)
+  const acceptsCredential = next && (/^\/(?:board|doc)\/[^/?#]+(?:\?[^#]*)?$/.test(next)
     || (credential?.kind === 'invite' && /^\/teams\/[^/?#]+\/invite$/.test(next)));
   const destination = next && credential && acceptsCredential
     ? `${next}${boardCredentialFragment(credential)}` : next || '/workplace';
@@ -153,7 +155,9 @@ function LegacyRoomRoute() {
   return <Navigate to={`/board/${encodeURIComponent(boardId || 'default')}${location.search}${location.hash}`} replace />;
 }
 
-function BoardRoute({ user, fallbackColor }: { user: User | null; fallbackColor: string }) {
+function BoardRoute({ user, fallbackColor, kind = 'board' }: {
+  user: User | null; fallbackColor: string; kind?: 'board' | 'doc';
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { boardId } = useParams();
@@ -172,15 +176,15 @@ function BoardRoute({ user, fallbackColor }: { user: User | null; fallbackColor:
   }
 
   return (
-    <Suspense fallback={<LoadingScreen message={text.opening} />}>
-      <OpenJamCanvas
-        key={boardId}
+    <Suspense fallback={<LoadingScreen message={kind === 'doc' ? 'Opening document…' : text.opening} />}>
+      {kind === 'doc' ? <OpenJamDoc key={`${user.id}:${boardId}`} docId={boardId || ''} user={user} /> : <OpenJamCanvas
+        key={`${user.id}:${boardId}`}
         boardId={boardId || 'default'}
         userId={user.id}
         username={user.displayName}
         email={user.email}
         color={user.avatarColor || fallbackColor}
-      />
+      />}
     </Suspense>
   );
 }

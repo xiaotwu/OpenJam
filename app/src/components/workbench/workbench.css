@@ -1,7 +1,7 @@
 .openjam-workbench {
   --wb-background: var(--surface-canvas);
   --wb-surface: var(--surface-float);
-  --wb-sidebar: #e9f1f0;
+  --wb-sidebar: rgb(248 248 248 / 86%);
   --wb-field: var(--shell-hover);
   --wb-border: var(--shell-outline);
   --wb-text: var(--text-primary);
@@ -15,12 +15,14 @@
   --wb-shadow: var(--glass-shadow);
   position: relative;
   display: grid;
-  grid-template-columns: 223px minmax(0, 1fr);
+  grid-template-columns: 228px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   width: 100%;
   height: 100%;
   min-height: 0;
-  background: var(--wb-background);
+  background:
+    radial-gradient(ellipse at 72% -8%, color-mix(in srgb, var(--surface-panel) 80%, transparent), transparent 64%),
+    var(--wb-background);
   color: var(--wb-text);
   font-family: var(--font-ui, system-ui, sans-serif);
   font-size: 1rem;
@@ -28,7 +30,7 @@
 }
 
 .dark .openjam-workbench {
-  --wb-sidebar: #121b22;
+  --wb-sidebar: rgb(25 25 25 / 88%);
   --wb-error: #ffb9bd;
   color-scheme: dark;
 }
@@ -61,7 +63,7 @@
   gap: 7px;
   flex-shrink: 0;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--control-radius);
   font-size: 0.929rem;
   font-weight: 650;
   white-space: nowrap;
@@ -112,6 +114,7 @@
   padding: 16px 13px 12px;
   border-right: 1px solid var(--wb-border);
   background: var(--wb-sidebar);
+  backdrop-filter: blur(20px);
 }
 
 .wb-sidebar-top,
@@ -159,7 +162,7 @@
   width: 100%;
   min-height: 35px;
   padding: 4px 8px;
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   color: var(--wb-muted);
   text-align: left;
   font-size: 0.929rem;
@@ -203,7 +206,7 @@
   align-items: center;
   flex-shrink: 0;
   gap: 10px;
-  min-height: 68px;
+  min-height: 70px;
   padding: 12px clamp(16px, 2.6vw, 42px);
 }
 
@@ -217,8 +220,10 @@
   margin-right: auto;
   padding-inline: 10px 4px;
   border: 1px solid var(--wb-border);
-  border-radius: 9px;
+  border-radius: var(--control-radius);
   background: var(--wb-surface);
+  box-shadow: 0 2px 9px rgb(0 0 0 / 4%), inset 0 1px 0 var(--glass-border);
+  backdrop-filter: blur(16px);
   color: var(--wb-muted);
 }
 
@@ -359,7 +364,7 @@
   position: relative;
   min-width: 0;
   border: 1px solid var(--wb-border);
-  border-radius: 16px;
+  border-radius: var(--panel-radius);
   background: var(--wb-surface);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -385,7 +390,7 @@
   min-height: 100px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 15px 15px 0 0;
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
   background: radial-gradient(circle, var(--canvas-grid-dot) 0.7px, transparent 0.9px) 0 0 / 13px 13px,
     var(--wb-background);
 }
@@ -652,8 +657,8 @@
   margin: auto;
   overflow: auto;
   border: 1px solid var(--wb-border);
-  border-radius: 20px;
-  background: var(--surface-float);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-elevated);
   color: var(--wb-text);
   box-shadow: var(--glass-shadow-lg);
   backdrop-filter: blur(22px);
@@ -819,17 +824,25 @@
 
 .wb-team-overview {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr);
   align-items: start;
   gap: 16px;
+}
+
+.wb-team-details { min-width: 0; }
+
+@media (max-width: 1020px) {
+  .wb-team-overview { grid-template-columns: minmax(0, 1fr); }
+  .wb-team-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 14px; }
 }
 
 .wb-team-panel {
   padding: 18px;
   margin-bottom: 16px;
   border: 1px solid var(--glass-border-strong);
-  border-radius: 13px;
+  border-radius: var(--panel-radius);
   background: var(--wb-surface);
+  backdrop-filter: blur(16px);
 }
 
 .wb-team-panel h2,

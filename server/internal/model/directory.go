@@ -41,8 +41,14 @@ type Project struct {
 	PeopleCount int             `json:"peopleCount,omitempty"`
 }
 
+const (
+	ResourceBoard = "board"
+	ResourceDoc   = "doc"
+)
+
 type DirectoryBoard struct {
 	Room
+	Kind       string     `json:"kind"`
 	ProjectID  *uuid.UUID `json:"projectId"`
 	ArchivedAt *time.Time `json:"archivedAt"`
 	Favorite   bool       `json:"favorite"`
@@ -53,6 +59,7 @@ type Directory struct {
 	Workspaces    []Workspace      `json:"workspaces"`
 	Projects      []Project        `json:"projects"`
 	Boards        []DirectoryBoard `json:"boards"`
+	Docs          []DirectoryBoard `json:"docs"`
 }
 
 var (
@@ -167,7 +174,7 @@ func ListDirectory(ctx context.Context, userID uuid.UUID) (Directory, error) {
 			WHERE o.role = 'owner' OR pm.role IS NOT NULL
 		), visible_boards AS (
 			SELECT r.id, r.name, r.owner_id AS "ownerId", r.created_at AS "createdAt", r.updated_at AS "updatedAt",
-				a.permission,
+				a.permission, r.resource_kind AS kind,
 				CASE WHEN p.id IS NOT NULL THEN p.id
 					WHEN d.room_id IS NULL AND r.owner_id = $1 THEN $2 END AS "projectId",
 				d.archived_at AS "archivedAt",
@@ -182,7 +189,8 @@ func ListDirectory(ctx context.Context, userID uuid.UUID) (Directory, error) {
 			'organizations', COALESCE((SELECT jsonb_agg(o ORDER BY (o.kind <> 'personal'), LOWER(o.name), o.id) FROM visible_orgs o), '[]'::jsonb),
 			'workspaces', COALESCE((SELECT jsonb_agg(w ORDER BY NOT w."isDefault", LOWER(w.name), w.id) FROM visible_workspaces w), '[]'::jsonb),
 			'projects', COALESCE((SELECT jsonb_agg(p ORDER BY LOWER(p.name), p.id) FROM visible_projects p), '[]'::jsonb),
-			'boards', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b), '[]'::jsonb)
+			'boards', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'board'), '[]'::jsonb),
+			'docs', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'doc'), '[]'::jsonb)
 		)
 	`, userID, draftsID).Scan(&directory)
 	return directory, err
@@ -231,13 +239,38 @@ func CreateProject(ctx context.Context, userID, workspaceID uuid.UUID, name stri
 }
 
 func CreateProjectBoard(ctx context.Context, userID, projectID uuid.UUID, name string) (DirectoryBoard, error) {
-	board := DirectoryBoard{ProjectID: &projectID}
-	err := db.Pool().QueryRow(ctx, `
+	return insertProjectResource(ctx, db.Pool(), userID, projectID, name, ResourceBoard)
+}
+
+func CreateProjectDoc(ctx context.Context, tx pgx.Tx, userID, projectID uuid.UUID, name string) (DirectoryBoard, error) {
+	var organization uuid.UUID
+	err := tx.QueryRow(ctx, `
+		SELECT o.id FROM projects p JOIN workspaces w ON w.id = p.workspace_id
+		JOIN organizations o ON o.id = w.organization_id WHERE p.id = $1 FOR SHARE OF o
+	`, projectID).Scan(&organization)
+	if err != nil {
+		return DirectoryBoard{}, directoryLookupError(err)
+	}
+	return insertProjectResource(ctx, tx, userID, projectID, name, ResourceDoc)
+}
+
+func CheckProjectEdit(ctx context.Context, userID, projectID uuid.UUID) error {
+	var permitted bool
+	err := db.Pool().QueryRow(ctx, "SELECT coalesce(openjam_project_role($1, $2) IN ('manager', 'edit'), false)", projectID, userID).Scan(&permitted)
+	if err == nil && !permitted {
+		return ErrDirectoryNotFound
+	}
+	return err
+}
+
+func insertProjectResource(ctx context.Context, query directoryQuerier, userID, projectID uuid.UUID, name, kind string) (DirectoryBoard, error) {
+	board := DirectoryBoard{ProjectID: &projectID, Kind: kind}
+	err := query.QueryRow(ctx, `
 		WITH authorized AS (
 			SELECT id, openjam_project_role(id, $1) AS role FROM projects WHERE id = $2
 		), new_board AS (
-			INSERT INTO rooms (id, name, owner_id)
-			SELECT $4, $3, $1 FROM authorized WHERE role IN ('manager', 'edit')
+			INSERT INTO rooms (id, name, owner_id, resource_kind)
+			SELECT $4, $3, $1, $5 FROM authorized WHERE role IN ('manager', 'edit')
 			RETURNING id, name, owner_id, created_at, updated_at
 		), location AS (
 			INSERT INTO board_directory (room_id, project_id)
@@ -247,7 +280,7 @@ func CreateProjectBoard(ctx context.Context, userID, projectID uuid.UUID, name s
 		SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at,
 			CASE WHEN a.role = 'manager' THEN 'owner' ELSE 'edit' END
 		FROM new_board b JOIN location l ON l.room_id = b.id CROSS JOIN authorized a
-	`, userID, projectID, name, uuid.NewString()).Scan(&board.ID, &board.Name, &board.OwnerID, &board.CreatedAt, &board.UpdatedAt, &board.Permission)
+	`, userID, projectID, name, uuid.NewString(), kind).Scan(&board.ID, &board.Name, &board.OwnerID, &board.CreatedAt, &board.UpdatedAt, &board.Permission)
 	return board, directoryLookupError(err)
 }
 

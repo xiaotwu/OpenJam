@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { request } from './api';
+import type { ResourceKind } from './directory';
 
 export const workshopPath = '/api/v2/workshop';
 
 export type SearchKind = 'project' | 'member' | 'file' | 'content';
 export interface SearchHit {
+  resourceKind?: ResourceKind;
   kind: SearchKind;
   id: string;
   title: string;
@@ -14,6 +16,7 @@ export interface SearchHit {
   url: string;
 }
 export interface GraphNode {
+  resourceKind?: ResourceKind;
   id: string;
   kind: 'member' | 'project' | 'resource';
   title: string;
@@ -55,6 +58,8 @@ export interface Inbox {
   unread: number;
 }
 export interface WorkshopMessage {
+  authorId?: string;
+  avatarColor?: string;
   id: string;
   sequence: number;
   author: string;
@@ -84,6 +89,7 @@ export interface AgendaItem extends AgendaDraft {
   revision: number;
 }
 export interface RecentResource {
+  resourceKind?: ResourceKind;
   id: string;
   title: string;
   context?: string;

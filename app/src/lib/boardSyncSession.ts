@@ -1,5 +1,6 @@
 import { newRequestId } from './requestId';
 import { ApiError } from './api';
+import type { ResourceKind } from './directory';
 import {
   applyCanonicalChange, applyPendingCommand, editablePermission, MAX_COMMAND_OPERATIONS, validPermission, validSequence,
   type BoardDocument, type BoardSnapshot, type BoardTransport, type DocumentAck,
@@ -39,6 +40,7 @@ export interface BoardSyncState {
   canRedo: boolean;
   historyNotice?: string;
   permission?: DocumentPermission;
+  resourceKind?: ResourceKind;
   epoch?: number;
   seq?: number;
   pendingCount: number;
@@ -511,6 +513,7 @@ export class BoardSyncSession {
     const canEdit = this.canEdit();
     this.options.onState({
       mode: this.mode, status, canEdit, permission: this.confirmed?.permission,
+      resourceKind: this.confirmed && (this.confirmed.resourceKind ?? 'board'),
       canUndo: canEdit && !this.replayingHistory && this.undoStack.length > 0,
       canRedo: canEdit && !this.replayingHistory && this.redoStack.length > 0,
       historyNotice: this.historyNotice,

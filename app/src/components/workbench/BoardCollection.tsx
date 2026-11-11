@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import type { DirectoryBoard } from '../../lib/directory';
+import { Link, useLocation } from 'react-router-dom';
+import { resourcePath, type DirectoryBoard } from '../../lib/directory';
 import { readBoardThumbnail } from '../../lib/boardFiles';
 import { useI18n } from '../../i18n';
 import WorkbenchIcon from './WorkbenchIcon';
@@ -102,21 +102,27 @@ interface BoardTileProps {
 function BoardTile({ board, theme, location, canMove, isBusy, menuOpen, onMenuChange, onAction }: BoardTileProps) {
   const { formatDate, messages: { workbench: { board: text, directory } } } = useI18n();
   const menuId = useId();
+  const locationState = useLocation();
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const updatedLabel = formatDate(board.updatedAt, 'date');
   const owned = board.permission === 'owner';
+  const doc = board.kind === 'doc';
   const favoriteLabel = board.favorite ? text.removeFavorite(board.name) : text.addFavorite(board.name);
-  const archiveLabel = board.archivedAt ? directory.restoreBoard : directory.archiveBoard;
+  const archiveLabel = doc ? (board.archivedAt ? 'Restore Document' : 'Archive Document')
+    : board.archivedAt ? directory.restoreBoard : directory.archiveBoard;
 
   return (
     <li className="wb-board-tile">
       <Link
-        to={`/board/${encodeURIComponent(board.id)}`}
+        to={resourcePath(board.kind, board.id)}
+        state={{ workshop: locationState.pathname + locationState.search }}
         className="wb-board-link"
         aria-label={text.open(board.name)}
         aria-describedby={`${menuId}-location ${menuId}-detail`}
       >
-        <BoardPreview key={`${board.updatedAt}/${theme}`} boardId={board.id} theme={theme} />
+        {doc ? <div className="wb-board-preview wb-doc-preview" aria-hidden="true">
+          <span className="wb-file-glyph"><WorkbenchIcon name="document" /></span>
+        </div> : <BoardPreview key={`${board.updatedAt}/${theme}`} boardId={board.id} theme={theme} />}
         <div className="wb-board-meta">
           <strong title={board.name}>{board.name}</strong>
           <span id={`${menuId}-location`} title={location}>{location}</span>

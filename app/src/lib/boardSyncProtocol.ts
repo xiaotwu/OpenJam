@@ -1,6 +1,7 @@
 import type { Page } from '../components/PagesPanel';
 import type { Stamp } from '../components/StampTool';
 import type { Element } from './elements';
+import type { ResourceKind } from './directory';
 import type { WidgetVoteAction } from './workshopWidgets';
 
 export type BoardElement = Element & { pageId?: string };
@@ -48,6 +49,7 @@ export interface DocumentCommand {
 export interface BoardSnapshot {
   protocolVersion: 2;
   boardId: string;
+  resourceKind?: ResourceKind;
   epoch: number;
   seq: number;
   hash: string;

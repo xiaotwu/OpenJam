@@ -11,6 +11,7 @@ import (
 
 type SearchResult struct {
 	Kind           string     `json:"kind"`
+	ResourceKind   string     `json:"resourceKind,omitempty"`
 	ID             string     `json:"id"`
 	Title          string     `json:"title"`
 	Snippet        string     `json:"snippet,omitempty"`
@@ -23,11 +24,12 @@ type SearchResult struct {
 }
 
 type TeamGraphNode struct {
-	ID    string `json:"id"`
-	Kind  string `json:"kind"`
-	Title string `json:"title"`
-	Color string `json:"color,omitempty"`
-	URL   string `json:"url"`
+	ID           string `json:"id"`
+	Kind         string `json:"kind"`
+	ResourceKind string `json:"resourceKind,omitempty"`
+	Title        string `json:"title"`
+	Color        string `json:"color,omitempty"`
+	URL          string `json:"url"`
 }
 
 type TeamGraphEdge struct {
@@ -50,7 +52,7 @@ WITH visible_projects AS (
 		AND (o.owner_id = $1 OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.user_id = $1 AND pm.project_id = p.id))
 		AND openjam_project_role(p.id, $1) IS NOT NULL
 ), visible_boards AS (
-	SELECT r.id, r.name, p.id AS project_id, d.archived_at,
+	SELECT r.id, r.name, r.resource_kind, p.id AS project_id, d.archived_at,
 		concat_ws(' · ', p.name, CASE WHEN d.archived_at IS NOT NULL THEN 'Archive' END) AS project_name, h.mode
 	FROM openjam_visible_boards($1) a JOIN rooms r ON r.id = a.board_id
 	LEFT JOIN board_directory d ON d.room_id = r.id
@@ -85,22 +87,22 @@ func SearchWorkshop(ctx context.Context, actor uuid.UUID, team *uuid.UUID, query
 	query AS (SELECT lower($3::text) AS needle, plainto_tsquery('simple', $3) AS terms),
 	matches AS (
 		SELECT 'project' AS kind, p.id::text AS id, p.name AS title, '' AS snippet, p.organization_id,
-			p.id AS project_id, '' AS page_id, '' AS element_id, '' AS context,
+			p.id AS project_id, '' AS page_id, '' AS element_id, '' AS context, '' AS resource_kind,
 			CASE WHEN lower(p.name) = q.needle THEN 6 ELSE 3 END AS score
 		FROM visible_projects p CROSS JOIN query q WHERE strpos(lower(p.name), q.needle) > 0
 		UNION ALL
-		SELECT 'member', u.id::text, u.display_name, '', m.team_id, NULL, '', '', m.team_name,
+		SELECT 'member', u.id::text, u.display_name, '', m.team_id, NULL, '', '', m.team_name, '',
 			CASE WHEN lower(u.display_name) = q.needle THEN 6 ELSE 3 END
 		FROM visible_members m JOIN users u ON u.id = m.user_id CROSS JOIN query q
 		WHERE strpos(lower(u.display_name), q.needle) > 0
 		UNION ALL
-		SELECT 'file', b.id, b.name, '', NULL, b.project_id, '', '', b.project_name,
+		SELECT 'file', b.id, b.name, '', NULL, b.project_id, '', '', b.project_name, b.resource_kind,
 			CASE WHEN lower(b.name) = q.needle THEN 7 ELSE 4 END
 		FROM visible_boards b CROSS JOIN query q WHERE strpos(lower(b.name), q.needle) > 0
 		UNION ALL
 		SELECT 'content', b.id, b.name,
 			btrim(substring(i.body from greatest(strpos(lower(i.body), q.needle) - 40, 1) for 230)),
-			NULL, b.project_id, coalesce(i.page_id, ''), coalesce(i.element_id, ''), b.project_name,
+			NULL, b.project_id, coalesce(i.page_id, ''), coalesce(i.element_id, ''), b.project_name, b.resource_kind,
 			1 + ts_rank(i.terms, q.terms)
 		FROM visible_boards b JOIN workshop_board_index i ON i.board_id = b.id CROSS JOIN query q
 		WHERE (`+currentIndexedSource+`) AND (i.terms @@ q.terms OR strpos(lower(i.body), q.needle) > 0)
@@ -113,7 +115,7 @@ func SearchWorkshop(ctx context.Context, actor uuid.UUID, team *uuid.UUID, query
 	)
 	SELECT coalesce(jsonb_agg(jsonb_build_object('kind', kind, 'id', id, 'title', title, 'snippet', snippet,
 		'organizationId', organization_id, 'projectId', project_id, 'pageId', page_id, 'elementId', element_id,
-		'context', context) ORDER BY score DESC, lower(title), kind, id, page_id, element_id), '[]'::jsonb)
+		'context', context, 'resourceKind', resource_kind) ORDER BY score DESC, lower(title), kind, id, page_id, element_id), '[]'::jsonb)
 	FROM by_kind WHERE kind_rank <= 20`, actor, team, query).Scan(&results)
 	})
 	if err != nil {
@@ -127,7 +129,7 @@ func SearchWorkshop(ctx context.Context, actor uuid.UUID, team *uuid.UUID, query
 		case "member":
 			item.URL = directoryURL("member", item.ID, *item.OrganizationID)
 		default:
-			item.URL = boardSourceURL(item.ID, item.PageID, item.ElementID)
+			item.URL = resourceSourceURL(item.ResourceKind, item.ID, item.PageID, item.ElementID)
 		}
 	}
 	return results, nil
@@ -147,9 +149,9 @@ func ReadTeamGraph(ctx context.Context, actor, team uuid.UUID) (TeamGraph, error
 		WHERE b.archived_at IS NULL
 		ORDER BY lower(b.name), b.id LIMIT 120
 	), nodes AS (
-		SELECT id::text AS id, 'member' AS kind, display_name AS title, avatar_color AS color FROM members
-		UNION ALL SELECT id::text, 'project', name, '' FROM projects
-		UNION ALL SELECT id, 'resource', name, '' FROM boards
+		SELECT id::text AS id, 'member' AS kind, display_name AS title, avatar_color AS color, '' AS resource_kind FROM members
+		UNION ALL SELECT id::text, 'project', name, '', '' FROM projects
+		UNION ALL SELECT id, 'resource', name, '', resource_kind FROM boards
 	), edges AS (
 		SELECT 'member:' || m.id AS origin, 'project:' || p.id AS target,
 			CASE WHEN person.is_owner THEN 'owns' ELSE 'participates' END AS kind
@@ -164,7 +166,7 @@ func ReadTeamGraph(ctx context.Context, actor, team uuid.UUID) (TeamGraph, error
 		WHERE `+currentIndexedSource+`
 	), limited_edges AS (SELECT * FROM edges ORDER BY kind, origin, target LIMIT 600)
 	SELECT jsonb_build_object(
-		'nodes', coalesce((SELECT jsonb_agg(jsonb_build_object('id', id, 'kind', kind, 'title', title, 'color', color)
+		'nodes', coalesce((SELECT jsonb_agg(jsonb_build_object('id', id, 'kind', kind, 'title', title, 'color', color, 'resourceKind', resource_kind)
 			ORDER BY lower(title), id) FROM nodes), '[]'::jsonb),
 		'edges', coalesce((SELECT jsonb_agg(jsonb_build_object('from', origin, 'to', target, 'kind', kind)
 			ORDER BY kind, origin, target) FROM limited_edges), '[]'::jsonb),
@@ -178,7 +180,7 @@ func ReadTeamGraph(ctx context.Context, actor, team uuid.UUID) (TeamGraph, error
 	for i := range graph.Nodes {
 		node := &graph.Nodes[i]
 		if node.Kind == "resource" {
-			node.URL = boardSourceURL(node.ID, "", "")
+			node.URL = resourceSourceURL(node.ResourceKind, node.ID, "", "")
 		} else {
 			node.URL = directoryURL(node.Kind, node.ID, team)
 		}
@@ -210,8 +212,15 @@ func directoryURL(kind, id string, organization uuid.UUID) string {
 	return "/workplace?" + values.Encode()
 }
 
-func boardSourceURL(board, page, element string) string {
-	path := "/board/" + url.PathEscape(board)
+func resourceSourceURL(kind, resource, page, element string) string {
+	if kind == ResourceDoc {
+		path := "/doc/" + url.PathEscape(resource)
+		if page != "" {
+			path += "?" + (url.Values{"block": {page}}).Encode()
+		}
+		return path
+	}
+	path := "/board/" + url.PathEscape(resource)
 	values := url.Values{}
 	if page != "" {
 		values.Set("page", page)

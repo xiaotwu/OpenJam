@@ -147,7 +147,7 @@ func GetRoom(ctx context.Context, id string) (*Room, error) {
 func GetRoomsByOwner(ctx context.Context, ownerID uuid.UUID) ([]*Room, error) {
 	rows, err := db.Pool().Query(ctx, `
 		SELECT id, name, owner_id, created_at, updated_at
-		FROM rooms WHERE owner_id = $1
+		FROM rooms WHERE owner_id = $1 AND resource_kind = 'board'
 		ORDER BY updated_at DESC
 	`, ownerID)
 	if err != nil {
@@ -171,7 +171,7 @@ func GetRoomsAccessibleByUser(ctx context.Context, userID uuid.UUID) ([]*Room, e
 	rows, err := db.Pool().Query(ctx, `
 		SELECT r.id, r.name, r.owner_id, r.created_at, r.updated_at, a.permission
 		FROM openjam_visible_boards($1) a JOIN rooms r ON r.id = a.board_id
-		ORDER BY r.updated_at DESC
+		WHERE r.resource_kind = 'board' ORDER BY r.updated_at DESC
 	`, userID)
 	if err != nil {
 		return nil, err

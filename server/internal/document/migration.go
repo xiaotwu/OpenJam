@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/project-wb/server/internal/assets"
 	"github.com/project-wb/server/internal/db"
+	"github.com/project-wb/server/internal/model"
 )
 
 type MigrationReport struct {
@@ -187,6 +188,9 @@ func Rollback(ctx context.Context, boardID string, expectedEpoch, expectedSeq in
 		}
 		if err != nil {
 			return err
+		}
+		if room.Kind == model.ResourceDoc {
+			return invalidCommand("Docs use the current sync protocol.")
 		}
 		if head.Epoch != expectedEpoch || head.Seq != expectedSeq {
 			return ErrStaleRollback

@@ -289,6 +289,11 @@ func applyAndRecord(ctx context.Context, tx pgx.Tx, state *commitState, command 
 			return Ack{}, err
 		}
 	}
+	if state.room.Kind == model.ResourceDoc {
+		if err := checkDocSize(ctx, tx, state.room.ID); err != nil {
+			return Ack{}, err
+		}
+	}
 	if err := checkRelationships(ctx, tx, state); err != nil {
 		return Ack{}, err
 	}

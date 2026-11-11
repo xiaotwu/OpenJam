@@ -2,6 +2,7 @@ import type { BoardSyncState } from '../../lib/boardSync';
 
 interface BoardSyncNoticeProps {
   state: BoardSyncState;
+  resourceKind?: 'board' | 'doc';
   onRetry: () => void;
   onExportDraft: () => void;
   onDiscard: () => void;
@@ -12,23 +13,24 @@ function displayValue(value: unknown): string {
   return typeof value === 'string' ? value || 'Empty' : JSON.stringify(value, null, 2) ?? '';
 }
 
-export default function BoardSyncNotice({ state, onRetry, onExportDraft, onDiscard }: BoardSyncNoticeProps) {
+export default function BoardSyncNotice({ state, resourceKind = 'board', onRetry, onExportDraft, onDiscard }: BoardSyncNoticeProps) {
   const { status, mode, error, conflict, pendingCount, hasDraft } = state;
   if (!['offline', 'conflict', 'error', 'revoked'].includes(status)) return null;
   const offline = status === 'offline';
   const revoked = status === 'revoked';
+  const file = resourceKind === 'doc' ? 'document' : 'board';
   const localFailure = conflict?.code === 'LOCAL_WRITE_REJECTED';
   const title = offline ? 'Connection lost'
-    : revoked ? 'Board access unavailable'
+    : revoked ? resourceKind === 'doc' ? 'Document access unavailable' : 'Board access unavailable'
       : localFailure ? 'Could not store the latest edit'
         : conflict ? 'An edit needs review'
-        : mode === 'error' ? 'Could not open the board' : 'Could not save edits to the device';
+        : mode === 'error' ? `Could not open the ${file}` : 'Could not save edits to the device';
   const detail = offline
     ? pendingCount > 0
-      ? `${pendingCount} queued ${pendingCount === 1 ? 'edit is' : 'edits are'} stored on this device. Sync will resume when the board is reachable.`
+      ? `${pendingCount} queued ${pendingCount === 1 ? 'edit is' : 'edits are'} stored on this device. Sync will resume when the ${file} is reachable.`
       : mode === 'active' && state.canEdit
-        ? 'You can keep editing. Changes will sync when the board is reachable.'
-        : 'Reconnect to load the board.'
+        ? `You can keep editing. Changes will sync when the ${file} is reachable.`
+        : `Reconnect to load the ${file}.`
     : error;
   const current = conflict?.details?.current;
   const local = conflict?.local;
@@ -49,8 +51,8 @@ export default function BoardSyncNotice({ state, onRetry, onExportDraft, onDisca
       {conflict && (
         <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
           {localFailure
-            ? 'Download this draft before leaving the board. Discard it when you are ready to resume editing.'
-            : 'Download your draft to keep a copy. Discard the blocked edit to continue from the current board.'}
+            ? `Download this draft before leaving the ${file}. Discard it when you are ready to resume editing.`
+            : `Download your draft to keep a copy. Discard the blocked edit to continue from the current ${file}.`}
         </p>
       )}
       {canCompare && (
@@ -59,7 +61,7 @@ export default function BoardSyncNotice({ state, onRetry, onExportDraft, onDisca
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {current !== undefined && (
               <div className="min-w-0">
-                <div className="text-xs font-medium">Current board</div>
+                <div className="text-xs font-medium">Current {file}</div>
                 <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded-lg px-2 py-1 text-xs" style={{ background: 'var(--glass-bg-subtle)' }}>{displayValue(current)}</pre>
               </div>
             )}

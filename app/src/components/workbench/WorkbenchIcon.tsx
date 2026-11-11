@@ -1,4 +1,13 @@
 const paths = {
+  document: 'M5 3h9l5 5v13H5z M14 3v5h5 M8 12h8 M8 16h8',
+  back: 'm11 5-7 7 7 7 M4 12h16',
+  download: 'M12 4v11m-4-4 4 4 4-4M4 17v4h16v-4',
+  undo: 'm9 6-5 5 5 5 M4 11h10a5 5 0 0 1 0 10',
+  redo: 'm15 6 5 5-5 5 M20 11H10a5 5 0 0 0 0 10',
+  preview: 'M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  expand: 'M9 4H4v5 M15 4h5v5 M9 20H4v-5 M15 20h5v-5',
+  up: 'm6 14 6-6 6 6',
+  down: 'm6 10 6 6 6-6',
   inbox: 'M4 5h16l2 10v4H2v-4z M2 15h6l2 2h4l2-2h6',
   calendar: 'M4 6h16v14H4z M4 10h16 M8 4v4 M16 4v4 M8 14h2 M13 14h2 M8 17h2',
   graph: 'M7 8l9 3M7 16l9-4M5 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM18 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',

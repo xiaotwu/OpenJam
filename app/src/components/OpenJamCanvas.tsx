@@ -1,6 +1,6 @@
 import { recordRecentBoard } from '../lib/workshop';
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { ElementRenderer } from './elements';
 import { useAutoSave } from './canvas/hooks/useAutoSave';
@@ -1660,6 +1660,10 @@ export default function OpenJamCanvas({
     { id: 'help', label: 'Help & shortcuts', category: 'Help', shortcut: '?', action: () => setShowHelpPanel(true) },
   ].filter(command => canEdit || ['select', 'pan', 'copy', 'selectAll', 'share', 'help'].includes(command.id) || command.category === 'View'),
   [canEdit, undo, redo, copySelected, pasteElements, duplicateSelected, selectAll, deleteSelected, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit]);
+
+  if (boardSync.resourceKind === 'doc') {
+    return <Navigate replace to={`/doc/${encodeURIComponent(boardId)}${window.location.search}`} />;
+  }
 
   return (
     <div className="relative w-full h-full overflow-clip" style={{ background: 'var(--surface-canvas)' }}>

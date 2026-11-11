@@ -1,7 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  useWorkshopResource, workshopPath, type GraphNode, type RecentResource, type SearchHit, type SearchKind, type TeamGraph,
+  useWorkshopResource, workshopPath, type RecentResource, type SearchHit, type SearchKind,
 } from '../../lib/workshop';
 import { useI18n } from '../../i18n';
 import WorkbenchIcon, { type WorkbenchIconName } from './WorkbenchIcon';
@@ -58,7 +58,7 @@ export function WorkshopSearch({ query, teamId, teamName, onOpen }: {
         {filtered.map((hit, index) => (
           <li key={[hit.kind, hit.url, index].join(':')}>
             <Link to={hit.url} onClick={onOpen} className="wb-result-row">
-              <span className="wb-result-icon"><WorkbenchIcon name={categories[hit.kind].icon} /></span>
+              <span className="wb-result-icon"><WorkbenchIcon name={hit.resourceKind === 'doc' ? 'document' : categories[hit.kind].icon} /></span>
               <span className="wb-row-content">
                 <strong>{hit.title}</strong>
                 {hit.snippet && <span>{hit.snippet}</span>}
@@ -69,107 +69,6 @@ export function WorkshopSearch({ query, teamId, teamName, onOpen }: {
           </li>
         ))}
       </ul>}
-    </section>
-  );
-}
-
-const columns = [
-  { kind: 'member', label: 'Members', icon: 'shared' },
-  { kind: 'project', label: 'Projects', icon: 'folder' },
-  { kind: 'resource', label: 'Resources', icon: 'board' },
-] as const;
-
-function graphLayout(nodes: GraphNode[]) {
-  return columns.flatMap((column, columnIndex) =>
-    nodes.filter(node => node.kind === column.kind).map((node, row) => ({
-      ...node, icon: column.icon, x: 24 + 300 * columnIndex, y: 54 + row * 46,
-    })));
-}
-
-const relationshipLabels = {
-  owns: ['Owns', 'Owned by'],
-  participates: ['Participates in', 'Participant'],
-  contains: ['Contains', 'In Project'],
-  references: ['References', 'Referenced by'],
-};
-
-export function TeamRelationships({ teamId }: { teamId: string }) {
-  const marker = useId();
-  const result = useWorkshopResource<TeamGraph>(workshopPath + '/teams/' + encodeURIComponent(teamId) + '/graph', 8_000);
-  const [selectedId, setSelectedId] = useState<string>();
-  const nodes = graphLayout(result.data?.nodes ?? []);
-  const edges = result.data?.edges ?? [];
-  const indexed = new Map(nodes.map(node => [node.id, node]));
-  const selected = selectedId ? indexed.get(selectedId) : undefined;
-  const related = selected ? edges.filter(edge => edge.from === selected.id || edge.to === selected.id) : [];
-  const connected = new Set(related.flatMap(edge => [edge.from, edge.to]));
-  const height = Math.max(252, ...nodes.map(node => node.y + 48));
-
-  return (
-    <section className="wb-surface wb-network" aria-label="Team Relationships">
-      <div className="wb-section-head">
-        <h2>Relationships</h2>
-        {selected ? (
-          <div className="wb-inline-actions">
-            <Link className="wb-link" to={selected.url}><span>{selected.title}</span><WorkbenchIcon name="arrow" /></Link>
-            <button type="button" className="wb-icon-button" onClick={() => setSelectedId(undefined)} aria-label="Clear Selection">
-              <WorkbenchIcon name="close" />
-            </button>
-          </div>
-        ) : (
-          <span className="wb-graph-legend"><i />Reference</span>
-        )}
-      </div>
-      {result.loading && <p role="status" className="wb-inline-empty">Loading relationships…</p>}
-      {result.error && <p role="alert" className="wb-inline-empty">{result.error}</p>}
-      {result.data && !nodes.length && <p className="wb-inline-empty">No visible relationships.</p>}
-      {nodes.length > 0 && <div className="wb-graph-scroll">
-        <div className="wb-graph-map" style={{ height }}>
-          <div className="wb-graph-columns">
-            {columns.map(column => <span key={column.kind}><WorkbenchIcon name={column.icon} />{column.label}</span>)}
-          </div>
-          <svg className="wb-graph-lines" viewBox={`0 0 900 ${height}`} preserveAspectRatio="none" aria-hidden="true">
-            <defs><marker id={marker} markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
-              <polygon points="0,0 6,3 0,6" fill="var(--wb-accent)" />
-            </marker></defs>
-            {edges.map(edge => {
-              const from = indexed.get(edge.from);
-              const to = indexed.get(edge.to);
-              if (!from || !to) return null;
-              const sy = from.y + 17;
-              const ty = to.y + 17;
-              const sx = from.x + 242;
-              const tx = edge.kind === 'references' ? to.x + 242 : to.x;
-              const control = edge.kind === 'references' ? 889 : (sx + tx) / 2;
-              return <path key={edge.kind + edge.from + edge.to}
-                data-reference={edge.kind === 'references'}
-                markerEnd={edge.kind === 'references' ? `url(#${marker})` : undefined}
-                data-muted={Boolean(selected && edge.from !== selected.id && edge.to !== selected.id)}
-                d={`M ${sx} ${sy} C ${control} ${sy}, ${control} ${ty}, ${tx} ${ty}`} />;
-            })}
-          </svg>
-          {nodes.map(node => (
-            <button key={node.id} type="button" className="wb-graph-node"
-              aria-pressed={selected?.id === node.id} data-muted={Boolean(selected && selected.id !== node.id && !connected.has(node.id))}
-              style={{ left: node.x / 9 + '%', top: node.y, width: 242 / 9 + '%' }}
-              title={node.title} onClick={() => setSelectedId(selected?.id === node.id ? undefined : node.id)}>
-              {node.kind === 'member' ? <i style={{ backgroundColor: node.color }} /> : <WorkbenchIcon name={node.icon} />}
-              <span>{node.title}</span>
-            </button>
-          ))}
-        </div>
-      </div>}
-      {selected && related.length > 0 && <ul className="wb-graph-connections" aria-label="Selected Relationships">
-        {related.map(edge => {
-          const outgoing = edge.from === selected.id;
-          const node = indexed.get(outgoing ? edge.to : edge.from);
-          return node && <li key={edge.kind + ':' + node.id}>
-            <span>{relationshipLabels[edge.kind][outgoing ? 0 : 1]}</span>
-            <Link className="wb-link" to={node.url}><span>{node.title}</span><WorkbenchIcon name="arrow" /></Link>
-          </li>;
-        })}
-      </ul>}
-      {result.data?.truncated && <p className="wb-inline-empty">The graph shows the first visible items. Search to find a specific source.</p>}
     </section>
   );
 }
@@ -185,7 +84,7 @@ export function WorkshopRecents() {
       {!!result.data?.items.length && <ul className="wb-result-list">
         {result.data.items.map(item => <li key={item.id}>
           <Link className="wb-result-row" to={item.url}>
-            <span className="wb-result-icon"><WorkbenchIcon name="board" /></span>
+            <span className="wb-result-icon"><WorkbenchIcon name={item.resourceKind === 'doc' ? 'document' : 'board'} /></span>
             <span className="wb-row-content"><strong>{item.title}</strong>{item.context && <span>{item.context}</span>}</span>
             <span className="wb-row-context">{formatDate(item.openedAt, 'compact')}</span>
             <WorkbenchIcon name="arrow" />

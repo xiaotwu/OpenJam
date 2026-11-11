@@ -40,6 +40,7 @@ type Document struct {
 type Snapshot struct {
 	ProtocolVersion int       `json:"protocolVersion"`
 	BoardID         string    `json:"boardId"`
+	ResourceKind    string    `json:"resourceKind,omitempty"`
 	Epoch           int64     `json:"epoch"`
 	Seq             int64     `json:"seq"`
 	Hash            string    `json:"hash"`
@@ -60,6 +61,7 @@ type Head struct {
 type lockedRoom struct {
 	ID        string
 	Name      string
+	Kind      string
 	UpdatedAt time.Time
 }
 
@@ -121,8 +123,8 @@ func Open(ctx context.Context, boardID string, userID uuid.UUID, autoActivate bo
 func lockRoom(ctx context.Context, tx pgx.Tx, boardID string) (lockedRoom, error) {
 	var room lockedRoom
 	err := tx.QueryRow(ctx, `
-		SELECT id, name, updated_at FROM rooms WHERE id = $1 FOR UPDATE
-	`, boardID).Scan(&room.ID, &room.Name, &room.UpdatedAt)
+		SELECT id, name, resource_kind, updated_at FROM rooms WHERE id = $1 FOR UPDATE
+	`, boardID).Scan(&room.ID, &room.Name, &room.Kind, &room.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return lockedRoom{}, model.ErrRoomNotFound
 	}
@@ -160,6 +162,7 @@ func snapshotLocked(ctx context.Context, tx pgx.Tx, room lockedRoom, head Head, 
 	result := Snapshot{
 		ProtocolVersion: ProtocolVersion,
 		BoardID:         room.ID,
+		ResourceKind:    room.Kind,
 		Epoch:           head.Epoch,
 		Seq:             head.Seq,
 		Permission:      permission,
