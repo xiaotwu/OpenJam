@@ -1,6 +1,11 @@
 const paths = {
   document: 'M5 3h9l5 5v13H5z M14 3v5h5 M8 12h8 M8 16h8',
   sheet: 'M5 3h9l5 5v13H5z M14 3v5h5 M5 11h14 M5 16h14 M11 11v10',
+  slides: 'M4 4h16v12H4z M2 4h20 M12 16v5m-4 0 4-3 4 3 M8 9h8 M8 12h5',
+  image: 'M4 4h16v16H4z M4 16l5-5 4 4 2-2 5 5 M15 8h.01',
+  play: 'M8 5l12 7-12 7z',
+  bold: 'M7 12h6a3.5 3.5 0 0 1 0 7H7V5h5a3.5 3.5 0 0 1 0 7',
+  italic: 'M11 5h8 M5 19h8 M15 5 9 19',
   formula: 'M14 4h-2a3 3 0 0 0-3 3v9a3 3 0 0 1-3 3H4 M5 9h9 M14 13l6 7m0-7-6 7',
   back: 'm11 5-7 7 7 7 M4 12h16',
   download: 'M12 4v11m-4-4 4 4 4-4M4 17v4h16v-4',

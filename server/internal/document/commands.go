@@ -301,6 +301,11 @@ func applyAndRecord(ctx context.Context, tx pgx.Tx, state *commitState, command 
 		}
 		change.Operations = append(change.Operations, calculated...)
 	}
+	if state.room.Kind == model.ResourceSlides {
+		if err := checkSlideSize(ctx, tx, state.room.ID); err != nil {
+			return Ack{}, err
+		}
+	}
 	if err := checkRelationships(ctx, tx, state); err != nil {
 		return Ack{}, err
 	}

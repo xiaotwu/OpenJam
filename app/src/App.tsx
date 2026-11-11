@@ -16,6 +16,7 @@ import './App.css';
 const OpenJamCanvas = lazy(() => import('./components/OpenJamCanvas'));
 const OpenJamDoc = lazy(() => import('./components/docs/OpenJamDoc'));
 const OpenJamSheet = lazy(() => import('./components/sheets/OpenJamSheet'));
+const OpenJamSlides = lazy(() => import('./components/slides/OpenJamSlides'));
 
 function LoadingScreen({ message }: { message: string }) {
   return (
@@ -68,6 +69,7 @@ function AppContent() {
       />
       <Route path="/doc/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="doc" />} />
       <Route path="/sheet/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="sheet" />} />
+      <Route path="/slides/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="slides" />} />
       <Route path="/room/:boardId" element={<LegacyRoomRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -101,7 +103,7 @@ function AuthRoute({ user }: { user: User | null }) {
   const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
   const next = getSafeNextPath(searchParams.get('next'));
   const credential = readBoardCredential(location.hash);
-  const acceptsCredential = next && (/^\/(?:board|doc|sheet)\/[^/?#]+(?:\?[^#]*)?$/.test(next)
+  const acceptsCredential = next && (/^\/(?:board|doc|sheet|slides)\/[^/?#]+(?:\?[^#]*)?$/.test(next)
     || (credential?.kind === 'invite' && /^\/teams\/[^/?#]+\/invite$/.test(next)));
   const destination = next && credential && acceptsCredential
     ? `${next}${boardCredentialFragment(credential)}` : next || '/workplace';
@@ -179,8 +181,9 @@ function BoardRoute({ user, fallbackColor, kind = 'board' }: {
   }
 
   return (
-    <Suspense fallback={<LoadingScreen message={kind === 'sheet' ? 'Opening spreadsheet…' : kind === 'doc' ? 'Opening document…' : text.opening} />}>
-      {kind === 'sheet' ? <OpenJamSheet key={`${user.id}:${boardId}`} sheetId={boardId || ''} user={user} />
+    <Suspense fallback={<LoadingScreen message={kind === 'board' ? text.opening : 'Opening ' + ({ doc: 'document', sheet: 'spreadsheet', slides: 'presentation' }[kind]) + '…'} />}>
+      {kind === 'slides' ? <OpenJamSlides key={`${user.id}:${boardId}`} presentationId={boardId || ''} user={user} />
+        : kind === 'sheet' ? <OpenJamSheet key={`${user.id}:${boardId}`} sheetId={boardId || ''} user={user} />
         : kind === 'doc' ? <OpenJamDoc key={`${user.id}:${boardId}`} docId={boardId || ''} user={user} /> : <OpenJamCanvas
         key={`${user.id}:${boardId}`}
         boardId={boardId || 'default'}

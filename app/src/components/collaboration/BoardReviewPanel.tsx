@@ -277,7 +277,7 @@ export default function BoardReviewPanel({
       const url = new URL(`/${resourceKind}/${encodeURIComponent(boardId)}`, window.location.origin);
       url.searchParams.set('thread', thread.id);
       if (thread.anchor.currentPageId) {
-        const page = resourceKind === 'doc' ? 'block' : resourceKind === 'sheet' ? 'sheet' : 'page';
+        const page = { board: 'page', doc: 'block', sheet: 'sheet', slides: 'slide' }[resourceKind];
         url.searchParams.set(page, thread.anchor.currentPageId);
         if (resourceKind === 'sheet' && thread.anchor.elementId?.startsWith(thread.anchor.currentPageId + ':')) {
           url.searchParams.set('cell', thread.anchor.elementId.split(':')[1]);
@@ -392,7 +392,7 @@ export default function BoardReviewPanel({
               <div className="flex flex-wrap gap-1">
                 <button type="button" aria-pressed={anchorMode === 'page'} className={smallButton} onClick={() => {
                   setAnchorMode('page'); setDraftAnchor({ location: { pageId: page.id }, label: page.name });
-                }}>{resourceKind === 'doc' ? 'This Block' : resourceKind === 'sheet' ? 'This Worksheet' : text.thisPage}</button>
+                }}>{{ board: text.thisPage, doc: 'This Block', sheet: 'This Worksheet', slides: 'This Slide' }[resourceKind]}</button>
                 {selectedObject && <button type="button" aria-pressed={anchorMode === 'object'} className={smallButton}
                   onClick={() => { setAnchorMode('object'); setDraftAnchor({ location: { pageId: page.id, elementId: selectedObject.id }, label: selectedObject.label }); }}>{resourceKind === 'sheet' ? 'Selected Cell' : text.selectedObject}</button>}
                 {resourceKind === 'board' && <button type="button" aria-pressed={anchorMode === 'point'} className={smallButton}

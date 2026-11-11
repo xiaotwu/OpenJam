@@ -3,7 +3,7 @@ import { useI18n } from '../i18n';
 import { uploadBoardAsset } from '../lib/boardFiles';
 import WorkbenchIcon from './workbench/WorkbenchIcon';
 
-interface ImageUploadResult {
+export interface ImageUploadResult {
   assetId?: string;
   url: string;
   width: number;
@@ -14,18 +14,20 @@ interface ImageUploadResult {
 interface ImageUploadDialogProps {
   isOpen: boolean;
   boardId?: string;
+  presentation?: 'insert' | 'replace';
   onClose: () => void;
   onUpload: (imageData: ImageUploadResult) => void;
 }
 
 const privateTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const slideTypes = new Set(['image/png', 'image/jpeg']);
 const buttonClass = 'inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50';
 
 export default function ImageUploadDialog({ isOpen, ...props }: ImageUploadDialogProps) {
   return isOpen ? <ImageUploadForm key={props.boardId ?? 'legacy'} {...props} /> : null;
 }
 
-function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogProps, 'isOpen'>) {
+function ImageUploadForm({ boardId, presentation, onClose, onUpload }: Omit<ImageUploadDialogProps, 'isOpen'>) {
   const { messages: { images: text } } = useI18n();
   const [tab, setTab] = useState<'file' | 'url'>('file');
   const [urlInput, setUrlInput] = useState('');
@@ -40,6 +42,7 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
   const titleId = useId();
   const urlId = useId();
   const sizeMiB = boardId ? 8 : 10;
+  const accepted = presentation ? slideTypes : privateTypes;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -87,8 +90,8 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
     if (active.current) return;
     setLastFile(undefined);
     setCancelled(false);
-    if (file.type && (boardId ? !privateTypes.has(file.type) : !file.type.startsWith('image/'))) {
-      setError(boardId ? text.invalidPrivate : text.invalid);
+    if (file.type && (boardId ? !accepted.has(file.type) : !file.type.startsWith('image/'))) {
+      setError(presentation ? 'Choose a PNG or JPEG image.' : boardId ? text.invalidPrivate : text.invalid);
       return;
     }
     if (!file.size || file.size > sizeMiB * 1024 * 1024) {
@@ -140,7 +143,7 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
       className="board-chrome-popover fixed inset-0 m-auto max-h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-md overflow-auto rounded-2xl border border-[var(--glass-border-strong)] text-[var(--text-primary)] shadow-2xl backdrop:bg-[var(--surface-overlay)]"
     >
       <header className="flex items-center justify-between gap-3 border-b border-[var(--glass-border-strong)] px-5 py-3">
-        <h2 id={titleId} className="text-base font-semibold">{text.add}</h2>
+        <h2 id={titleId} className="text-base font-semibold">{presentation === 'replace' ? 'Replace Image' : text.add}</h2>
         <button type="button" onClick={close} className="board-action-button grid place-items-center" aria-label={text.close}>
           <span className="size-4"><WorkbenchIcon name="close" /></span>
         </button>
@@ -176,7 +179,7 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
             <input
               ref={fileInputRef}
               type="file"
-              accept={boardId ? Array.from(privateTypes).join(',') : 'image/*'}
+              accept={boardId ? Array.from(accepted).join(',') : 'image/*'}
               aria-label={text.imageFile}
               className="hidden"
               onChange={event => {
@@ -195,7 +198,7 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
               {text.browse}
             </button>
             <p className="mt-3 text-xs text-[var(--text-secondary)]">
-              {boardId ? text.privateFormats : text.legacyLimit}
+              {presentation ? 'PNG or JPEG · up to 8 MiB' : boardId ? text.privateFormats : text.legacyLimit}
             </p>
           </div>
         ) : (

@@ -42,9 +42,10 @@ type Project struct {
 }
 
 const (
-	ResourceBoard = "board"
-	ResourceDoc   = "doc"
-	ResourceSheet = "sheet"
+	ResourceBoard  = "board"
+	ResourceDoc    = "doc"
+	ResourceSheet  = "sheet"
+	ResourceSlides = "slides"
 )
 
 type DirectoryBoard struct {
@@ -62,6 +63,7 @@ type Directory struct {
 	Boards        []DirectoryBoard `json:"boards"`
 	Docs          []DirectoryBoard `json:"docs"`
 	Sheets        []DirectoryBoard `json:"sheets"`
+	Slides        []DirectoryBoard `json:"slides"`
 }
 
 var (
@@ -193,7 +195,8 @@ func ListDirectory(ctx context.Context, userID uuid.UUID) (Directory, error) {
 			'projects', COALESCE((SELECT jsonb_agg(p ORDER BY LOWER(p.name), p.id) FROM visible_projects p), '[]'::jsonb),
 			'boards', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'board'), '[]'::jsonb),
 			'docs', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'doc'), '[]'::jsonb),
-			'sheets', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'sheet'), '[]'::jsonb)
+			'sheets', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'sheet'), '[]'::jsonb),
+			'slides', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b WHERE b.kind = 'slides'), '[]'::jsonb)
 		)
 	`, userID, draftsID).Scan(&directory)
 	return directory, err

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/project-wb/server/internal/assets"
 	"github.com/project-wb/server/internal/db"
 	"github.com/project-wb/server/internal/docformat"
 	"github.com/project-wb/server/internal/model"
@@ -44,10 +45,10 @@ func CreateDoc(ctx context.Context, actor, projectID uuid.UUID, name string, blo
 		content.Pages = append(content.Pages, value)
 	}
 
-	return createNativeResource(ctx, actor, projectID, content, model.ResourceDoc, "Initial document")
+	return createNativeResource(ctx, actor, projectID, content, model.ResourceDoc, "Initial document", nil)
 }
 
-func createNativeResource(ctx context.Context, actor, projectID uuid.UUID, content Document, kind, versionName string) (model.DirectoryBoard, error) {
+func createNativeResource(ctx context.Context, actor, projectID uuid.UUID, content Document, kind, versionName string, media []assets.Metadata) (model.DirectoryBoard, error) {
 	var resource model.DirectoryBoard
 	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
 		created, err := model.CreateProjectCollaborativeResource(ctx, tx, actor, projectID, content.Name, kind)
@@ -55,6 +56,9 @@ func createNativeResource(ctx context.Context, actor, projectID uuid.UUID, conte
 			return err
 		}
 		room := lockedRoom{ID: created.ID, Name: created.Name, Kind: created.Kind, UpdatedAt: created.UpdatedAt}
+		if err := assets.Grant(ctx, tx, room.ID, media); err != nil {
+			return err
+		}
 		head := Head{Mode: modeActive, Epoch: 1, DefaultPageID: content.DefaultPageID}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO board_heads (board_id, mode, epoch, default_page_id) VALUES ($1, $2, $3, $4)

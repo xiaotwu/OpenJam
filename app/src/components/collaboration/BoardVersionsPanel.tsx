@@ -341,7 +341,7 @@ export default function BoardVersionsPanel({
                   <button type="button" disabled={!online || busy} className={buttonClass} onClick={() => {
                     setCopyName(text.copyName(selected.document.name).slice(0, 255));
                     setCopyPlan(selected.version);
-                  }}>{resourceKind === 'board' ? text.copy : resourceKind === 'doc' ? 'Copy as Doc' : 'Copy as Spreadsheet'}</button>
+                  }}>{resourceKind === 'board' ? text.copy : 'Copy as ' + (resourceKind === 'doc' ? 'Doc' : noun)}</button>
                   {permission === 'owner' && (
                     <button type="button" disabled={!canCaptureHead || busy} className={buttonClass} onClick={() => {
                       if (epoch !== undefined && seq !== undefined) {

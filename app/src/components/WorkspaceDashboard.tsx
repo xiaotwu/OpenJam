@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { updateRoom, type User } from '../lib/api';
 import {
-  createOrganization, createProject, createProjectBoard, createProjectDoc, createProjectSheet, createWorkspace, getDirectory,
+  createOrganization, createProject, createProjectBoard, createProjectDoc, createProjectPresentation, createProjectSheet, createWorkspace, getDirectory,
   moveBoard, resourceNames, resourcePath, setBoardArchive, setBoardFavorite,
   type Directory, type DirectoryBoard, type Organization, type Project, type ResourceKind, type Workspace,
 } from '../lib/directory';
@@ -91,7 +91,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const [layout, setLayout] = useState<BoardLayout>('grid');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [importTarget, setImportTarget] = useState<{ kind: 'doc' | 'sheet'; project: Project }>();
+  const [importTarget, setImportTarget] = useState<{ kind: 'doc' | 'sheet' | 'slides'; project: Project }>();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [modal, setModal] = useState<ActiveModal | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
@@ -228,7 +228,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     }
 
     const visible: BoardEntry[] = [];
-    for (const board of [...(directory?.boards ?? []), ...(directory?.docs ?? []), ...(directory?.sheets ?? [])]) {
+    for (const board of [...(directory?.boards ?? []), ...(directory?.docs ?? []), ...(directory?.sheets ?? []), ...(directory?.slides ?? [])]) {
       const location = board.projectId ? locations.get(board.projectId) : undefined;
       const ownOrganization = location !== undefined && location.organization.id === organization?.id;
       const legacyPersonalBoard = !location && board.ownerId === user.id && organization?.kind === 'personal';
@@ -313,6 +313,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       boards: data.boards.map((board) => board.id === id ? { ...board, ...changes } : board),
       docs: (data.docs ?? []).map(doc => doc.id === id ? { ...doc, ...changes } : doc),
       sheets: (data.sheets ?? []).map(sheet => sheet.id === id ? { ...sheet, ...changes } : sheet),
+      slides: (data.slides ?? []).map(slide => slide.id === id ? { ...slide, ...changes } : slide),
     }));
   }
 
@@ -382,8 +383,8 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     });
   }
 
-  function openResource(kind: ResourceKind, id: string) {
-    navigate(resourcePath(kind, id), { state: { workshop: location.pathname + location.search } });
+  function openResource(kind: ResourceKind, id: string, warnings?: string[]) {
+    navigate(resourcePath(kind, id), { state: { workshop: location.pathname + location.search, warnings } });
   }
 
   function addResource(kind: ResourceKind) {
@@ -403,7 +404,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
         })),
       },
       save: async (name, selectionId) => {
-        const create = { board: createProjectBoard, doc: createProjectDoc, sheet: createProjectSheet }[kind];
+        const create = { board: createProjectBoard, doc: createProjectDoc, sheet: createProjectSheet, slides: createProjectPresentation }[kind];
         const file = await create(selectionId || defaultProject.id, name);
         openResource(kind, file.id);
       },
@@ -575,8 +576,10 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                 title={text.newWorkspace} onClick={addWorkspace}><WorkbenchIcon name="folder" /></button>}
               {activeProject && defaultProject && view === 'recent' && <ProjectFilesActions
                 onNewBoard={() => addResource('board')} onNewDoc={() => addResource('doc')} onNewSheet={() => addResource('sheet')}
+                onNewPresentation={() => addResource('slides')}
                 onImportBoard={() => setShowImport(true)} onImportDoc={() => setImportTarget({ kind: 'doc', project: activeProject })}
-                onImportSheet={() => setImportTarget({ kind: 'sheet', project: activeProject })} />}
+                onImportSheet={() => setImportTarget({ kind: 'sheet', project: activeProject })}
+                onImportPresentation={() => setImportTarget({ kind: 'slides', project: activeProject })} />}
               {!activeProject && (!showAreaHome || !teamMode) && <button type="button" className="wb-icon-button" aria-label={text.importBoard}
                 title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}><WorkbenchIcon name="import" /></button>}
               {primaryAction && view === 'recent' && <button type="button" className="wb-button wb-button-primary" onClick={primaryAction.run}
@@ -661,7 +664,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                 <div className="wb-empty">
                   <span className="wb-empty-icon" aria-hidden="true"><WorkbenchIcon name={activeProject ? 'board' : collectionIcons[collectionView]} /></span>
                   <h2>{activeProject ? 'No files yet' : empty.title}</h2>
-                  <p>{activeProject && defaultProject ? 'Create a board, document, or spreadsheet in this project.' : activeProject ? 'Project files will appear here.' : empty.description}</p>
+                  <p>{activeProject && defaultProject ? 'Create or import a file in this project.' : activeProject ? 'Project files will appear here.' : empty.description}</p>
                   {primaryAction && (activeProject || view === 'recent') && (
                     <button type="button" className="wb-button wb-button-secondary" onClick={primaryAction.run}>
                       <WorkbenchIcon name="plus" /> {primaryAction.label}
@@ -676,7 +679,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
 
       {notice && <div className="wb-toast" role="status"><WorkbenchIcon name="check" /> {notice}</div>}
       {importTarget && <ProjectImportDialog kind={importTarget.kind} projectId={importTarget.project.id} projectName={importTarget.project.name}
-        onClose={() => setImportTarget(undefined)} onImported={id => { setImportTarget(undefined); openResource(importTarget.kind, id); }} />}
+        onClose={() => setImportTarget(undefined)} onImported={(id, warnings) => { setImportTarget(undefined); openResource(importTarget.kind, id, warnings); }} />}
       {showImport && <BoardFilesPanel onClose={() => setShowImport(false)} onOpenBoard={id => navigate(`/board/${encodeURIComponent(id)}`)} />}
       {modal && (
         <WorkbenchDialog

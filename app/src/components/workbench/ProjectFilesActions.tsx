@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import WorkbenchIcon from './WorkbenchIcon';
 
-export default function ProjectFilesActions({ onNewBoard, onNewDoc, onNewSheet, onImportBoard, onImportDoc, onImportSheet }: {
-  onNewBoard: () => void; onNewDoc: () => void; onNewSheet: () => void;
-  onImportBoard: () => void; onImportDoc: () => void; onImportSheet: () => void;
+export default function ProjectFilesActions({ onNewBoard, onNewDoc, onNewSheet, onNewPresentation, onImportBoard, onImportDoc, onImportSheet, onImportPresentation }: {
+  onNewBoard: () => void; onNewDoc: () => void; onNewSheet: () => void; onNewPresentation: () => void;
+  onImportBoard: () => void; onImportDoc: () => void; onImportSheet: () => void; onImportPresentation: () => void;
 }) {
   const [open, setOpen] = useState<'create' | 'import' | null>(null);
   const group = useRef<HTMLDivElement>(null);
@@ -39,10 +39,12 @@ export default function ProjectFilesActions({ onNewBoard, onNewDoc, onNewSheet, 
       {open === 'create' ? <>
         <button type="button" onClick={() => run(onNewDoc)}><WorkbenchIcon name="document" />New Document</button>
         <button type="button" onClick={() => run(onNewSheet)}><WorkbenchIcon name="sheet" />New Spreadsheet</button>
+        <button type="button" onClick={() => run(onNewPresentation)}><WorkbenchIcon name="slides" />New Presentation</button>
         <button type="button" onClick={() => run(onNewBoard)}><WorkbenchIcon name="board" />New Board</button>
       </> : <>
         <button type="button" onClick={() => run(onImportDoc)}><WorkbenchIcon name="document" />Markdown or DOCX</button>
         <button type="button" onClick={() => run(onImportSheet)}><WorkbenchIcon name="sheet" />CSV or XLSX</button>
+        <button type="button" onClick={() => run(onImportPresentation)}><WorkbenchIcon name="slides" />PowerPoint (.pptx)</button>
         <button type="button" onClick={() => run(onImportBoard)}><WorkbenchIcon name="board" />Board File</button>
       </>}
     </div>}

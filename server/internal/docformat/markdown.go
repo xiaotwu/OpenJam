@@ -131,7 +131,7 @@ func safeLink(destination string) string {
 		(value.Scheme == "mailto" && value.Opaque != "") ||
 		(value.Scheme == "" && value.Host == "" &&
 			(strings.HasPrefix(value.Path, "/doc/") || strings.HasPrefix(value.Path, "/sheet/") ||
-				strings.HasPrefix(value.Path, "/board/") || strings.HasPrefix(value.Path, "/room/"))) {
+				strings.HasPrefix(value.Path, "/slides/") || strings.HasPrefix(value.Path, "/board/") || strings.HasPrefix(value.Path, "/room/"))) {
 		return value.String()
 	}
 	return ""

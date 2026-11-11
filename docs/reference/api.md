@@ -170,6 +170,18 @@ The directory returns workbooks in `sheets`. The browser route is `/sheet/:id`. 
 
 V2 snapshot, changes, commands, review, and versions share the existing file permissions. Sheet snapshots use `resourceKind: "sheet"`. `pages` stores ordered worksheet metadata and `elements` stores filled cells. A `setCell` command uses `collection: "elements"` and an ID made from the worksheet UUID, a colon, and the uppercase address. Its `value` includes `pageId`, `address`, `input`, and `valueType`. The `expected` field includes the previous `input` and `valueType`. Empty strings for both represent a blank cell. The server calculates formula results and updates the search index in the commit transaction.
 
+## Slides
+
+The directory returns presentations in `slides`. The browser route is `/slides/:id`. A `slide` query parameter selects a slide UUID that stays stable when slides are reordered.
+
+| Endpoint | Behavior |
+| --- | --- |
+| `POST /api/v2/projects/:projectId/slides` | Creates a presentation with one blank slide from a JSON body with `name`. |
+| `POST /api/v2/projects/:projectId/slides/import?name=…` | Imports a raw PPTX body of up to 32 MiB. The response may include `warnings` for skipped objects or pictures. |
+| `GET /api/v2/slides/:id/export` | Downloads the saved presentation and its authorized images as PPTX. |
+
+Snapshots use `resourceKind: "slides"`. The ordered `pages` contain slide metadata and dimensions. `elements` contains editable text and image objects with a `pageId`. Images use existing private asset routes and are linked to the presentation. Object edits compare the previous values of changed fields. Reordering compares the previous slide order. The existing V2 access, review, and history endpoints apply to Slides.
+
 ## Workshop
 
 Workshop endpoints use `/api/v2/workshop` and require authentication. Reads apply the account’s current Team, Project, and board access.

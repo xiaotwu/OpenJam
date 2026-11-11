@@ -50,12 +50,13 @@ export interface Project {
   peopleCount?: number;
 }
 
-export type ResourceKind = 'board' | 'doc' | 'sheet';
+export type ResourceKind = 'board' | 'doc' | 'sheet' | 'slides';
 
-export const resourceNames = { board: 'Board', doc: 'Document', sheet: 'Spreadsheet' } as const;
+export const resourceNames = { board: 'Board', doc: 'Document', sheet: 'Spreadsheet', slides: 'Presentation' } as const;
 
 export function resourceIcon(kind?: ResourceKind) {
-  return kind === 'doc' ? 'document' : kind === 'sheet' ? 'sheet' : 'board';
+  if (kind === 'doc') return 'document';
+  return kind ?? 'board';
 }
 
 export interface DirectoryBoard extends Room {
@@ -73,6 +74,7 @@ export interface Directory {
   boards: DirectoryBoard[];
   docs: DirectoryBoard[];
   sheets: DirectoryBoard[];
+  slides: DirectoryBoard[];
 }
 
 const directoryAPI = '/api/v2';
@@ -110,6 +112,10 @@ export function resourcePath(kind: ResourceKind, id: string) {
 
 export function createProjectSheet(projectId: string, name: string): Promise<DirectoryBoard> {
   return create(`/projects/${encodeURIComponent(projectId)}/sheets`, name);
+}
+
+export function createProjectPresentation(projectId: string, name: string): Promise<DirectoryBoard> {
+  return create(`/projects/${encodeURIComponent(projectId)}/slides`, name);
 }
 
 export function createProjectDoc(projectId: string, name: string): Promise<DirectoryBoard> {

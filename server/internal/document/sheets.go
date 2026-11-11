@@ -78,7 +78,7 @@ func CreateSheet(ctx context.Context, actor, projectID uuid.UUID, name string, t
 			content.Elements = append(content.Elements, data)
 		}
 	}
-	return createNativeResource(ctx, actor, projectID, content, model.ResourceSheet, "Initial spreadsheet")
+	return createNativeResource(ctx, actor, projectID, content, model.ResourceSheet, "Initial spreadsheet", nil)
 }
 
 func SheetWorkbook(snapshot Snapshot) ([]sheetformat.Tab, []string, error) {

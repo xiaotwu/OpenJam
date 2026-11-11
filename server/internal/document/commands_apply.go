@@ -22,6 +22,11 @@ type documentRecord struct {
 }
 
 func applyOperation(ctx context.Context, tx pgx.Tx, state *commitState, operation Operation) (Delta, error) {
+	if state.room.Kind == model.ResourceSlides {
+		if err := validateSlideOperation(operation); err != nil {
+			return Delta{}, err
+		}
+	}
 	if state.room.Kind == model.ResourceSheet && operation.Kind != "rename" {
 		switch {
 		case operation.Kind == "setCell":
@@ -321,12 +326,22 @@ func validateRecord(ctx context.Context, tx pgx.Tx, room lockedRoom, operation O
 				return nil, "", err
 			}
 		}
+		if room.Kind == model.ResourceSlides {
+			if err := validateSlidePage(fields, data); err != nil {
+				return nil, "", err
+			}
+		}
 		if name := rawString(fields["name"]); strings.TrimSpace(name) == "" || strings.ContainsRune(name, 0) {
 			return nil, "", invalidCommand("A page name is required.")
 		}
 		return data, "", nil
 	}
 	if operation.Collection == "elements" {
+		if room.Kind == model.ResourceSlides {
+			if err := validateSlideObject(fields, data); err != nil {
+				return nil, "", err
+			}
+		}
 		if _, err := model.ValidateElements([]json.RawMessage{data}); err != nil {
 			return nil, "", invalidCommand("Invalid element shape or type.")
 		}

@@ -104,10 +104,15 @@ func SearchWorkshop(ctx context.Context, actor uuid.UUID, team *uuid.UUID, query
 		SELECT 'content', b.id, b.name,
 			btrim(substring(i.body from greatest(strpos(lower(i.body), q.needle) - 40, 1) for 230)),
 			NULL, b.project_id, coalesce(i.page_id, ''), coalesce(i.element_id, ''),
-			concat_ws(' · ', nullif(b.project_name, ''), tab.data->>'name' || '!' || split_part(i.element_id, ':', 2)), b.resource_kind,
+			concat_ws(' · ', nullif(b.project_name, ''), CASE b.resource_kind
+				WHEN 'sheet' THEN source_page.data->>'name' || '!' || split_part(i.element_id, ':', 2)
+				WHEN 'slides' THEN 'Slide ' || (1 + (SELECT count(*) FROM board_pages earlier
+					WHERE earlier.board_id = b.id AND NOT earlier.deleted AND (earlier.position, earlier.id) < (source_page.position, source_page.id)))
+				END), b.resource_kind,
 			1 + ts_rank(i.terms, q.terms)
 		FROM visible_boards b JOIN workshop_board_index i ON i.board_id = b.id
-		LEFT JOIN board_pages tab ON b.resource_kind = 'sheet' AND tab.board_id = b.id AND tab.id = i.page_id AND NOT tab.deleted
+		LEFT JOIN board_pages source_page ON b.resource_kind IN ('sheet', 'slides') AND source_page.board_id = b.id
+			AND source_page.id = i.page_id AND NOT source_page.deleted
 		CROSS JOIN query q
 		WHERE (`+currentIndexedSource+`) AND (i.terms @@ q.terms OR strpos(lower(i.body), q.needle) > 0)
 	), ranked AS (
@@ -217,6 +222,13 @@ func directoryURL(kind, id string, organization uuid.UUID) string {
 }
 
 func resourceSourceURL(kind, resource, page, element string) string {
+	if kind == ResourceSlides {
+		path := "/slides/" + url.PathEscape(resource)
+		if page != "" {
+			path += "?" + (url.Values{"slide": {page}}).Encode()
+		}
+		return path
+	}
 	if kind == ResourceSheet {
 		path := "/sheet/" + url.PathEscape(resource)
 		if address, ok := strings.CutPrefix(element, page+":"); ok && page != "" {

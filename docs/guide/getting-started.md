@@ -96,17 +96,25 @@ Choose **Import → CSV or XLSX** in a project to create a spreadsheet. CSV impo
 
 Workbooks support up to eight worksheets with addresses from A1 through AZ1000, 6,000 filled cells, 512 formulas, and 1 MiB of cell text. Each cell supports 1,024 bytes of text, and imports accept files up to 4 MiB.
 
+## Slides
+
+Choose **New → New Presentation** in a personal or Team project. Add slides with the plus button beside the thumbnails. Drag a thumbnail or use **Move Earlier** and **Move Later** to change its order. Insert text boxes and PNG or JPEG images from the toolbar. Drag objects to move them and use the corner handle to resize them. Double-click a text box to edit it. Click outside the box or press Ctrl+Enter (Command+Enter on a Mac) to save. **Presentation History** uses the same access and restore rules as other project files.
+
+Choose **Present** to start from the selected slide. Use the arrow keys or on-screen controls to navigate, and press Escape to return to the editor. The slideshow fills the browser window when native full screen is unavailable.
+
+Choose **Import → PowerPoint (.pptx)** in a project or **Export PowerPoint** in the editor. PPTX preserves slide order and aspect ratio, editable text boxes, basic text styling, and embedded PNG and JPEG images. Imported decks keep basic object position and size. Mixed formatting inside a text box, complex layouts, grouped shapes, notes, charts, and animations are outside the conversion. Import reports skipped objects and pictures. Uploads accept up to 32 MiB. Presentations support up to 60 slides, 100 objects per slide, 1,200 objects total, 1 MiB of text, and 24 MiB of embedded images.
+
 ## Relationships and search
 
 Open a Team’s Overview to see its relationship network alongside projects and members. Select a node to highlight its connections and open its source. To make a reference, choose **Copy Reference** in a file’s project menu and paste the relative link into a spreadsheet cell, document, or a text object on a board. The network displays references between accessible active files in the Team.
 
-Use **Search Workshop** for projects, Team members, file names, body text, and cell values. In a Team, the search defaults to that Team and offers **All Workshop** as a scope. A content result opens its board page, object, document block, or spreadsheet cell. The results and network reflect committed changes and current access. The index and file conversion run locally.
+Use **Search Workshop** for projects, Team members, file names, body text, and cell values. In a Team, the search defaults to that Team and offers **All Workshop** as a scope. A content result opens its board page, object, document block, spreadsheet cell, or slide. The results and network reflect committed changes and current access. The index and file conversion run locally.
 
 The selected object’s **Font Family** menu on a board and the document toolbar use the same bundled fonts. The rest of the interface uses IBM Plex Sans with system fallbacks for other scripts.
 
 ## Upgrading an existing directory
 
-Back up PostgreSQL and referenced attachments before upgrading. Migration 015 adds Team membership and Project access to the existing directory. Existing team organizations appear under **Teams** with the same IDs and projects. Legacy boards without a project appear in their owner's personal Drafts. Existing board links, assets, direct grants, comments, and versions stay available under their original permissions. Migrations 016 and 017 index existing board text and add the Workshop data tables. Migration 018 adds Docs. Migration 019 adds Sheets and indexes their cells and references.
+Back up PostgreSQL and referenced attachments before upgrading. Migration 015 adds Team membership and Project access to the existing directory. Existing team organizations appear under **Teams** with the same IDs and projects. Legacy boards without a project appear in their owner's personal Drafts. Existing board links, assets, direct grants, comments, and versions stay available under their original permissions. Migrations 016 and 017 index existing board text and add the Workshop data tables. Migrations 018–020 add Docs, Sheets, and Slides to the directory and discovery tools.
 
 Removing a Project role removes access inherited from the project. An independent board share can still give access to that board. Removing a Team member or leaving a Team ends their access to its content, including direct grants held by that member. The Team keeps its files and version history. A new Team invitation restores Team membership with fresh Project grants.
 
@@ -117,6 +125,6 @@ With two local OpenJam API instances connected to the same disposable PostgreSQL
 Run the same checks against a local test database named `openjam_cluster_test` from the `server` directory. Set `OPENJAM_CLUSTER_PRIMARY` and `OPENJAM_CLUSTER_SECONDARY` to the loopback API URLs, and `OPENJAM_CLUSTER_DATABASE_URL` to the disposable database URL.
 
 ```bash
-OPENJAM_CLUSTER_WORKSHOP=1 OPENJAM_CLUSTER_DOCS=1 OPENJAM_CLUSTER_SHEETS=1 \
-  go test -race -count=1 -v ./tests -run '^Test(Workshop|Docs|Sheets)Cluster$'
+OPENJAM_CLUSTER_WORKSHOP=1 OPENJAM_CLUSTER_DOCS=1 OPENJAM_CLUSTER_SHEETS=1 OPENJAM_CLUSTER_SLIDES=1 \
+  go test -race -count=1 -v ./tests -run '^Test(Workshop|Docs|Sheets|Slides)Cluster$'
 ```
