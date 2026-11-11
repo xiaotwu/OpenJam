@@ -8,13 +8,14 @@ import {
 } from '../lib/directory';
 import { useTheme } from '../lib/useTheme';
 import { useAppearance } from '../lib/useAppearance';
-import { useWorkshopResource, workshopPath, type Inbox } from '../lib/workshop';
+import { meetingPath, useWorkshopResource, workshopPath, type Inbox } from '../lib/workshop';
 import { useI18n } from '../i18n';
 import AccountPopover from './workbench/AccountPopover';
 import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workbench/BoardCollection';
 import BoardFilesPanel from './BoardFilesPanel';
 import ProjectImportDialog from './workbench/ProjectImportDialog';
 import ProjectFilesActions from './workbench/ProjectFilesActions';
+import MeetingEditor from './workbench/MeetingEditor';
 import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
 import { ProjectAccess, ProjectList, TeamMembers } from './workbench/TeamDirectoryPanels';
 import { WorkshopRecents, WorkshopSearch } from './workbench/DiscoveryPanels';
@@ -92,6 +93,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [importTarget, setImportTarget] = useState<{ kind: 'doc' | 'sheet' | 'slides'; project: Project }>();
+  const [meetingScope, setMeetingScope] = useState<{ value: string; label: string }>();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [modal, setModal] = useState<ActiveModal | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
@@ -501,6 +503,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       : view === 'archive' ? organization?.name : undefined;
   const scheduleScope = activeProject ? 'project:' + activeProject.id
     : teamMode && activeOrganizationId ? 'team:' + activeOrganizationId : undefined;
+  const canCreateMeeting = activeProject ? Boolean(defaultProject) : organization?.kind === 'team';
   const showTeamWorkspaceAction = showAreaHome && teamMode && canAddWorkspace && firstWorkspace;
   const calendarDate = params.get('date') ?? undefined;
   const calendarItem = params.get('item') ?? undefined;
@@ -572,6 +575,10 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             <div className="shell-island wb-toolbar-actions">
               {scheduleScope && view === 'recent' && <Link className="wb-icon-button" aria-label="Open Calendar" title="Open Calendar"
                 to={'/workplace?' + new URLSearchParams({ view: 'calendar', scope: scheduleScope })}><WorkbenchIcon name="calendar" /></Link>}
+              {scheduleScope && canCreateMeeting && view === 'recent' && <button type="button" className="wb-icon-button wb-glass-control"
+                aria-label="New Meeting" title="New Meeting" onClick={() => setMeetingScope({
+                  value: scheduleScope, label: activeProject?.name ?? organization?.name ?? '',
+                })}><WorkbenchIcon name="camera" /></button>}
               {showTeamWorkspaceAction && <button type="button" className="wb-icon-button" aria-label={text.newWorkspace}
                 title={text.newWorkspace} onClick={addWorkspace}><WorkbenchIcon name="folder" /></button>}
               {activeProject && defaultProject && view === 'recent' && <ProjectFilesActions
@@ -678,6 +685,10 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       </section>
 
       {notice && <div className="wb-toast" role="status"><WorkbenchIcon name="check" /> {notice}</div>}
+      {meetingScope && <MeetingEditor scopes={[meetingScope]} onClose={() => setMeetingScope(undefined)} onCreated={id => {
+        setMeetingScope(undefined);
+        navigate(meetingPath(id), { state: { workshop: location.pathname + location.search } });
+      }} />}
       {importTarget && <ProjectImportDialog kind={importTarget.kind} projectId={importTarget.project.id} projectName={importTarget.project.name}
         onClose={() => setImportTarget(undefined)} onImported={(id, warnings) => { setImportTarget(undefined); openResource(importTarget.kind, id, warnings); }} />}
       {showImport && <BoardFilesPanel onClose={() => setShowImport(false)} onOpenBoard={id => navigate(`/board/${encodeURIComponent(id)}`)} />}

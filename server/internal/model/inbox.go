@@ -46,9 +46,11 @@ type BoardMention struct {
 }
 
 type WorkshopInbox struct {
-	Threads  []ThreadSummary `json:"threads"`
-	Mentions []BoardMention  `json:"mentions"`
-	Unread   int             `json:"unread"`
+	Threads        []ThreadSummary `json:"threads"`
+	Mentions       []BoardMention  `json:"mentions"`
+	Meetings       []MeetingNotice `json:"meetings"`
+	UnreadMeetings int             `json:"unreadMeetings"`
+	Unread         int             `json:"unread"`
 }
 
 type WorkshopMessage struct {
@@ -108,6 +110,15 @@ func ReadWorkshopInbox(ctx context.Context, actor uuid.UUID) (WorkshopInbox, err
 			CROSS JOIN LATERAL openjam_board_access(n.board_id, $1) access
 			LEFT JOIN users u ON u.id = c.author_id
 			WHERE n.user_id = $1 AND access.permission IS NOT NULL
+		), meetings AS (
+			SELECT a.id, a.title, a.starts_at, a.ends_at, a.meeting_created_at,
+				coalesce(p.name, o.name, '') AS scope_name, openjam_meeting_status(a) AS status,
+				(a.creator_id IS DISTINCT FROM $1 AND r.user_id IS NULL) AS unread
+			FROM workshop_agenda a LEFT JOIN projects p ON p.id = a.project_id
+			LEFT JOIN organizations o ON o.id = a.team_id
+			LEFT JOIN workshop_meeting_reads r ON r.meeting_id = a.id AND r.user_id = $1
+			WHERE a.kind = 'meeting' AND a.meeting_ended_at IS NULL AND a.ends_at > now() - INTERVAL '2 hours'
+				AND openjam_agenda_visible(a, $1)
 		)
 		SELECT jsonb_build_object(
 			'threads', coalesce((SELECT jsonb_agg(jsonb_build_object(
@@ -120,7 +131,13 @@ func ReadWorkshopInbox(ctx context.Context, actor uuid.UUID) (WorkshopInbox, err
 				'boardId', board_id, 'boardName', name, 'resourceKind', resource_kind, 'commentId', comment_id, 'threadId', thread_id,
 				'author', author, 'preview', preview, 'createdAt', created_at, 'unread', unread) ORDER BY created_at DESC, comment_id)
 				FROM (SELECT * FROM notices ORDER BY created_at DESC, comment_id LIMIT 60) n), '[]'::jsonb),
-			'unread', coalesce((SELECT sum(unread) FROM cards), 0) + (SELECT count(*) FROM notices WHERE unread)
+			'meetings', coalesce((SELECT jsonb_agg(jsonb_build_object(
+				'id', id, 'title', title, 'startsAt', starts_at, 'endsAt', ends_at,
+				'scopeName', scope_name, 'status', status, 'unread', unread) ORDER BY meeting_created_at DESC, id)
+				FROM (SELECT * FROM meetings ORDER BY meeting_created_at DESC, id LIMIT 60) recent), '[]'::jsonb),
+			'unreadMeetings', (SELECT count(*) FROM meetings WHERE unread),
+			'unread', coalesce((SELECT sum(unread) FROM cards), 0)
+				+ (SELECT count(*) FROM notices WHERE unread) + (SELECT count(*) FROM meetings WHERE unread)
 		)`, actor).Scan(&inbox)
 	if err == nil {
 		for i := range inbox.Mentions {

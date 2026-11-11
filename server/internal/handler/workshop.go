@@ -10,11 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/project-wb/server/internal/meetings"
 	"github.com/project-wb/server/internal/middleware"
 	"github.com/project-wb/server/internal/model"
 )
 
-func RegisterWorkshopRoutes(api *gin.RouterGroup) {
+func RegisterWorkshopRoutes(api *gin.RouterGroup, media *meetings.Media) {
 	routes := api.Group("/v2/workshop", func(c *gin.Context) {
 		c.Header("Cache-Control", "private, no-store")
 		c.Next()
@@ -31,6 +32,7 @@ func RegisterWorkshopRoutes(api *gin.RouterGroup) {
 	routes.DELETE("/agenda/:id", deleteWorkshopAgenda)
 	routes.GET("/recents", listWorkshopRecents)
 	routes.PUT("/recents/:id", recordWorkshopRecent)
+	registerMeetingRoutes(routes, media)
 }
 
 func searchWorkshop(c *gin.Context) {

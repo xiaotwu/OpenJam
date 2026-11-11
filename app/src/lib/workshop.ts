@@ -55,6 +55,8 @@ export interface Mention {
 export interface Inbox {
   threads: Conversation[];
   mentions: Mention[];
+  meetings: MeetingNotice[];
+  unreadMeetings: number;
   unread: number;
 }
 export interface WorkshopMessage {
@@ -82,10 +84,40 @@ export interface AgendaDraft {
   completed: boolean;
   revision?: number;
 }
-export interface AgendaItem extends AgendaDraft {
+export type MeetingStatus = 'scheduled' | 'open' | 'ended';
+
+interface MeetingSummary {
   id: string;
+  title: string;
+  scopeName: string;
+  startsAt: string;
+  endsAt: string;
+  status: MeetingStatus;
+}
+
+export interface MeetingNotice extends MeetingSummary {
+  unread: boolean;
+}
+
+export interface MeetingDetail {
+  meeting: MeetingSummary & { organizer: string; canEnd: boolean };
+  mediaEnabled: boolean;
+}
+
+export interface MeetingDraft {
+  teamId?: string;
+  projectId?: string;
+  title: string;
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export interface AgendaItem extends Omit<AgendaDraft, 'kind'> {
+  id: string;
+  kind: AgendaDraft['kind'] | 'meeting';
   editable: boolean;
   scopeName?: string;
+  meetingStatus?: MeetingStatus;
   revision: number;
 }
 export interface RecentResource {
@@ -107,6 +139,20 @@ export function writeWorkshop<T>(suffix: string, method: 'POST' | 'PUT' | 'DELET
 
 export function recordRecentBoard(id: string) {
   return writeWorkshop('/recents/' + encodeURIComponent(id), 'PUT');
+}
+
+export function meetingPath(id: string) {
+  return '/meeting/' + encodeURIComponent(id);
+}
+
+export function meetingEndpoint(id: string) {
+  return '/meetings/' + encodeURIComponent(id);
+}
+
+export function meetingSignalURL(id: string) {
+  const url = new URL('/ws/meetings/' + encodeURIComponent(id), import.meta.env.VITE_API_URL || window.location.origin);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
 }
 
 export function agendaPath(from: Date, to: Date) {

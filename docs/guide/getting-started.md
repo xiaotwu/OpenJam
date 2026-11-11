@@ -104,6 +104,10 @@ Choose **Present** to start from the selected slide. Use the arrow keys or on-sc
 
 Choose **Import → PowerPoint (.pptx)** in a project or **Export PowerPoint** in the editor. PPTX preserves slide order and aspect ratio, editable text boxes, basic text styling, and embedded PNG and JPEG images. Imported decks keep basic object position and size. Mixed formatting inside a text box, complex layouts, grouped shapes, notes, charts, and animations are outside the conversion. Import reports skipped objects and pictures. Uploads accept up to 32 MiB. Presentations support up to 60 slides, 100 objects per slide, 1,200 objects total, 1 MiB of text, and 24 MiB of embedded images.
 
+## Meetings
+
+Use the camera button in a Team or Project to schedule or start a meeting. Open your meeting links from Calendar or Inbox. The [Meetings guide](./meetings.md) covers access, call controls, and setup for self-hosted media.
+
 ## Relationships and search
 
 Open a Team’s Overview to see its relationship network alongside projects and members. Select a node to highlight its connections and open its source. To make a reference, choose **Copy Reference** in a file’s project menu and paste the relative link into a spreadsheet cell, document, or a text object on a board. The network displays references between accessible active files in the Team.

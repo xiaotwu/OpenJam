@@ -22,6 +22,7 @@ import (
 	"github.com/project-wb/server/internal/config"
 	"github.com/project-wb/server/internal/db"
 	"github.com/project-wb/server/internal/handler"
+	"github.com/project-wb/server/internal/meetings"
 	"github.com/project-wb/server/internal/middleware"
 	"github.com/project-wb/server/internal/model"
 	"github.com/project-wb/server/internal/storage"
@@ -99,7 +100,11 @@ func run(ctx context.Context, args []string) error {
 
 	hub := ws.NewHub()
 	var draining atomic.Bool
-	router, err := newRouter(cfg, hub, draining.Load, agentConfig)
+	media, err := meetings.NewMedia(cfg.MeetingsMediaURL, cfg.MeetingsMediaKey, cfg.MeetingsMediaSecret)
+	if err != nil {
+		return err
+	}
+	router, err := newRouter(cfg, hub, draining.Load, agentConfig, media)
 	if err != nil {
 		return err
 	}
@@ -107,6 +112,9 @@ func run(ctx context.Context, args []string) error {
 	defer stopHub()
 	go hub.Run(hubCtx)
 	go cleanupExpiredSessions(ctx)
+	if media != nil {
+		go media.Run(ctx)
+	}
 
 	server := &http.Server{
 		Addr:              net.JoinHostPort(cfg.BindHost, cfg.Port),
@@ -139,7 +147,7 @@ func run(ctx context.Context, args []string) error {
 	}
 }
 
-func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfig agent.Config) (*gin.Engine, error) {
+func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfig agent.Config, media *meetings.Media) (*gin.Engine, error) {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -208,7 +216,7 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 	}
 	syncAPI := r.Group("/api", middleware.DocumentAuthRequired(), middleware.RateLimitUser(syncLimiter))
 	handler.RegisterDirectoryRoutes(syncAPI, hub.NotifyAccessChanged)
-	handler.RegisterWorkshopRoutes(syncAPI)
+	handler.RegisterWorkshopRoutes(syncAPI, media)
 	handler.RegisterDocsRoutes(syncAPI)
 	handler.RegisterSheetsRoutes(syncAPI)
 	handler.RegisterSlidesRoutes(syncAPI)
@@ -224,6 +232,7 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 	r.GET("/ws/v2", middleware.RateLimit(wsLimiter), func(c *gin.Context) {
 		handler.HandleDocumentWebSocket(hub, c)
 	})
+	handler.RegisterMeetingSignal(r, media, syncLimiter, draining)
 
 	mountFrontend(r, frontendFiles())
 	return r, nil

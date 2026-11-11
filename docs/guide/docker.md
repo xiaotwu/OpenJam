@@ -10,6 +10,8 @@ docker compose up --build --wait
 
 Open [localhost:8080](http://localhost:8080). Set `OPENJAM_PUBLISH_PORT` to run on a different local port. Compose uses the current project name for its network, containers, volumes and default image tag. To run a prebuilt local image, set `OPENJAM_IMAGE` to its tag and use `docker compose up --no-build --wait`.
 
+Use the [Meetings overlay](./meetings.md#enable-media) to add the private audio, video, and screen-sharing service.
+
 For an HTTPS deployment, put a reverse proxy in front of OpenJam, configure it to forward WebSocket traffic, set `ENVIRONMENT=production`, and set `CORS_ORIGINS` to the HTTPS origin. Set PostgreSQL credentials with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. When credentials contain URI delimiters or PostgreSQL is external, provide a `DATABASE_URL` with properly encoded credentials.
 
 ## Services

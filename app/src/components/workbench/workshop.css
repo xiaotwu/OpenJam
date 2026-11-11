@@ -448,6 +448,7 @@
 
 .wb-inbox-actions .wb-segmented { gap: 0; }
 .wb-inbox-actions .wb-segmented > button { padding-inline: 6px; }
+.wb-inbox-actions .wb-segmented { flex-wrap: wrap; }
 
 .wb-conversation-row {
   position: relative;
@@ -644,6 +645,14 @@
 .wb-calendar-header { min-height: 56px; }
 .wb-calendar-header .wb-inline-actions { flex-wrap: nowrap; }
 .wb-calendar-header .wb-inline-actions h2 { min-width: 8ch; text-align: center; }
+.wb-meeting-mode { display: flex; padding: 13px 17px 0; }
+.wb-meeting-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 13px 17px;
+  color: var(--wb-muted);
+}
 .wb-calendar-weekdays,
 .wb-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 
@@ -777,6 +786,8 @@
   .wb-day-entry { width: 16px; height: 3px; margin-left: 4px; padding: 0; background: var(--wb-accent); font-size: 0; }
   .wb-day-entry[data-kind='task'] { width: 6px; border-left: 0; }
   .wb-calendar-header .wb-select { max-width: 139px; }
+  .wb-calendar-header { flex-wrap: wrap; }
+  .wb-calendar-header .wb-inline-actions { max-width: 100%; flex-wrap: wrap; }
   .wb-result-row { gap: 7px; }
   .wb-search-results .wb-segmented > button { padding-inline: 5px; }
 }

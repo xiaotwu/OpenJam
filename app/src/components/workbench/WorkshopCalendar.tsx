@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { Organization, Project } from '../../lib/directory';
-import { agendaPath, useWorkshopResource, writeWorkshop, type AgendaDraft, type AgendaItem } from '../../lib/workshop';
+import { agendaPath, meetingPath, useWorkshopResource, writeWorkshop, type AgendaDraft, type AgendaItem } from '../../lib/workshop';
 import { useI18n } from '../../i18n';
 import { newRequestId } from '../../lib/requestId';
 import WorkbenchIcon from './WorkbenchIcon';
+import MeetingEditor from './MeetingEditor';
 
 interface Scope {
   value: string;
@@ -38,7 +39,7 @@ function localInput(value: Date) {
   return dateKey(value) + 'T' + [value.getHours(), value.getMinutes()].map(part => String(part).padStart(2, '0')).join(':');
 }
 
-function agendaScope(item: AgendaDraft) {
+function agendaScope(item: Pick<AgendaDraft, 'teamId' | 'projectId'>) {
   return item.projectId ? 'project:' + item.projectId : item.teamId ? 'team:' + item.teamId : '';
 }
 
@@ -63,7 +64,7 @@ export function AgendaOverview() {
   const today = atMidnight(new Date());
   const upcomingFrom = daysAfter(today, 1);
   const result = useWorkshopResource<{ items: AgendaItem[] }>(agendaPath(today, daysAfter(today, 8)), 15_000);
-  const items = (result.data?.items ?? []).filter(item => !item.completed);
+  const items = (result.data?.items ?? []).filter(item => !item.completed && item.meetingStatus !== 'ended');
   const todayItems = itemsOnDay(items, today);
   const upcoming = items.filter(item => new Date(item.startsAt) >= upcomingFrom);
 
@@ -71,8 +72,8 @@ export function AgendaOverview() {
     if (!entries.length) return <p className="wb-muted">{empty}</p>;
     return <ul className="wb-agenda-summary">
       {entries.slice(0, 8).map(item => <li key={item.id}>
-        <Link to={agendaURL(dates ? new Date(item.startsAt) : today, item)}>
-          <WorkbenchIcon name={item.kind === 'task' ? 'task' : 'calendar'} />
+        <Link to={item.kind === 'meeting' ? meetingPath(item.id) : agendaURL(dates ? new Date(item.startsAt) : today, item)}>
+          <WorkbenchIcon name={item.kind === 'meeting' ? 'camera' : item.kind === 'task' ? 'task' : 'calendar'} />
           <span><strong>{item.title}</strong>{dates && <small>{formatDate(item.startsAt, 'compact')}</small>}</span>
         </Link>
       </li>)}
@@ -96,7 +97,7 @@ export function AgendaOverview() {
 
 interface EditorProps {
   selectedDate: Date;
-  item?: AgendaItem;
+  item?: AgendaItem & { kind: AgendaDraft['kind'] };
   scopes: Scope[];
   initialScope?: string;
   onClose: () => void;
@@ -197,15 +198,18 @@ export function WorkshopCalendar({ initialDate, initialItem, initialScope, teams
   initialDate?: string; initialItem?: string; initialScope?: string; teams: Organization[]; projects: Project[];
 }) {
   const { locale, formatDate } = useI18n();
+  const navigate = useNavigate();
   const today = atMidnight(new Date());
   const [selected, setSelected] = useState(() => {
     const date = initialDate ? new Date(initialDate + 'T00:00:00') : today;
     return Number.isFinite(date.getTime()) ? date : today;
   });
-  const [editing, setEditing] = useState<AgendaItem | 'new'>();
+  const [editing, setEditing] = useState<EditorProps['item'] | 'new'>();
+  const [newMeeting, setNewMeeting] = useState(false);
   const [filter, setFilter] = useState(initialScope ?? 'all');
   const scopes = workshopScopes(teams, projects);
   const editorScopes = scopes.filter(scope => scope.writable || (editing && editing !== 'new' && agendaScope(editing) === scope.value));
+  const meetingScopes = scopes.filter(scope => scope.value && scope.writable);
   const month = new Date(selected.getFullYear(), selected.getMonth(), 1);
   const first = daysAfter(month, -((month.getDay() + 6) % 7));
   const days = Array.from({ length: 42 }, (_, i) => daysAfter(first, i));
@@ -233,6 +237,8 @@ export function WorkshopCalendar({ initialDate, initialItem, initialScope, teams
             {scopes.map(scope => <option value={scope.value} key={scope.value}>{scope.label}</option>)}
           </select>
           <button type="button" className="wb-button wb-button-secondary" onClick={() => setSelected(today)}>Today</button>
+          {meetingScopes.length > 0 && <button type="button" className="wb-icon-button wb-glass-control"
+            title="Schedule Meeting" aria-label="Schedule Meeting" onClick={() => setNewMeeting(true)}><WorkbenchIcon name="camera" /></button>}
           <button type="button" className="wb-icon-button wb-accent-action" onClick={() => setEditing('new')} title="New Event or Task" aria-label="New Event or Task">
             <WorkbenchIcon name="plus" />
           </button>
@@ -259,11 +265,15 @@ export function WorkshopCalendar({ initialDate, initialItem, initialScope, teams
       <ul className="wb-result-list">{selectedItems.map(item => (
         <li key={item.id} className="wb-agenda-item" data-focused={initialItem === item.id}>
           <div className="wb-result-row">
-            <span className="wb-result-icon"><WorkbenchIcon name={item.kind === 'task' ? 'task' : 'calendar'} /></span>
+            <span className="wb-result-icon"><WorkbenchIcon name={item.kind === 'meeting' ? 'camera' : item.kind === 'task' ? 'task' : 'calendar'} /></span>
             <span className="wb-row-content"><strong data-complete={item.completed}>{item.title}</strong>
               <span>{time.format(new Date(item.startsAt))}{item.scopeName ? ' · ' + item.scopeName : ''}</span></span>
-            {item.editable && <button type="button" className="wb-icon-button" aria-label={'Edit ' + item.title} onClick={() => setEditing(item)}><WorkbenchIcon name="pencil" /></button>}
+            {item.kind === 'meeting' ? <Link className="wb-icon-button" to={meetingPath(item.id)}
+              state={{ workshop: agendaURL(selected, item) }} aria-label={'Open ' + item.title} title="Open Meeting"><WorkbenchIcon name="arrow" /></Link>
+              : item.editable && <button type="button" className="wb-icon-button" aria-label={'Edit ' + item.title}
+                onClick={() => setEditing({ ...item, kind: item.kind === 'task' ? 'task' : 'event' })}><WorkbenchIcon name="pencil" /></button>}
           </div>
+          {item.meetingStatus === 'ended' && <p>Ended</p>}
           {item.notes && <p>{item.notes}</p>}
           {item.kind === 'event' && dateKey(new Date(item.endsAt)) !== dateKey(selected) &&
             <p>Ends {formatDate(item.endsAt, 'compact')}</p>}
@@ -272,5 +282,7 @@ export function WorkshopCalendar({ initialDate, initialItem, initialScope, teams
     </section>
     {editing && <AgendaEditor item={editing === 'new' ? undefined : editing} selectedDate={selected} scopes={editorScopes}
       initialScope={filter} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); result.refresh(); }} />}
+    {newMeeting && <MeetingEditor scopes={meetingScopes} date={selected} initialScope={filter} onClose={() => setNewMeeting(false)}
+      onCreated={id => navigate(meetingPath(id), { state: { workshop: agendaURL(selected) } })} />}
   </div>;
 }

@@ -158,10 +158,11 @@ func UpdateUserProfile(ctx context.Context, id uuid.UUID, displayName, avatarCol
 }
 
 type Session struct {
-	Token     string    `json:"token"`
-	UserID    uuid.UUID `json:"userId"`
-	ExpiresAt time.Time `json:"expiresAt"`
-	CreatedAt time.Time `json:"createdAt"`
+	Token           string    `json:"token"`
+	UserID          uuid.UUID `json:"userId"`
+	ExpiresAt       time.Time `json:"expiresAt"`
+	CreatedAt       time.Time `json:"createdAt"`
+	MeetingIdentity uuid.UUID `json:"-"`
 }
 
 func CreateSession(ctx context.Context, userID uuid.UUID, maxAge int) (*Session, error) {
@@ -223,9 +224,9 @@ func GetSession(ctx context.Context, token string) (*Session, error) {
 func GetStoredSession(ctx context.Context, token string) (*Session, error) {
 	session := &Session{}
 	err := db.Pool().QueryRow(ctx, `
-		SELECT token, user_id, expires_at, created_at
+		SELECT token, user_id, expires_at, created_at, meeting_identity
 		FROM sessions WHERE token = $1 AND expires_at > NOW()
-	`, token).Scan(&session.Token, &session.UserID, &session.ExpiresAt, &session.CreatedAt)
+	`, token).Scan(&session.Token, &session.UserID, &session.ExpiresAt, &session.CreatedAt, &session.MeetingIdentity)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

@@ -6,13 +6,13 @@ import { getTeamMembers, type Organization, type TeamMember } from '../../lib/di
 import { useI18n } from '../../i18n';
 import { newRequestId } from '../../lib/requestId';
 import {
-  useWorkshopResource, workshopPath, writeWorkshop,
+  meetingPath, useWorkshopResource, workshopPath, writeWorkshop,
   type Conversation, type Inbox, type ThreadPage, type WorkshopMessage,
 } from '../../lib/workshop';
 import { AgendaOverview } from './WorkshopCalendar';
 import WorkbenchIcon from './WorkbenchIcon';
 
-const tabs = ['All', 'Teams', 'Direct', 'Mentions'] as const;
+const tabs = ['All', 'Teams', 'Direct', 'Mentions', 'Meetings'] as const;
 type Tab = typeof tabs[number];
 
 function Compose({ teams, user, onClose, onSent }: {
@@ -256,6 +256,7 @@ export default function WorkshopInbox({ user, teams, data, loading, error, selec
   const conversations = (data?.threads ?? []).filter(thread =>
     tab === 'All' || (tab === 'Teams' && thread.kind === 'team') || (tab === 'Direct' && thread.kind === 'direct'));
   const unreadMentions = data?.mentions.filter(mention => mention.unread).length ?? 0;
+  const unreadMeetings = data?.unreadMeetings ?? 0;
 
   async function togglePin(thread: Conversation) {
     setPendingPin(thread.id);
@@ -276,8 +277,9 @@ export default function WorkshopInbox({ user, teams, data, loading, error, selec
         <div className="wb-section-head wb-inbox-actions">
           <div className="wb-segmented" role="group" aria-label="Inbox Filters">
             {tabs.map(name => <button type="button" key={name} aria-pressed={tab === name}
-              onClick={() => { setTab(name); if (name === 'Mentions') onSelect(); }}>
+              onClick={() => { setTab(name); if (name === 'Mentions' || name === 'Meetings') onSelect(); }}>
               {name}{name === 'Mentions' && unreadMentions > 0 && <span className="wb-mention-dot" aria-label={unreadMentions + ' unread'} />}
+              {name === 'Meetings' && unreadMeetings > 0 && <span className="wb-mention-dot" aria-label={unreadMeetings + ' unread'} />}
             </button>)}
           </div>
           <button type="button" className="wb-icon-button wb-accent-action" onClick={() => setCompose(true)}
@@ -296,7 +298,18 @@ export default function WorkshopInbox({ user, teams, data, loading, error, selec
             </Link>
           </li>)}</ul>
         </>}
-        {data && tab !== 'Mentions' && <>
+        {data && tab === 'Meetings' && <>
+          {!data.meetings?.length && <p className="wb-inline-empty">No open or upcoming meetings.</p>}
+          <ul className="wb-result-list">{data.meetings?.map(item => <li key={item.id}>
+            <Link className="wb-result-row wb-inbox-row" to={meetingPath(item.id)} state={{ workshop: '/workplace?view=inbox' }} data-unread={item.unread}>
+              <span className="wb-result-icon"><WorkbenchIcon name="camera" /></span>
+              <span className="wb-row-content"><strong>{item.title}</strong>
+                <span>{item.scopeName} · {item.status === 'open' ? 'Open Now' : formatDate(item.startsAt, 'compact')}</span></span>
+              <WorkbenchIcon name="arrow" />
+            </Link>
+          </li>)}</ul>
+        </>}
+        {data && tab !== 'Mentions' && tab !== 'Meetings' && <>
           {!conversations.length && <p className="wb-inline-empty">{teams.length ? 'No conversations yet.' : 'Join or create a team to start a conversation.'}</p>}
           <ul className="wb-result-list">{conversations.map(thread => <li key={thread.id} className="wb-conversation-row" data-selected={selected === thread.id}>
             <button type="button" className="wb-result-row wb-inbox-row" onClick={() => onSelect(thread.id)} data-unread={thread.unread > 0}
@@ -319,8 +332,8 @@ export default function WorkshopInbox({ user, teams, data, loading, error, selec
         </>}
       </div>
       {selected ? <ThreadReader key={selected} id={selected} summary={current} onBack={() => onSelect()} onChange={onChange} />
-        : <div className="wb-thread-placeholder"><WorkbenchIcon name={tab === 'Mentions' ? 'bell' : 'message'} />
-          <p>{tab === 'Mentions' ? 'Open a mention to view its source.' : 'Select a conversation.'}</p></div>}
+        : <div className="wb-thread-placeholder"><WorkbenchIcon name={tab === 'Mentions' ? 'bell' : tab === 'Meetings' ? 'camera' : 'message'} />
+          <p>{tab === 'Mentions' ? 'Open a mention to view its source.' : tab === 'Meetings' ? 'Select a meeting.' : 'Select a conversation.'}</p></div>}
     </section>
     <AgendaOverview />
     {compose && <Compose teams={teams} user={user} onClose={() => setCompose(false)} onSent={id => {

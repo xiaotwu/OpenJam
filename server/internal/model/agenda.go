@@ -25,9 +25,10 @@ type AgendaDraft struct {
 
 type AgendaItem struct {
 	AgendaDraft
-	ID        uuid.UUID `json:"id"`
-	Editable  bool      `json:"editable"`
-	ScopeName string    `json:"scopeName,omitempty"`
+	ID            uuid.UUID `json:"id"`
+	Editable      bool      `json:"editable"`
+	ScopeName     string    `json:"scopeName,omitempty"`
+	MeetingStatus string    `json:"meetingStatus,omitempty"`
 }
 
 type RecentResource struct {
@@ -48,9 +49,12 @@ func ReadAgenda(ctx context.Context, actor uuid.UUID, from, to time.Time) ([]Age
 		SELECT coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'teamId', a.team_id, 'projectId', a.project_id,
 			'kind', a.kind, 'title', a.title, 'notes', a.notes, 'startsAt', a.starts_at, 'endsAt', a.ends_at,
 			'completed', a.completed, 'revision', a.revision, 'editable', a.editable,
-			'scopeName', coalesce(p.name, o.name, '')) ORDER BY a.starts_at, a.id), '[]'::jsonb)
+			'scopeName', coalesce(p.name, o.name, ''), 'meetingStatus', a.meeting_status)
+			ORDER BY a.starts_at, a.id), '[]'::jsonb)
 		FROM (
-			SELECT item.*, openjam_agenda_editable(item, $1) AS editable FROM workshop_agenda item
+			SELECT item.*, item.kind <> 'meeting' AND openjam_agenda_editable(item, $1) AS editable,
+				CASE WHEN item.kind = 'meeting' THEN openjam_meeting_status(item) END AS meeting_status
+			FROM workshop_agenda item
 			WHERE item.starts_at < $3 AND item.ends_at >= $2 AND openjam_agenda_visible(item, $1)
 			ORDER BY item.starts_at, item.id LIMIT 500
 		) a
@@ -107,7 +111,7 @@ func SaveAgendaItem(ctx context.Context, actor, id uuid.UUID, input AgendaDraft)
 			SELECT a.revision, a.team_id IS NOT DISTINCT FROM $3::uuid AND a.project_id IS NOT DISTINCT FROM $4::uuid,
 				openjam_agenda_editable(a, $2),
 				(a.kind, a.title, a.notes, a.starts_at, a.ends_at, a.completed) = ($5, $6, $7, $8, $9, $10)
-			FROM workshop_agenda a WHERE a.id = $1 AND openjam_agenda_visible(a, $2) FOR UPDATE
+			FROM workshop_agenda a WHERE a.id = $1 AND a.kind <> 'meeting' AND openjam_agenda_visible(a, $2) FOR UPDATE
 		`, id, actor, input.TeamID, input.ProjectID, input.Kind, input.Title, input.Notes, input.StartsAt,
 			input.EndsAt, input.Completed).Scan(&revision, &sameScope, &canEdit, &sameContents)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -148,7 +152,8 @@ func DeleteAgendaItem(ctx context.Context, actor, id uuid.UUID, revision int64) 
 		return ErrWorkshopInput
 	}
 	tag, err := db.Pool().Exec(ctx, `
-		DELETE FROM workshop_agenda item WHERE item.id = $1 AND openjam_agenda_editable(item, $2) AND item.revision = $3
+		DELETE FROM workshop_agenda item WHERE item.id = $1 AND item.kind <> 'meeting'
+			AND openjam_agenda_editable(item, $2) AND item.revision = $3
 	`, id, actor, revision)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrDirectoryNotFound

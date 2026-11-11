@@ -23,6 +23,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "clsx": "^2.1.1",
     "d3-force": "3.0.0",
+    "livekit-client": "2.22.3",
     "perfect-freehand": "^1.2.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

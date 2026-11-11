@@ -17,6 +17,7 @@ const OpenJamCanvas = lazy(() => import('./components/OpenJamCanvas'));
 const OpenJamDoc = lazy(() => import('./components/docs/OpenJamDoc'));
 const OpenJamSheet = lazy(() => import('./components/sheets/OpenJamSheet'));
 const OpenJamSlides = lazy(() => import('./components/slides/OpenJamSlides'));
+const MeetingRoom = lazy(() => import('./components/meetings/MeetingRoom'));
 
 function LoadingScreen({ message }: { message: string }) {
   return (
@@ -70,6 +71,7 @@ function AppContent() {
       <Route path="/doc/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="doc" />} />
       <Route path="/sheet/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="sheet" />} />
       <Route path="/slides/:boardId" element={<BoardRoute user={user} fallbackColor={userColor} kind="slides" />} />
+      <Route path="/meeting/:meetingId" element={<MeetingRoute user={user} />} />
       <Route path="/room/:boardId" element={<LegacyRoomRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -135,6 +137,18 @@ function WorkplaceRoute({ user, onLogout }: { user: User | null; onLogout: () =>
   }
 
   return <WorkspaceDashboard key={user.id} user={user} onLogout={onLogout} />;
+}
+
+function MeetingRoute({ user }: { user: User | null }) {
+  const { meetingId = '' } = useParams();
+  const location = useLocation();
+  if (!user) {
+    const next = encodeURIComponent(location.pathname);
+    return <Navigate to={`/auth?mode=login&next=${next}`} replace />;
+  }
+  return <Suspense fallback={<LoadingScreen message="Opening Meeting…" />}>
+    <MeetingRoom key={`${user.id}:${meetingId}`} meetingId={meetingId} />
+  </Suspense>;
 }
 
 function TeamInvitationRoute({ user }: { user: User | null }) {

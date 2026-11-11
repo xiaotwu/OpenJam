@@ -30,6 +30,10 @@ type Config struct {
 	MinioSecretKey string
 	MinioUseSSL    bool
 	MinioBucket    string
+
+	MeetingsMediaURL    string
+	MeetingsMediaKey    string
+	MeetingsMediaSecret string
 }
 
 func Load() (*Config, error) {
@@ -61,6 +65,10 @@ func Load() (*Config, error) {
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
 		MinioBucket:    getEnv("MINIO_BUCKET", "openjam"),
+
+		MeetingsMediaURL:    getEnv("OPENJAM_MEETINGS_MEDIA_URL", ""),
+		MeetingsMediaKey:    getEnv("OPENJAM_MEETINGS_MEDIA_KEY", ""),
+		MeetingsMediaSecret: getEnv("OPENJAM_MEETINGS_MEDIA_SECRET", ""),
 	}, nil
 }
 
