@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 interface MultiSelectToolbarProps {
   selectedCount: number;
@@ -38,6 +38,12 @@ export default function MultiSelectToolbar({
   canUngroup,
 }: MultiSelectToolbarProps) {
   const [showAlignMenu, setShowAlignMenu] = useState(false);
+  const alignTrigger = useRef<HTMLButtonElement>(null);
+  const applyAlignment = (action: () => void) => {
+    action();
+    setShowAlignMenu(false);
+    alignTrigger.current?.focus({ preventScroll: true });
+  };
 
   if (selectedCount < 2) return null;
 
@@ -52,36 +58,39 @@ export default function MultiSelectToolbar({
         {/* Align dropdown */}
         <div className="relative">
           <button
+            ref={alignTrigger}
+            type="button"
             onClick={() => setShowAlignMenu(!showAlignMenu)}
             className="glass-btn p-2 rounded hover:bg-white/10 transition-colors"
             title="Align"
+            aria-expanded={showAlignMenu}
           >
             <AlignLeftIcon />
           </button>
 
           {showAlignMenu && (
-            <div className="absolute top-full left-0 mt-1 glass-elevated rounded-xl glass-panel-enter p-2 min-w-[200px]">
+            <div className="absolute top-full left-0 mt-1 glass-elevated rounded-xl glass-panel-enter p-2 min-w-[200px]" style={{ background: 'var(--surface-panel)' }}>
               <div className="text-xs font-medium uppercase px-2 mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Align
               </div>
               <div className="flex gap-1 mb-2">
-                <ToolButton onClick={onAlignLeft} title="Align left">
+                <ToolButton onClick={() => applyAlignment(onAlignLeft)} title="Align left">
                   <AlignLeftIcon />
                 </ToolButton>
-                <ToolButton onClick={onAlignCenter} title="Align center">
+                <ToolButton onClick={() => applyAlignment(onAlignCenter)} title="Align center">
                   <AlignCenterIcon />
                 </ToolButton>
-                <ToolButton onClick={onAlignRight} title="Align right">
+                <ToolButton onClick={() => applyAlignment(onAlignRight)} title="Align right">
                   <AlignRightIcon />
                 </ToolButton>
                 <div className="w-px mx-1" style={{ background: 'var(--glass-border-strong)' }} />
-                <ToolButton onClick={onAlignTop} title="Align top">
+                <ToolButton onClick={() => applyAlignment(onAlignTop)} title="Align top">
                   <AlignTopIcon />
                 </ToolButton>
-                <ToolButton onClick={onAlignMiddle} title="Align middle">
+                <ToolButton onClick={() => applyAlignment(onAlignMiddle)} title="Align middle">
                   <AlignMiddleIcon />
                 </ToolButton>
-                <ToolButton onClick={onAlignBottom} title="Align bottom">
+                <ToolButton onClick={() => applyAlignment(onAlignBottom)} title="Align bottom">
                   <AlignBottomIcon />
                 </ToolButton>
               </div>
@@ -90,10 +99,10 @@ export default function MultiSelectToolbar({
                 Distribute
               </div>
               <div className="flex gap-1">
-                <ToolButton onClick={onDistributeH} title="Distribute horizontally">
+                <ToolButton onClick={() => applyAlignment(onDistributeH)} title="Distribute horizontally">
                   <DistributeHIcon />
                 </ToolButton>
-                <ToolButton onClick={onDistributeV} title="Distribute vertically">
+                <ToolButton onClick={() => applyAlignment(onDistributeV)} title="Distribute vertically">
                   <DistributeVIcon />
                 </ToolButton>
               </div>

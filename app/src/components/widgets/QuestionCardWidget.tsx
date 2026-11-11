@@ -1,5 +1,5 @@
 // Question Card Widget - Discussion starter prompts
-import { useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 interface QuestionCardWidgetProps {
   id: string;
@@ -8,9 +8,10 @@ interface QuestionCardWidgetProps {
   category: 'icebreaker' | 'reflection' | 'brainstorm' | 'custom';
   currentIndex: number;
   customQuestions?: string[];
-  onUpdate: (data: { currentIndex?: number; customQuestions?: string[] }) => void;
+  onUpdate: (data: { currentIndex?: number; customQuestions?: string[]; category?: 'custom' }) => void;
   onDelete: () => void;
   isSelected: boolean;
+  editable?: boolean;
   onSelect: () => void;
 }
 
@@ -43,7 +44,7 @@ const QUESTIONS: Record<string, string[]> = {
   ],
 };
 
-export default function QuestionCardWidget({ x, y, category, currentIndex, customQuestions = [], onUpdate, onDelete, isSelected, onSelect }: QuestionCardWidgetProps) {
+export default function QuestionCardWidget({ x, y, category, currentIndex, customQuestions = [], onUpdate, onDelete, isSelected, onSelect, editable = true }: QuestionCardWidgetProps) {
   const [isFlipping, setIsFlipping] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(customQuestions.join('\n'));
@@ -51,18 +52,21 @@ export default function QuestionCardWidget({ x, y, category, currentIndex, custo
   const questions = category === 'custom' ? customQuestions : QUESTIONS[category] || [];
   const currentQuestion = questions[currentIndex] || 'No questions available';
 
-  const handleNext = useCallback(() => {
+  useEffect(() => {
+    if (!isFlipping) return;
+    const timeout = window.setTimeout(() => setIsFlipping(false), 200);
+    return () => window.clearTimeout(timeout);
+  }, [isFlipping]);
+
+  const handleNext = () => {
+    if (questions.length <= 1) return;
+    onUpdate({ currentIndex: (currentIndex + 1) % questions.length });
     setIsFlipping(true);
-    setTimeout(() => {
-      const nextIndex = (currentIndex + 1) % questions.length;
-      onUpdate({ currentIndex: nextIndex });
-      setIsFlipping(false);
-    }, 300);
-  }, [currentIndex, questions.length, onUpdate]);
+  };
 
   const handleSaveCustom = () => {
     const newQuestions = editText.split('\n').map((s) => s.trim()).filter(Boolean);
-    onUpdate({ customQuestions: newQuestions, currentIndex: 0 });
+    onUpdate({ category: 'custom', customQuestions: newQuestions, currentIndex: 0 });
     setIsEditing(false);
   };
 
@@ -77,7 +81,7 @@ export default function QuestionCardWidget({ x, y, category, currentIndex, custo
   return (
     <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="question-card">
       <div className={`${colors.bg} rounded-2xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : colors.border} overflow-hidden min-w-[280px]`}>
-        {isEditing ? (
+        {editable && isEditing ? (
           <div className="p-4">
             <textarea value={editText} onChange={(e) => setEditText(e.target.value)}
               placeholder="Enter questions (one per line)..." rows={6}
@@ -101,15 +105,15 @@ export default function QuestionCardWidget({ x, y, category, currentIndex, custo
             </div>
 
             {/* Controls */}
-            <div className="px-4 py-3 border-t border-gray-200/50 flex justify-between">
-              <button onClick={() => setIsEditing(true)} className="text-sm text-gray-500 hover:text-gray-700">
+            {editable && <div className="px-4 py-3 border-t border-gray-200/50 flex justify-between">
+              <button type="button" onClick={() => { setEditText(customQuestions.join('\n')); setIsEditing(true); }} className="text-sm text-gray-500 hover:text-gray-700">
                 {category === 'custom' ? 'Edit questions' : 'Add custom'}
               </button>
               <button onClick={handleNext} disabled={questions.length <= 1}
                 className={`px-4 py-1.5 ${colors.text} bg-white rounded-lg text-sm font-medium hover:shadow disabled:opacity-50`}>
                 Next →
               </button>
-            </div>
+            </div>}
           </>
         )}
       </div>

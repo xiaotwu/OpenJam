@@ -1,5 +1,5 @@
 // Reaction Counter Widget - Count emoji reactions
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface Reaction {
   emoji: string;
@@ -17,13 +17,20 @@ interface ReactionCounterWidgetProps {
   onUpdate: (data: { reactions: Reaction[]; allowMultiple?: boolean }) => void;
   onDelete: () => void;
   isSelected: boolean;
+  editable?: boolean;
   onSelect: () => void;
 }
 
 const DEFAULT_EMOJIS = ['👍', '❤️', '🎉', '🤔', '👀', '🔥'];
 
-export default function ReactionCounterWidget({ x, y, reactions, userId, allowMultiple, onUpdate, onDelete, isSelected, onSelect }: ReactionCounterWidgetProps) {
+export default function ReactionCounterWidget({ x, y, reactions, userId, allowMultiple, onUpdate, onDelete, isSelected, onSelect, editable = true }: ReactionCounterWidgetProps) {
   const [showAnimation, setShowAnimation] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showAnimation) return;
+    const timeout = window.setTimeout(() => setShowAnimation(null), 500);
+    return () => window.clearTimeout(timeout);
+  }, [showAnimation]);
 
   const handleReact = useCallback((emoji: string) => {
     const reaction = reactions.find((r) => r.emoji === emoji);
@@ -61,7 +68,6 @@ export default function ReactionCounterWidget({ x, y, reactions, userId, allowMu
       
       // Show animation
       setShowAnimation(emoji);
-      setTimeout(() => setShowAnimation(null), 500);
     }
     
     onUpdate({ reactions: newReactions });
@@ -71,7 +77,7 @@ export default function ReactionCounterWidget({ x, y, reactions, userId, allowMu
 
   return (
     <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="reaction-counter">
-      <div className={`bg-white rounded-2xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'} p-4 min-w-[240px]`}>
+      <div className={`canvas-widget-surface rounded-2xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'} p-4 min-w-[240px]`}>
         {/* Header */}
         <div className="flex justify-between items-center mb-3">
           <h3 className="font-semibold text-gray-800">Reactions</h3>
@@ -86,7 +92,7 @@ export default function ReactionCounterWidget({ x, y, reactions, userId, allowMu
             const hasReacted = reaction?.users.includes(userId);
             
             return (
-              <button key={emoji} onClick={() => handleReact(emoji)}
+              <button type="button" key={emoji} aria-pressed={Boolean(hasReacted)} disabled={!editable} onClick={() => handleReact(emoji)}
                 className={`relative flex flex-col items-center p-2 rounded-xl transition-all ${
                   hasReacted ? 'bg-blue-100 border-2 border-blue-300' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                 }`}>
@@ -103,13 +109,13 @@ export default function ReactionCounterWidget({ x, y, reactions, userId, allowMu
         </div>
 
         {/* Settings */}
-        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+        {editable && <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
           <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
             <input type="checkbox" checked={allowMultiple} onChange={(e) => onUpdate({ reactions, allowMultiple: e.target.checked })}
               className="rounded" />
             Allow multiple reactions
           </label>
-        </div>
+        </div>}
       </div>
       {isSelected && (
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs">✕</button>

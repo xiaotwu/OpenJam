@@ -22,9 +22,10 @@ interface UseCollaborationOptions {
   userId: string;
   elementStore: ElementStore;
   onElementsChanged?: () => void;
+  enabled?: boolean;
 }
 
-export function useCollaboration({ roomId, userId, elementStore, onElementsChanged }: UseCollaborationOptions) {
+export function useCollaboration({ roomId, userId, elementStore, onElementsChanged, enabled = true }: UseCollaborationOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [collaborators, setCollaborators] = useState<UserPresence[]>([]);
   const [cursors, setCursors] = useState<Map<string, RemoteCursor>>(new Map());
@@ -87,10 +88,45 @@ export function useCollaboration({ roomId, userId, elementStore, onElementsChang
       }
       case 'sync': {
         const sync = msg.payload as {
+          operations?: Array<{
+            opId: string;
+            opType: string;
+            payload?: Record<string, unknown>;
+            data?: Record<string, unknown>;
+            vectorClock: Record<string, number>;
+            userId?: string;
+          }>;
           users: UserPresence[];
         };
         if (sync.users) {
           setCollaborators(sync.users);
+        }
+        // Apply the full operation history sent on join. This complements the
+        // HTTP board snapshot: loadBoard may race with sync, but applying ops
+        // here fills the gap between the last save and join. Operations are
+        // idempotent on the element Map (add overwrites, update/move/resize
+        // re-applies, delete is a no-op if absent), and loadFromSync dedupes by
+        // opId, so overlapping with loadBoard or live op messages is safe.
+        if (sync.operations && sync.operations.length > 0) {
+          const reconstructed: ElementOperation[] = [];
+          for (const raw of sync.operations) {
+            // Server sync ops use "payload" (from model.Operation); live op
+            // messages use "data". Normalize so reconstructOperation can read
+            // elementId/element/changes/etc. from a single field.
+            const dataField = raw.data ?? raw.payload ?? {};
+            const op = reconstructOperation({
+              opId: raw.opId,
+              opType: raw.opType,
+              data: dataField,
+              userId: raw.userId ?? '',
+              vectorClock: raw.vectorClock,
+            });
+            if (op) reconstructed.push(op);
+          }
+          if (reconstructed.length > 0) {
+            elementStore.loadFromSync(reconstructed);
+            onElementsChanged?.();
+          }
         }
         break;
       }
@@ -99,20 +135,22 @@ export function useCollaboration({ roomId, userId, elementStore, onElementsChang
 
   // Subscribe to local operations and broadcast them
   useEffect(() => {
+    if (!enabled) return;
     const unsub = elementStore.on('operation', (op) => {
       if (!wsClient.isConnected()) return;
-      wsClient.sendOperation(op.opType as never, {
+      wsClient.sendOperation(op.opType, {
         opId: op.opId,
         elementId: op.elementId,
         timestamp: op.timestamp,
         ...extractOpData(op),
-      } as never, op.opId);
+      }, op.opId);
     });
     return unsub;
-  }, [elementStore]);
+  }, [elementStore, enabled]);
 
   // Connect WebSocket and join room
   useEffect(() => {
+    if (!enabled) return;
     let mounted = true;
 
     const connect = async () => {
@@ -138,10 +176,11 @@ export function useCollaboration({ roomId, userId, elementStore, onElementsChang
       wsClient.disconnect();
       setIsConnected(false);
     };
-  }, [roomId, handleMessage]);
+  }, [roomId, handleMessage, enabled]);
 
   // Clean up stale cursors every 5 seconds
   useEffect(() => {
+    if (!enabled) return;
     const interval = setInterval(() => {
       const now = Date.now();
       setCursors(prev => {
@@ -157,15 +196,16 @@ export function useCollaboration({ roomId, userId, elementStore, onElementsChang
       });
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [enabled]);
 
   // Send cursor position (throttled)
   const sendCursor = useCallback((x: number, y: number) => {
+    if (!enabled) return;
     const now = Date.now();
     if (now - cursorThrottleRef.current < 50) return; // 20fps max
     cursorThrottleRef.current = now;
     wsClient.sendCursor(x, y);
-  }, []);
+  }, [enabled]);
 
   return {
     isConnected,

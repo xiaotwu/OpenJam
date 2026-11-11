@@ -215,6 +215,16 @@ export default function ShareDialog({
                 {copied ? 'Copied' : 'Copy link'}
               </button>
             </div>
+
+            {linkPermission === 'restricted' && (
+              <p className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" role="note">
+                <span aria-hidden="true">⚠️</span>
+                <span>
+                  This link only works for people you've invited above. Anyone else who opens it sees
+                  "no access". To share by link, switch the permission to a "Signed-in link …" tier.
+                </span>
+              </p>
+            )}
           </section>
 
           <section className="mt-6">

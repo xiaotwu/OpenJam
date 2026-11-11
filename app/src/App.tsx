@@ -1,12 +1,27 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth, AuthProvider } from './components/AuthContext';
 import Dashboard from './components/Dashboard';
+import BoardCredentialGate from './components/BoardCredentialGate';
 import ErrorBoundary from './components/ErrorBoundary';
-import OpenJamCanvas from './components/OpenJamCanvas';
 import WorkspaceDashboard from './components/WorkspaceDashboard';
 import type { User } from './lib/api';
+import { useI18n } from './i18n';
+import { boardCredentialFragment, readBoardCredential } from './lib/boardSharing';
 import './App.css';
+
+const OpenJamCanvas = lazy(() => import('./components/OpenJamCanvas'));
+
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-[var(--surface-canvas)]" role="status">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-9 w-9 rounded-full border-4 border-[var(--accent)] border-t-transparent motion-safe:animate-spin" aria-hidden="true" />
+        <p className="text-sm font-medium text-[var(--text-primary)]">{message}</p>
+      </div>
+    </div>
+  );
+}
 
 function generateColor(): string {
   const colors = [
@@ -18,18 +33,12 @@ function generateColor(): string {
 
 function AppContent() {
   const { user, isLoading, logout } = useAuth();
+  const { messages: { workbench: { app: text } } } = useI18n();
   // Stabilize color so it doesn't change on every render
   const userColor = useMemo(() => generateColor(), []);
 
   if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-amber-100 via-yellow-100 to-orange-100">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-amber-300/50 border-t-amber-500 animate-spin" />
-          <p className="text-amber-700/80 text-lg font-medium">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message={text.loading} />;
   }
 
   const handleLogout = async () => {
@@ -79,9 +88,12 @@ function AuthRoute({ user }: { user: User | null }) {
   const searchParams = new URLSearchParams(location.search);
   const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
   const next = getSafeNextPath(searchParams.get('next'));
+  const credential = readBoardCredential(location.hash);
+  const destination = next && credential && /^\/board\/[^/?#]+(?:\?[^#]*)?$/.test(next)
+    ? `${next}${boardCredentialFragment(credential)}` : next || '/workplace';
 
   if (user) {
-    return <Navigate to={next || '/workplace'} replace />;
+    return <Navigate to={destination} replace />;
   }
 
   return (
@@ -89,7 +101,7 @@ function AuthRoute({ user }: { user: User | null }) {
       user={null}
       initialMode={mode}
       onSuccess={() => {
-        navigate(next || '/workplace', { replace: true });
+        navigate(destination, { replace: true });
       }}
       onAuthClose={() => {
         navigate('/', { replace: true });
@@ -111,34 +123,48 @@ function WorkplaceRoute({ user, onLogout }: { user: User | null; onLogout: () =>
 
 function LegacyRoomRoute() {
   const { boardId } = useParams();
-  return <Navigate to={`/board/${encodeURIComponent(boardId || 'default')}`} replace />;
+  const location = useLocation();
+  return <Navigate to={`/board/${encodeURIComponent(boardId || 'default')}${location.search}${location.hash}`} replace />;
 }
 
 function BoardRoute({ user, fallbackColor }: { user: User | null; fallbackColor: string }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { boardId } = useParams();
+  const credential = readBoardCredential(location.hash);
+  const { messages: { workbench: { app: text } } } = useI18n();
 
   if (!user) {
     const next = encodeURIComponent(`${location.pathname}${location.search}`);
-    return <Navigate to={`/auth?mode=login&next=${next}`} replace />;
+    const fragment = credential ? boardCredentialFragment(credential) : '';
+    return <Navigate to={`/auth?mode=login&next=${next}${fragment}`} replace />;
+  }
+
+  if (credential) {
+    return <BoardCredentialGate key={`${boardId}:${user.id}:${location.hash}`} boardId={boardId || 'default'}
+      credential={credential} email={user.email} onRedeemed={() => navigate(`${location.pathname}${location.search}`, { replace: true })} />;
   }
 
   return (
-    <OpenJamCanvas
-      boardId={boardId || 'default'}
-      userId={user.id}
-      username={user.displayName}
-      color={user.avatarColor || fallbackColor}
-    />
+    <Suspense fallback={<LoadingScreen message={text.opening} />}>
+      <OpenJamCanvas
+        key={boardId}
+        boardId={boardId || 'default'}
+        userId={user.id}
+        username={user.displayName}
+        email={user.email}
+        color={user.avatarColor || fallbackColor}
+      />
+    </Suspense>
   );
 }
 
 function getSafeNextPath(next: string | null): string | null {
-  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\')) {
     return null;
   }
-
-  return next;
+  const destination = new URL(next, window.location.origin);
+  return destination.origin === window.location.origin ? `${destination.pathname}${destination.search}` : null;
 }
 
 function App() {

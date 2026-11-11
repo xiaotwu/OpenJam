@@ -1,4 +1,7 @@
 // Element renderer - renders all element types
+import { memo, useEffect, useRef, useState } from 'react';
+import { useI18n } from '../../i18n';
+import { readBoardAsset } from '../../lib/boardFiles';
 import type { Element, ImageElement as ImageElementType, FrameElement as FrameElementType, DrawingElement } from '../../lib/elements';
 import StickyNote from './StickyNote';
 import Shape from './Shape';
@@ -32,20 +35,22 @@ function getDrawingBounds(element: DrawingElement) {
 
 interface ElementRendererProps {
   element: Element;
+  boardId?: string;
   isSelected: boolean;
   isEditing: boolean;
   scale: number;
   onSelect: (id: string, addToSelection: boolean) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: () => void;
-  onUpdate: (id: string, changes: Partial<Element>) => void;
+  onUpdate: (id: string, changes: Partial<Element>, expected?: Record<string, unknown>) => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, width: number, height: number) => void;
   isPinned?: boolean;
 }
 
-export default function ElementRenderer({
+function ElementRenderer({
   element,
+  boardId,
   isSelected,
   isEditing,
   scale,
@@ -129,8 +134,8 @@ export default function ElementRenderer({
       return (
         <ImageElement
           element={element}
+          boardId={boardId}
           isSelected={isSelected}
-          scale={scale}
           onSelect={onSelect}
         />
       );
@@ -140,7 +145,7 @@ export default function ElementRenderer({
         <FrameElement
           element={element}
           isSelected={isSelected}
-          scale={scale}
+          isEditing={isEditing}
           onSelect={onSelect}
           onStartEdit={onStartEdit}
           onEndEdit={onEndEdit}
@@ -195,17 +200,19 @@ export default function ElementRenderer({
   return rendered;
 }
 
+export default memo(ElementRenderer);
+
 // Image element component
 
 interface ImageElementProps {
   element: ImageElementType;
+  boardId?: string;
   isSelected: boolean;
-  scale: number;
   onSelect: (id: string, addToSelection: boolean) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ImageElement({ element, isSelected, scale: _scale, onSelect }: ImageElementProps) {
+function ImageElement({ element, boardId, isSelected, onSelect }: ImageElementProps) {
+  const { messages: { images: text } } = useI18n();
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(element.id, e.shiftKey);
@@ -225,17 +232,20 @@ function ImageElement({ element, isSelected, scale: _scale, onSelect }: ImageEle
       }}
       onClick={handleClick}
     >
-      {element.src ? (
+      {boardId && element.assetId ? (
+        <PrivateImage key={boardId + '/' + element.assetId} boardId={boardId} assetId={element.assetId} fit={element.objectFit} />
+      ) : element.src ? (
         <img
           src={element.src}
           alt=""
           className="w-full h-full"
           style={{ objectFit: element.objectFit }}
           draggable={false}
+          referrerPolicy="no-referrer"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-          🖼️ No image
+        <div className="grid h-full w-full place-items-center bg-[var(--badge-bg)] text-sm text-[var(--text-secondary)]">
+          {element.assetId ? text.unavailable : text.noImage}
         </div>
       )}
 
@@ -249,14 +259,53 @@ function ImageElement({ element, isSelected, scale: _scale, onSelect }: ImageEle
         />
       )}
 
-      {/* Resize handles */}
-      {isSelected && !element.locked && (
-        <>
-          <div className="absolute -top-1 -left-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize" />
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-ne-resize" />
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-sw-resize" />
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-se-resize" />
-        </>
+    </div>
+  );
+}
+
+function PrivateImage({ boardId, assetId, fit }: { boardId: string; assetId: string; fit: ImageElementType['objectFit'] }) {
+  const { messages: { images: text } } = useI18n();
+  const [source, setSource] = useState<string>();
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl: string | undefined;
+    void readBoardAsset(boardId, assetId, controller.signal).then(blob => {
+      if (controller.signal.aborted) return;
+      objectUrl = URL.createObjectURL(blob);
+      setSource(objectUrl);
+    }, () => {
+      if (!controller.signal.aborted) setFailed(true);
+    });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [assetId, attempt, boardId]);
+
+  if (source && !failed) {
+    return <img src={source} alt="" className="h-full w-full" style={{ objectFit: fit }} draggable={false} onError={() => setFailed(true)} />;
+  }
+  return (
+    <div className="grid h-full w-full place-content-center gap-1 overflow-hidden bg-[var(--badge-bg)] px-1 text-center text-xs text-[var(--text-secondary)]">
+      <span>{failed ? text.unavailable : text.loading}</span>
+      {failed && (
+        <button
+          type="button"
+          aria-label={text.retryLoad}
+          className="rounded-md px-2 py-1 text-[var(--text-primary)] underline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          onPointerDown={event => event.stopPropagation()}
+          onClick={event => {
+            event.stopPropagation();
+            setSource(undefined);
+            setFailed(false);
+            setAttempt(current => current + 1);
+          }}
+        >
+          {text.retry}
+        </button>
       )}
     </div>
   );
@@ -267,25 +316,43 @@ function ImageElement({ element, isSelected, scale: _scale, onSelect }: ImageEle
 interface FrameElementProps {
   element: FrameElementType;
   isSelected: boolean;
-  scale: number;
+  isEditing: boolean;
   onSelect: (id: string, addToSelection: boolean) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: () => void;
-  onUpdate: (id: string, changes: Partial<FrameElementType>) => void;
+  onUpdate: (id: string, changes: Partial<FrameElementType>, expected?: Record<string, unknown>) => void;
 }
 
 function FrameElement({
   element,
   isSelected,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  scale: _scale,
+  isEditing,
   onSelect,
   onStartEdit,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onEndEdit: _onEndEdit,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onUpdate: _onUpdate,
+  onEndEdit,
+  onUpdate,
 }: FrameElementProps) {
+  const original = useRef<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(element.name);
+  useEffect(() => {
+    if (!isEditing) original.current = null;
+    else if (original.current === null) {
+      original.current = element.name;
+      setName(element.name);
+      input.current?.focus({ preventScroll: true });
+      input.current?.select();
+    }
+  }, [element.name, isEditing]);
+
+  const finishRename = () => {
+    const previous = original.current;
+    original.current = null;
+    const next = name.trim();
+    if (next && previous !== null && next !== previous) onUpdate(element.id, { name: next }, { name: previous });
+    onEndEdit();
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(element.id, e.shiftKey);
@@ -314,10 +381,17 @@ function FrameElement({
       onDoubleClick={handleDoubleClick}
     >
       {/* Frame name */}
-      {element.showName && (
+      {isEditing ? <input ref={input} value={name} aria-label="Section name" maxLength={160} onChange={event => setName(event.target.value)}
+        onBlur={finishRename} onClick={event => event.stopPropagation()} onKeyDown={event => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          if (event.key === 'Enter') input.current?.blur();
+          if (event.key === 'Escape') { original.current = null; onEndEdit(); }
+        }} className="absolute -top-7 left-0 min-w-24 rounded border px-2 py-1 text-xs outline-[var(--accent)]"
+        style={{ background: 'var(--surface-panel)', color: 'var(--text-primary)', borderColor: 'var(--glass-border-strong)' }} />
+        : element.showName && (
         <div
-          className="absolute -top-6 left-0 px-2 py-0.5 text-xs font-medium text-gray-600 bg-white rounded-t border border-b-0"
-          style={{ borderColor: isSelected ? '#3B82F6' : '#E5E7EB' }}
+          className="absolute -top-6 left-0 rounded-t border border-b-0 px-2 py-0.5 text-xs font-medium"
+          style={{ borderColor: isSelected ? '#3B82F6' : 'var(--glass-border-strong)', background: 'var(--surface-panel)', color: 'var(--text-secondary)' }}
         >
           {element.name}
         </div>
@@ -332,15 +406,6 @@ function FrameElement({
         }}
       />
 
-      {/* Resize handles */}
-      {isSelected && !element.locked && (
-        <>
-          <div className="absolute -top-1 -left-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize" />
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-ne-resize" />
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-sw-resize" />
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-white border-2 border-blue-500 rounded-full cursor-se-resize" />
-        </>
-      )}
     </div>
   );
 }

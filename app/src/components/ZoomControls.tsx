@@ -17,11 +17,11 @@ export default function ZoomControls({
   onHelp,
 }: ZoomControlsProps) {
   return (
-    <div className="glass flex items-center gap-0.5 rounded-xl p-0.5">
+    <div className="glass flex flex-nowrap items-center gap-0.5 rounded-full p-0.5">
       <button
         type="button"
         onClick={onZoomOut}
-        className="glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors"
+        className="glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors"
         title="Zoom out (Ctrl+-)"
         aria-label="Zoom out"
       >
@@ -33,7 +33,7 @@ export default function ZoomControls({
       <button
         type="button"
         onClick={onZoomReset}
-        className="glass-btn min-h-11 min-w-[58px] rounded-lg px-2 text-sm transition-colors"
+        className="glass-btn min-h-11 min-w-[58px] rounded-full px-2 text-sm transition-colors"
         style={{ color: 'var(--text-primary)' }}
         title="Reset zoom (Ctrl+0)"
         aria-label={`Reset zoom, current zoom ${Math.round(scale * 100)} percent`}
@@ -44,7 +44,7 @@ export default function ZoomControls({
       <button
         type="button"
         onClick={onZoomIn}
-        className="glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors"
+        className="glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors"
         title="Zoom in (Ctrl++)"
         aria-label="Zoom in"
       >
@@ -59,7 +59,7 @@ export default function ZoomControls({
           <button
             type="button"
             onClick={onHelp}
-            className="glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors"
+            className="glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors"
             title="Help & Shortcuts (?)"
             aria-label="Help and shortcuts"
           >

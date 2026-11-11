@@ -33,17 +33,20 @@ export interface BaseOperation {
 export interface AddOperation extends BaseOperation {
   opType: 'add';
   element: Element;
+  restore?: boolean;
 }
 
 // Update element operation
 export interface UpdateOperation extends BaseOperation {
   opType: 'update';
   changes: Partial<Element>;
+  expected?: Record<string, unknown>;
 }
 
 // Delete element operation
 export interface DeleteOperation extends BaseOperation {
   opType: 'delete';
+  expected?: Element;
 }
 
 // Move element operation
@@ -139,8 +142,23 @@ function mergeVectorClocks(a: VectorClock, b: VectorClock): VectorClock {
 }
 
 type StoreEvents = {
-  operation: (op: ElementOperation) => void;
+  operation: (op: ElementOperation, previous?: Element) => void;
 };
+
+interface HistoryEntry {
+  kind: 'add' | 'delete';
+  element: Element;
+}
+
+function equalValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const left = Object.entries(a).filter(([, value]) => value !== undefined);
+  const right = Object.keys(b).filter(key => (b as Record<string, unknown>)[key] !== undefined);
+  return left.length === right.length && left.every(([key, value]) => (
+    Object.hasOwn(b, key) && equalValue(value, (b as Record<string, unknown>)[key])
+  ));
+}
 
 // Element Store class
 export class ElementStore {
@@ -152,9 +170,14 @@ export class ElementStore {
   private listeners: Set<() => void> = new Set();
   private reactions: Map<string, Reaction> = new Map();
   private comments: Map<string, Comment> = new Map();
-  private undoStack: ElementOperation[] = [];
-  private redoStack: ElementOperation[] = [];
+  private undoStack: HistoryEntry[] = [];
+  private redoStack: HistoryEntry[] = [];
   private maxZIndex = 0;
+  private editable = true;
+  private pageId?: string;
+  private trackHistory = true;
+  private editDepth = 0;
+  private changed = false;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -175,8 +198,7 @@ export class ElementStore {
 
   private emit<K extends keyof StoreEvents>(event: K, ...args: Parameters<StoreEvents[K]>): void {
     if (event === 'operation') {
-      const [op] = args as Parameters<StoreEvents['operation']>;
-      this.operationListeners.forEach(fn => fn(op));
+      this.operationListeners.forEach(fn => fn(...args as Parameters<StoreEvents['operation']>));
     }
   }
 
@@ -187,12 +209,39 @@ export class ElementStore {
   }
 
   private notify(): void {
+    if (this.editDepth) {
+      this.changed = true;
+      return;
+    }
     this.listeners.forEach(l => l());
+  }
+
+  batch(edit: () => void): void {
+    this.editDepth++;
+    try {
+      edit();
+    } finally {
+      this.editDepth--;
+      if (!this.editDepth && this.changed) {
+        this.changed = false;
+        this.notify();
+      }
+    }
   }
 
   // Get current user ID
   getUserId(): string {
     return this.userId;
+  }
+
+  setEditingContext(editable: boolean, pageId?: string, trackHistory = true): void {
+    this.editable = editable;
+    this.pageId = pageId;
+    this.trackHistory = trackHistory;
+  }
+
+  private isEditableElement(element: Element | undefined): element is Element {
+    return Boolean(this.editable && element && (!this.pageId || element.pageId === this.pageId));
   }
 
   // Get all elements
@@ -260,9 +309,11 @@ export class ElementStore {
       this.maxZIndex = Math.max(this.maxZIndex, element.zIndex || 0);
     }
 
+    if (this.pageId) element.pageId = this.pageId;
     const op = this.createOperation<AddOperation>('add', element.id, { element });
+    if (!this.editable) return op;
     this.applyOperation(op);
-    this.undoStack.push(op);
+    this.recordHistory({ kind: 'add', element });
     this.emit('operation', op);
     return op;
   }
@@ -292,37 +343,72 @@ export class ElementStore {
     this.maxZIndex = 0;
 
     for (const el of elements) {
-      this.elements.set(el.id, el);
+      this.elements.set(el.id, { ...el });
       this.maxZIndex = Math.max(this.maxZIndex, el.zIndex || 0);
     }
     this.notify();
   }
 
+  replaceSyncedElements(elements: Element[]): void {
+    this.elements = new Map(elements.map(element => [element.id, { ...element }]));
+    this.maxZIndex = elements.reduce((max, element) => Math.max(max, element.zIndex || 0), 0);
+    this.notify();
+  }
+
+  resetHistory(): void {
+    this.undoStack = [];
+    this.redoStack = [];
+  }
+
+  private recordHistory(entry: HistoryEntry): void {
+    if (!this.trackHistory) return;
+    this.undoStack.push(entry);
+    if (this.undoStack.length > 100) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  private patchElement(id: string, changes: Partial<Element>): void {
+    const previous = this.elements.get(id);
+    if (!previous) return;
+    const element = { ...previous, ...changes } as Element;
+    this.elements.set(id, element);
+    this.maxZIndex = Math.max(this.maxZIndex, element.zIndex);
+    if (!this.pageId || !this.trackHistory) return;
+    // An inverse delete may include subsequent local edits, provided the
+    // projection still matches our history before those edits.
+    for (const entry of [...this.undoStack, ...this.redoStack]) {
+      if (entry.element.id === id && equalValue(entry.element, previous)) entry.element = element;
+    }
+  }
+
   // Update element
-  updateElement(elementId: string, changes: Partial<Element>): UpdateOperation | null {
-    if (!this.elements.has(elementId)) return null;
-    
-    const op = this.createOperation<UpdateOperation>('update', elementId, { changes });
+  updateElement(elementId: string, changes: Partial<Element>, expected?: Record<string, unknown>): UpdateOperation | null {
+    const previous = this.elements.get(elementId);
+    if (!this.isEditableElement(previous)) return null;
+
+    const op = this.createOperation<UpdateOperation>('update', elementId, { changes, expected });
     this.applyOperation(op);
-    this.emit('operation', op);
+    this.emit('operation', op, previous);
     return op;
   }
 
   // Delete element
   deleteElement(elementId: string): DeleteOperation | null {
-    if (!this.elements.has(elementId)) return null;
-    
-    const op = this.createOperation<DeleteOperation>('delete', elementId, {});
+    const element = this.elements.get(elementId);
+    if (!this.isEditableElement(element)) return null;
+
+    const op = this.createOperation<DeleteOperation>('delete', elementId, this.pageId ? { expected: element } : {});
     this.applyOperation(op);
-    this.undoStack.push(op);
+    this.recordHistory({ kind: 'delete', element });
     this.emit('operation', op);
     return op;
   }
 
   // Move element
   moveElement(elementId: string, x: number, y: number): MoveOperation | null {
-    if (!this.elements.has(elementId)) return null;
-    
+    const element = this.elements.get(elementId);
+    if (!this.isEditableElement(element) || (element.x === x && element.y === y)) return null;
+
     const op = this.createOperation<MoveOperation>('move', elementId, { x, y });
     this.applyOperation(op);
     this.emit('operation', op);
@@ -337,7 +423,7 @@ export class ElementStore {
     x?: number, 
     y?: number
   ): ResizeOperation | null {
-    if (!this.elements.has(elementId)) return null;
+    if (!this.isEditableElement(this.elements.get(elementId))) return null;
     
     const op = this.createOperation<ResizeOperation>('resize', elementId, { width, height, x, y });
     this.applyOperation(op);
@@ -347,7 +433,7 @@ export class ElementStore {
 
   // Reorder element (bring to front, send to back)
   reorderElement(elementId: string, zIndex: number): ReorderOperation | null {
-    if (!this.elements.has(elementId)) return null;
+    if (!this.isEditableElement(this.elements.get(elementId))) return null;
     
     const op = this.createOperation<ReorderOperation>('reorder', elementId, { zIndex });
     this.applyOperation(op);
@@ -357,7 +443,7 @@ export class ElementStore {
 
   // Lock/unlock element
   lockElement(elementId: string, locked: boolean): LockOperation | null {
-    if (!this.elements.has(elementId)) return null;
+    if (!this.isEditableElement(this.elements.get(elementId))) return null;
     
     const op = this.createOperation<LockOperation>('lock', elementId, { locked });
     this.applyOperation(op);
@@ -419,72 +505,70 @@ export class ElementStore {
 
   // Apply operation locally
   private applyOperation(op: ElementOperation): void {
-    this.operations.push(op);
+    if (!this.pageId) this.operations.push(op);
     this.vectorClock = mergeVectorClocks(this.vectorClock, op.vectorClock);
 
     switch (op.opType) {
       case 'add': {
         const addOp = op as AddOperation;
         this.elements.set(addOp.element.id, { ...addOp.element });
+        this.deletedIds.delete(addOp.element.id);
         this.maxZIndex = Math.max(this.maxZIndex, addOp.element.zIndex);
         break;
       }
       
       case 'update': {
         const updateOp = op as UpdateOperation;
-        const element = this.elements.get(updateOp.elementId);
-        if (element) {
-          Object.assign(element, updateOp.changes, { updatedAt: op.timestamp });
-        }
+        this.patchElement(op.elementId, { ...updateOp.changes, updatedAt: op.timestamp });
         break;
       }
       
       case 'delete': {
         this.elements.delete(op.elementId);
-        this.deletedIds.add(op.elementId);
+        if (!this.pageId) this.deletedIds.add(op.elementId);
         break;
       }
       
       case 'move': {
         const moveOp = op as MoveOperation;
-        const element = this.elements.get(moveOp.elementId);
-        if (element) {
-          element.x = moveOp.x;
-          element.y = moveOp.y;
-          element.updatedAt = op.timestamp;
+        const { x, y } = moveOp;
+        const element = this.elements.get(op.elementId);
+        const changes: Partial<Element> = { x, y, updatedAt: op.timestamp };
+        if (element?.type === 'connector') {
+          const move = (point: { x: number; y: number }) => ({
+            x: point.x + x - element.x,
+            y: point.y + y - element.y,
+          });
+          Object.assign(changes, {
+            startPoint: move(element.startPoint),
+            endPoint: move(element.endPoint),
+            ...(element.controlPoints ? { controlPoints: element.controlPoints.map(move) } : {}),
+          });
         }
+        this.patchElement(op.elementId, changes);
         break;
       }
       
       case 'resize': {
         const resizeOp = op as ResizeOperation;
-        const element = this.elements.get(resizeOp.elementId);
-        if (element) {
-          element.width = resizeOp.width;
-          element.height = resizeOp.height;
-          if (resizeOp.x !== undefined) element.x = resizeOp.x;
-          if (resizeOp.y !== undefined) element.y = resizeOp.y;
-          element.updatedAt = op.timestamp;
-        }
+        const { width, height, x, y } = resizeOp;
+        this.patchElement(op.elementId, {
+          width, height, updatedAt: op.timestamp,
+          ...(x !== undefined ? { x } : {}),
+          ...(y !== undefined ? { y } : {}),
+        });
         break;
       }
       
       case 'reorder': {
         const reorderOp = op as ReorderOperation;
-        const element = this.elements.get(reorderOp.elementId);
-        if (element) {
-          element.zIndex = reorderOp.zIndex;
-          this.maxZIndex = Math.max(this.maxZIndex, reorderOp.zIndex);
-        }
+        this.patchElement(op.elementId, { zIndex: reorderOp.zIndex, updatedAt: op.timestamp });
         break;
       }
       
       case 'lock': {
         const lockOp = op as LockOperation;
-        const element = this.elements.get(lockOp.elementId);
-        if (element) {
-          element.locked = lockOp.locked;
-        }
+        this.patchElement(op.elementId, { locked: lockOp.locked, updatedAt: op.timestamp });
         break;
       }
       
@@ -552,82 +636,65 @@ export class ElementStore {
     }
   }
 
-  // Undo last operation by this user
-  undo(): ElementOperation | null {
-    while (this.undoStack.length > 0) {
-      const lastOp = this.undoStack.pop();
-      if (!lastOp) continue;
-
-      if (lastOp.opType === 'add') {
-        // Undo add = delete
-        const addOp = lastOp as AddOperation;
-        // Store the element for redo
-        this.redoStack.push(lastOp);
-        this.elements.delete(addOp.elementId);
-        this.deletedIds.add(addOp.elementId);
-        this.notify();
-        return lastOp;
-      } else if (lastOp.opType === 'delete') {
-        // Undo delete = re-add
-        // We need to find the original element from operations
-        const addOp = this.operations.find(
-          (op) => op.opType === 'add' && op.elementId === lastOp.elementId
-        ) as AddOperation | undefined;
-        if (addOp) {
-          this.redoStack.push(lastOp);
-          this.elements.set(addOp.element.id, { ...addOp.element });
-          this.deletedIds.delete(addOp.elementId);
-          this.notify();
-          return lastOp;
-        }
-        continue;
-      }
+  private historyIndex(stack: HistoryEntry[]): number {
+    if (!this.editable) return -1;
+    for (let index = stack.length - 1; index >= 0; index--) {
+      if (!this.pageId || stack[index].element.pageId === this.pageId) return index;
     }
-    return null;
+    return -1;
   }
 
-  // Redo last undone operation
-  redo(): ElementOperation | null {
-    while (this.redoStack.length > 0) {
-      const lastOp = this.redoStack.pop();
-      if (!lastOp) continue;
-
-      if (lastOp.opType === 'add') {
-        // Redo add = re-add the element
-        const addOp = lastOp as AddOperation;
-        this.elements.set(addOp.element.id, { ...addOp.element });
-        this.deletedIds.delete(addOp.elementId);
-        this.undoStack.push(lastOp);
-        this.notify();
-        return lastOp;
-      } else if (lastOp.opType === 'delete') {
-        // Redo delete = delete again
-        this.elements.delete(lastOp.elementId);
-        this.deletedIds.add(lastOp.elementId);
-        this.undoStack.push(lastOp);
-        this.notify();
-        return lastOp;
-      }
+  private replayHistory(undo: boolean): ElementOperation | null {
+    const source = undo ? this.undoStack : this.redoStack;
+    const index = this.historyIndex(source);
+    if (index < 0) return null;
+    const entry = source[index];
+    const { element } = entry;
+    const restore = undo ? entry.kind === 'delete' : entry.kind === 'add';
+    const current = this.elements.get(element.id);
+    if (restore ? current : !current || (this.pageId && !equalValue(element, current))) {
+      source.splice(index, 1);
+      return null;
     }
-    return null;
+    const target = undo ? this.redoStack : this.undoStack;
+    source.splice(index, 1);
+    target.push(entry);
+    const op = restore
+      ? this.createOperation<AddOperation>('add', element.id, { element, restore: true })
+      : this.createOperation<DeleteOperation>('delete', element.id, this.pageId ? { expected: element } : {});
+    this.applyOperation(op);
+    this.emit('operation', op);
+    return op;
+  }
+
+  undo(): ElementOperation | null {
+    return this.replayHistory(true);
+  }
+
+  redo(): ElementOperation | null {
+    return this.replayHistory(false);
   }
 
   // Check if can undo
   canUndo(): boolean {
-    return this.undoStack.length > 0;
+    return this.historyIndex(this.undoStack) >= 0;
   }
 
   // Check if can redo
   canRedo(): boolean {
-    return this.redoStack.length > 0;
+    return this.historyIndex(this.redoStack) >= 0;
   }
 
   // Duplicate element
   duplicateElement(elementId: string, offsetX = 20, offsetY = 20): AddOperation | null {
     const element = this.elements.get(elementId);
-    if (!element) return null;
+    if (!this.isEditableElement(element)) return null;
+    return this.copyElement(element, offsetX, offsetY);
+  }
 
-    const newElement = {
+  copyElement(element: Element, offsetX = 20, offsetY = 20): AddOperation | null {
+    if (!this.editable) return null;
+    const newElement: Element = {
       ...element,
       id: generateElementId(),
       x: element.x + offsetX,
@@ -637,12 +704,14 @@ export class ElementStore {
       updatedAt: Date.now(),
       createdBy: this.userId,
     };
+    if (newElement.type === 'connector') {
+      const move = ({ x, y }: { x: number; y: number }) => ({ x: x + offsetX, y: y + offsetY });
+      newElement.startPoint = move(newElement.startPoint);
+      newElement.endPoint = move(newElement.endPoint);
+      if (newElement.controlPoints) newElement.controlPoints = newElement.controlPoints.map(move);
+    }
 
-    const op = this.createOperation<AddOperation>('add', newElement.id, { element: newElement });
-    this.applyOperation(op);
-    this.undoStack.push(op);
-    this.emit('operation', op);
-    return op;
+    return this.addElement(newElement);
   }
 
   // Group elements

@@ -4,18 +4,32 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-var client *minio.Client
-var bucketName = "openjam"
+const defaultBucket = "openjam"
+
+type storageBucket struct {
+	client *minio.Client
+	name   string
+}
+
+var activeBucket atomic.Pointer[storageBucket]
 
 func Init(endpoint, accessKey, secretKey string, useSSL bool) error {
-	var err error
-	client, err = minio.New(endpoint, &minio.Options{
+	return InitWithBucket(endpoint, accessKey, secretKey, useSSL, defaultBucket)
+}
+
+func InitWithBucket(endpoint, accessKey, secretKey string, useSSL bool, bucket string) error {
+	if bucket == "" {
+		bucket = defaultBucket
+	}
+
+	candidate, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
 	})
@@ -26,30 +40,40 @@ func Init(endpoint, accessKey, secretKey string, useSSL bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	exists, err := client.BucketExists(ctx, bucketName)
+	exists, err := candidate.BucketExists(ctx, bucket)
 	if err != nil {
 		return fmt.Errorf("failed to check bucket: %w", err)
 	}
 
 	if !exists {
-		if err := client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{}); err != nil {
-			return fmt.Errorf("failed to create bucket: %w", err)
+		if err := candidate.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
+			switch minio.ToErrorResponse(err).Code {
+			case "BucketAlreadyOwnedByYou", "BucketAlreadyExists":
+				exists, checkErr := candidate.BucketExists(ctx, bucket)
+				if checkErr != nil || !exists {
+					return fmt.Errorf("failed to confirm existing bucket after create: %w", err)
+				}
+			default:
+				return fmt.Errorf("failed to create bucket: %w", err)
+			}
 		}
 	}
 
+	activeBucket.Store(&storageBucket{client: candidate, name: bucket})
 	return nil
 }
 
 func IsInitialized() bool {
-	return client != nil
+	return activeBucket.Load() != nil
 }
 
 func UploadFile(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (string, error) {
-	if client == nil {
+	bucket := activeBucket.Load()
+	if bucket == nil {
 		return "", fmt.Errorf("storage not initialized")
 	}
 
-	_, err := client.PutObject(ctx, bucketName, objectName, reader, size, minio.PutObjectOptions{
+	_, err := bucket.client.PutObject(ctx, bucket.name, objectName, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
@@ -60,11 +84,12 @@ func UploadFile(ctx context.Context, objectName string, reader io.Reader, size i
 }
 
 func GetPresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
-	if client == nil {
+	bucket := activeBucket.Load()
+	if bucket == nil {
 		return "", fmt.Errorf("storage not initialized")
 	}
 
-	url, err := client.PresignedGetObject(ctx, bucketName, objectName, expiry, nil)
+	url, err := bucket.client.PresignedGetObject(ctx, bucket.name, objectName, expiry, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get presigned URL: %w", err)
 	}
@@ -73,20 +98,22 @@ func GetPresignedURL(ctx context.Context, objectName string, expiry time.Duratio
 }
 
 func DeleteFile(ctx context.Context, objectName string) error {
-	if client == nil {
+	bucket := activeBucket.Load()
+	if bucket == nil {
 		return fmt.Errorf("storage not initialized")
 	}
 
-	return client.RemoveObject(ctx, bucketName, objectName, minio.RemoveObjectOptions{})
+	return bucket.client.RemoveObject(ctx, bucket.name, objectName, minio.RemoveObjectOptions{})
 }
 
 func ListFiles(ctx context.Context, prefix string) ([]string, error) {
-	if client == nil {
+	bucket := activeBucket.Load()
+	if bucket == nil {
 		return nil, fmt.Errorf("storage not initialized")
 	}
 
 	var files []string
-	objectCh := client.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+	objectCh := bucket.client.ListObjects(ctx, bucket.name, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
 	})

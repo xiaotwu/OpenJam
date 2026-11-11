@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { ElementRenderer } from './elements';
 import { useAutoSave } from './canvas/hooks/useAutoSave';
@@ -9,43 +10,42 @@ import { useDrawing } from './canvas/hooks/useDrawing';
 import { useEraser } from './canvas/hooks/useEraser';
 import { useDragCreate } from './canvas/hooks/useDragCreate';
 import { useDragMove } from './canvas/hooks/useDragMove';
+import { useAlignDistribute } from './canvas/hooks/useAlignDistribute';
+import { usePages } from './canvas/hooks/usePages';
+import { elementMutation, fitsDocumentBatch, isGeometryPatch, MAX_BATCH_OPERATIONS, type DocumentPatch } from './canvas/documentEdits';
+import { elementBounds, expandBounds, findAnchor, movementSelection, overlapsBounds, pageMoveSelection, resolveConnector, selectionGroup, withinBounds } from './canvas/boardObjects';
 import DrawingPreview from './canvas/DrawingPreview';
 import EraserCursor from './canvas/EraserCursor';
 import DragCreatePreview from './canvas/DragCreatePreview';
 import { ElementStore } from '../lib/elementStore';
 import { useCollaboration } from '../lib/useCollaboration';
+import { useBoardSync, type BoardDocument, type DocumentMutation } from '../lib/boardSync';
+import type { BoardViewport } from '../lib/boardPresentation';
+import type { ReviewAnchor, ReviewLocation } from '../lib/boardReview';
 import {
   createRoom,
   deleteRoom as deleteRoomApi,
+  getRoom,
   getRoomShareSettings,
   inviteRoomMember,
+  loadBoard,
   removeRoomMember,
   saveBoard,
   updateRoomShareSettings,
+  ApiError,
   type LinkPermission,
   type MemberPermission,
   type RoomMember,
+  type BoardData,
 } from '../lib/api';
 import {
   type Element,
-  type ElementType,
-  type DrawingElement,
   type WidgetElement,
   type WidgetType,
+  generateElementId,
   WIDGET_DIMENSIONS,
 } from '../lib/elements';
 import {
-  TableWidget,
-  TimerWidget,
-  StopwatchWidget,
-  PollWidget,
-  KanbanWidget,
-  RetroWidget,
-  MoodMeterWidget,
-  RandomPickerWidget,
-  QuestionCardWidget,
-  DotVotingWidget,
-  ReactionCounterWidget,
   createDefaultPoll,
   createDefaultKanban,
   createDefaultRetro,
@@ -54,7 +54,9 @@ import {
   createDefaultQuestionCard,
   createDefaultDotVoting,
   createDefaultReactionCounter,
+  createDefaultTable,
 } from './widgets';
+import WidgetRenderer from './WidgetRenderer';
 import TableCreationDialog from './widgets/TableCreationDialog';
 import TimerCreationDialog from './widgets/TimerCreationDialog';
 import MenuBar from './MenuBar';
@@ -64,7 +66,22 @@ import ZoomControls from './ZoomControls';
 import { StampElement, type Stamp } from './StampTool';
 import { type Collaborator } from './CollaboratorPanel';
 import ShareDialog from './ShareDialog';
+import BoardSharingDialog from './BoardSharingDialog';
 import LiveCursorLayer from './collaboration/LiveCursorLayer';
+import BoardSyncNotice from './collaboration/BoardSyncNotice';
+import BoardReviewPanel from './collaboration/BoardReviewPanel';
+import BoardVersionsPanel from './collaboration/BoardVersionsPanel';
+import BoardFilesPanel from './BoardFilesPanel';
+import BoardAgentPanel from './BoardAgentPanel';
+import AgentCanvasPreview, { AgentPreviewObjects } from './canvas/AgentCanvasPreview';
+import AgentCharacter from './canvas/AgentCharacter';
+import AgentProfileDialog from './canvas/AgentProfileDialog';
+import { characterPose, readAgentAttributions, readAgentProfile, type AgentAttribution, type AgentProfile } from '../lib/agentIdentity';
+import type { AgentPreview } from '../lib/boardAgent';
+import { useI18n } from '../i18n';
+import { copyPrivateBoard } from '../lib/boardFiles';
+import BoardPresentationControls from './collaboration/BoardPresentationControls';
+import { useBoardPresentation } from './collaboration/useBoardPresentation';
 import ContextMenu, {
   getElementContextMenuItems,
   getCanvasContextMenuItems,
@@ -80,12 +97,13 @@ import BottomToolbar, {
   type ArrowHead,
   type EraserMode,
 } from './BottomToolbar';
-import VersionHistoryPanel, { generateMockVersions } from './VersionHistoryPanel';
 import ImageUploadDialog from './ImageUploadDialog';
 import FileInfoDialog from './FileInfoDialog';
 import FloatingObjectToolbar from './FloatingObjectToolbar';
 import { ConfirmDialog, NoticeDialog } from './AppDialog';
+import { useAuth } from './AuthContext';
 import { type Page } from './PagesPanel';
+import './canvas/agentCanvas.css';
 
 // Tool options interface
 interface ToolOptions {
@@ -107,6 +125,7 @@ interface OpenJamCanvasProps {
   boardId: string;
   userId: string;
   username: string;
+  email?: string;
   color: string;
 }
 
@@ -115,182 +134,40 @@ function generateStampId(): string {
   return `stamp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Sticky color map
-const _STICKY_COLORS: Record<StickyColor, string> = {
-  yellow: '#FEF3C7',
-  orange: '#FED7AA',
-  pink: '#FBCFE8',
-  purple: '#DDD6FE',
-  blue: '#BFDBFE',
-  green: '#BBF7D0',
-  gray: '#E5E7EB',
-};
-void _STICKY_COLORS;
-
-// Widget Renderer - renders the appropriate widget component based on widget type
-interface WidgetRendererProps {
-  element: WidgetElement;
-  isSelected: boolean;
-  onSelect: (id: string, addToSelection: boolean) => void;
-  onUpdate: (id: string, changes: Partial<Element>) => void;
-  onDelete: () => void;
-}
-
-function WidgetRenderer({ element, isSelected, onSelect, onUpdate, onDelete }: WidgetRendererProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleWidgetUpdate = useCallback((data: any) => {
-    onUpdate(element.id, { widgetData: { ...element.widgetData, ...data } } as Partial<Element>);
-  }, [element.id, element.widgetData, onUpdate]);
-
-  const commonProps = {
-    id: element.id,
-    x: element.x,
-    y: element.y,
-    isSelected,
-    onSelect: () => onSelect(element.id, false),
-    onDelete,
-  };
-
-  const data = element.widgetData;
-
-  switch (element.widgetType) {
-    case 'table':
-      return (
-        <TableWidget
-          {...commonProps}
-          rows={data.rows || 3}
-          cols={data.cols || 3}
-          cells={data.cells || []}
-          onUpdate={handleWidgetUpdate}
-        />
-      );
-    case 'timer':
-      return (
-        <TimerWidget
-          {...commonProps}
-          initialMinutes={data.minutes || 5}
-          onUpdate={handleWidgetUpdate}
-        />
-      );
-    case 'stopwatch':
-      return (
-        <StopwatchWidget
-          {...commonProps}
-        />
-      );
-    case 'poll':
-      return (
-        <PollWidget
-          {...commonProps}
-          question={data.question || ''}
-          options={data.options || []}
-          showResults={data.showResults || false}
-          userId="current-user"
-          onUpdate={handleWidgetUpdate}
-        />
-      );
-    case 'kanban':
-      return (
-        <KanbanWidget
-          {...commonProps}
-          columns={data.columns || []}
-          onUpdate={handleWidgetUpdate}
-        />
-      );
-    case 'retro':
-      return (
-        <RetroWidget
-          {...commonProps}
-          template={data.template || 'start-stop-continue'}
-          columns={data.columns || []}
-          onUpdate={handleWidgetUpdate}
-          userId="current-user"
-        />
-      );
-    case 'mood-meter':
-      return (
-        <MoodMeterWidget
-          {...commonProps}
-          entries={data.entries || []}
-          onUpdate={handleWidgetUpdate}
-          userId="current-user"
-          userName="User"
-          userColor="#3B82F6"
-        />
-      );
-    case 'random-picker':
-      return (
-        <RandomPickerWidget
-          {...commonProps}
-          items={data.items || []}
-          pickedItems={data.pickedItems || []}
-          onUpdate={handleWidgetUpdate}
-        />
-      );
-    case 'question-card':
-      return (
-        <QuestionCardWidget
-          {...commonProps}
-          category={data.category || 'icebreaker'}
-          currentIndex={data.currentIndex || 0}
-          customQuestions={data.customQuestions || []}
-          onUpdate={handleWidgetUpdate}
-        />
-      );
-    case 'dot-voting':
-      return (
-        <DotVotingWidget
-          {...commonProps}
-          maxVotesPerUser={data.maxVotesPerUser || 3}
-          votes={data.votes || []}
-          onUpdate={handleWidgetUpdate}
-          userId="current-user"
-          userColor="#3B82F6"
-        />
-      );
-    case 'reaction-counter':
-      return (
-        <ReactionCounterWidget
-          {...commonProps}
-          reactions={data.reactions || []}
-          allowMultiple={data.allowMultiple !== false}
-          onUpdate={handleWidgetUpdate}
-          userId="current-user"
-        />
-      );
-    default:
-      return null;
-  }
-}
-
 export default function OpenJamCanvas({
-  boardId: _boardId,
+  boardId,
   userId,
   username,
+  email,
   color,
 }: OpenJamCanvasProps) {
   // Theme
-  const { isDark, setTheme } = useTheme();
+  const { isDark, theme, setTheme } = useTheme();
+  const { logout } = useAuth();
+  const { messages: { agentIdentity: characterText } } = useI18n();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedRunId = searchParams.get('conversation') ?? undefined;
 
   // Canvas state
   const containerRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
   const [boardName, setBoardName] = useState('Untitled');
+  const [noticeDialog, setNoticeDialog] = useState<{ title: string; message: string } | null>(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
   
   // Tool state
   const [currentTool, setCurrentTool] = useState<ToolType>('select');
+  const isInkTool = currentTool === 'draw' || currentTool === 'marker' || currentTool === 'eraser';
   const [selectedStampEmoji, setSelectedStampEmoji] = useState<string | null>(null);
-  const [showStampPicker, setShowStampPicker] = useState(false);
 
-  // Suppress unused warning for showStampPicker (used in keyboard handler)
-  void showStampPicker;
   const [toolOptions, setToolOptions] = useState<ToolOptions>({
     stickyColor: 'yellow',
     stickyShape: 'square',
     shapeType: 'rectangle',
-    strokeColor: '#000000',
+    strokeColor: isDark ? '#ececec' : '#000000',
     strokeWidth: 2,
     fillColor: '#ffffff',
     fontSize: 16,
@@ -300,15 +177,16 @@ export default function OpenJamCanvas({
     eraserMode: 'stroke',
     eraserSize: 20,
   });
-  const [selectedColor, setSelectedColor] = useState('#000000');
+  const [selectedColor, setSelectedColor] = useState(isDark ? '#ececec' : '#000000');
   
   // Element state
-  const elementStoreRef = useRef(new ElementStore(userId));
-  const [elements, setElements] = useState<Element[]>([]);
+  const [elementStore] = useState(() => new ElementStore(userId));
+  const elementStoreRef = useRef(elementStore);
+  const [allElements, setElements] = useState<Element[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   // Drag-to-create hook (for text, shape, sticky, connector)
-  const { dragCreateStart, dragCreateEnd, dragCreateTool, startDragCreate, updateDragCreate, endDragCreate } = useDragCreate({
+  const { dragCreateStart, dragCreateEnd, dragCreateTool, startDragCreate, updateDragCreate, endDragCreate, cancelDragCreate } = useDragCreate({
     elementStoreRef, toolOptions, setSelectedIds, setEditingId, setCurrentTool,
   });
 
@@ -317,19 +195,212 @@ export default function OpenJamCanvas({
     elementStoreRef,
   });
 
-  // Eraser hook
-  const { isErasing, eraserPosition, setEraserPosition, startErasing, continueErasing, endErasing: endErasingHook } = useEraser({
-    elementStoreRef, toolOptions,
-  });
-  
   // Stamps state
-  const [stamps, setStamps] = useState<Stamp[]>([]);
+  const [allStamps, setStamps] = useState<Stamp[]>([]);
   
   // Pages state
-  const [pages, setPages] = useState<Page[]>([
-    { id: 'page-1', name: 'Page 1' },
-  ]);
-  const [currentPageId, setCurrentPageId] = useState('page-1');
+  const [pages, setPages] = useState<Page[]>([]);
+  const [currentPageId, setCurrentPageId] = useState('');
+  const [defaultPageId, setDefaultPageId] = useState('');
+  const [legacyReady, setLegacyReady] = useState(false);
+  const [legacyEditable, setLegacyEditable] = useState(false);
+  const [legacyOwner, setLegacyOwner] = useState(false);
+  const [legacyReload, setLegacyReload] = useState(0);
+  const geometry = useRef(new Map<string, DocumentPatch>());
+  const geometryTimer = useRef<number | null>(null);
+  const elementBatch = useRef<DocumentMutation[] | null>(null);
+  const activePointer = useRef<number | null>(null);
+  const resizeGesture = useRef<{ element: Element; x: number; y: number } | null>(null);
+  const projectedDocument = useRef<BoardDocument | undefined>(undefined);
+  const projectedEpoch = useRef<number | undefined>(undefined);
+  const initialLocation = useRef(new URLSearchParams(window.location.search));
+  const localWrites = useRef(new Set<Promise<boolean>>());
+  const [hasGeometryPreview, setHasGeometryPreview] = useState(false);
+
+  const clearGeometry = useCallback(() => {
+    if (geometryTimer.current !== null) window.clearTimeout(geometryTimer.current);
+    geometryTimer.current = null;
+    geometry.current.clear();
+    setHasGeometryPreview(false);
+  }, []);
+
+  const applyDocument = useCallback((doc: BoardDocument, epoch?: number) => {
+    if (projectedEpoch.current !== epoch) {
+      activePointer.current = null;
+      resizeGesture.current = null;
+      clearGeometry();
+      setEditingId(null);
+      setSelectedIds(new Set());
+    }
+    projectedDocument.current = doc;
+    projectedEpoch.current = epoch;
+    const project = <T extends Element | Stamp>(records: T[], collection: 'elements' | 'stamps'): T[] => {
+      if (!geometry.current.size) return records;
+      return records.map(record => {
+        const fields = geometry.current.get(`${collection}/${record.id}`)?.fields;
+        return fields ? { ...record, ...fields } : record;
+      });
+    };
+    setBoardName(doc.name);
+    setDefaultPageId(doc.defaultPageId);
+    setPages(doc.pages);
+    const initialPage = initialLocation.current.get('page');
+    if (doc.pages.length) initialLocation.current.delete('page');
+    setCurrentPageId(current => (
+      doc.pages.find(page => page.id === initialPage)?.id
+      ?? (doc.pages.some(page => page.id === current) ? current : doc.defaultPageId)
+    ));
+    elementStoreRef.current.replaceSyncedElements(project(doc.elements, 'elements'));
+    setStamps(project(doc.stamps, 'stamps'));
+  }, [clearGeometry]);
+  const boardSync = useBoardSync({ boardId, userId, onDocument: applyDocument });
+  const { enqueue, mode, retry } = boardSync;
+  const isLegacy = mode === 'legacy';
+  const isV2 = mode === 'active';
+  const canEdit = isLegacy ? legacyReady && legacyEditable : isV2 && boardSync.canEdit && Boolean(currentPageId);
+  const canUseBoard = isLegacy ? legacyReady : isV2 && pages.length > 0 && boardSync.status !== 'revoked';
+  const access = isLegacy ? (legacyEditable ? undefined : 'view') : boardSync.permission;
+  const limitedAccess = canUseBoard && (access === 'view' || access === 'comment') ? access : undefined;
+  const canPresent = isV2 && (boardSync.permission === 'owner' || boardSync.permission === 'edit');
+  const localView = useMemo<BoardViewport | null>(() => currentPageId && viewport.width > 0 && viewport.height > 0 ? ({
+    pageId: currentPageId,
+    x: (viewport.width / 2 - offset.x) / scale,
+    y: (viewport.height / 2 - offset.y) / scale,
+    scale,
+  }) : null, [currentPageId, offset.x, offset.y, scale, viewport.height, viewport.width]);
+  const applyFollowedView = useCallback((view: BoardViewport) => {
+    if (!pages.some(page => page.id === view.pageId)) return;
+    setCurrentPageId(view.pageId);
+    setScale(view.scale);
+    const x = viewport.width / 2 - view.x * view.scale;
+    const y = viewport.height / 2 - view.y * view.scale;
+    setOffset(previous => previous.x === x && previous.y === y ? previous : { x, y });
+  }, [pages, viewport.height, viewport.width]);
+  const presentation = useBoardPresentation({
+    connected: isV2 && boardSync.isConnected,
+    canPresent,
+    epoch: boardSync.epoch,
+    view: localView,
+    presenters: boardSync.presenters,
+    send: boardSync.sendViewport,
+    apply: applyFollowedView,
+  });
+  const { stopFollowing } = presentation;
+  const elements = useMemo(
+    () => isV2 ? allElements.filter(element => element.pageId === currentPageId) : allElements,
+    [allElements, currentPageId, isV2],
+  );
+  const stamps = useMemo(
+    () => isV2 ? allStamps.filter(stamp => stamp.pageId === currentPageId) : allStamps,
+    [allStamps, currentPageId, isV2],
+  );
+  const renderElements = useMemo(() => {
+    const byId = new Map(elements.map(element => [element.id, element]));
+    return elements.map(element => resolveConnector(element, byId));
+  }, [elements]);
+  const objectBounds = useMemo(() => new Map(renderElements.map(element => [element.id, elementBounds(element)])), [renderElements]);
+
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const updateViewport = () => setViewport({ width: node.clientWidth, height: node.clientHeight });
+    updateViewport();
+    const observer = new ResizeObserver(updateViewport);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const recordWrite = useCallback((mutations: DocumentMutation[]) => {
+    if (!fitsDocumentBatch(mutations)) {
+      if (projectedDocument.current) applyDocument(projectedDocument.current, projectedEpoch.current);
+      setNoticeDialog({ title: 'Selection exceeds the edit limit', message: 'Edit a smaller selection and try again. The batch was left intact.' });
+      return Promise.resolve(false);
+    }
+    const write = enqueue(mutations);
+    localWrites.current.add(write);
+    void write.finally(() => localWrites.current.delete(write));
+    return write;
+  }, [applyDocument, enqueue]);
+
+  const flushGeometry = useCallback(() => {
+    const mutations = Array.from(geometry.current.values());
+    clearGeometry();
+    if (mutations.length) void recordWrite(mutations);
+  }, [clearGeometry, recordWrite]);
+
+  const queueGeometry = useCallback((patch: DocumentPatch) => {
+    const key = `${patch.collection}/${patch.id}`;
+    const previous = geometry.current.get(key);
+    geometry.current.set(key, { ...patch, fields: { ...previous?.fields, ...patch.fields } });
+    setHasGeometryPreview(true);
+    if (activePointer.current === null && geometryTimer.current === null) geometryTimer.current = window.setTimeout(flushGeometry, 100);
+  }, [flushGeometry]);
+
+  const submit = useCallback((mutations: DocumentMutation[]) => {
+    flushGeometry();
+    return recordWrite(mutations);
+  }, [recordWrite, flushGeometry]);
+
+  const runElementBatch = useCallback((edit: () => void) => {
+    const store = elementStoreRef.current;
+    if (!isV2 || elementBatch.current) {
+      store.batch(edit);
+      return;
+    }
+    flushGeometry();
+    const batch: DocumentMutation[] = [];
+    elementBatch.current = batch;
+    try {
+      store.batch(edit);
+    } finally {
+      elementBatch.current = null;
+    }
+    if (batch.length) void recordWrite(batch);
+  }, [flushGeometry, isV2, recordWrite]);
+
+  const { isErasing, eraserPosition, setEraserPosition, startErasing, continueErasing, endErasing: endErasingHook } = useEraser({
+    elementStoreRef, toolOptions, editStroke: runElementBatch,
+  });
+
+  useLayoutEffect(() => {
+    elementStoreRef.current.setEditingContext(canEdit, isV2 ? currentPageId : undefined, !isV2);
+  }, [canEdit, currentPageId, isV2]);
+
+  useEffect(() => {
+    if (!isV2) return;
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') flushGeometry();
+    };
+    const finishPointer = (event: PointerEvent) => {
+      if (activePointer.current !== event.pointerId) return;
+      activePointer.current = null;
+      flushGeometry();
+    };
+    window.addEventListener('pointerup', finishPointer, true);
+    window.addEventListener('blur', flushGeometry);
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    return () => {
+      window.removeEventListener('pointerup', finishPointer, true);
+      window.removeEventListener('blur', flushGeometry);
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+    };
+  }, [flushGeometry, isV2]);
+
+  useEffect(() => () => {
+    if (geometryTimer.current !== null) window.clearTimeout(geometryTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (!isV2 || (!hasGeometryPreview && boardSync.status !== 'saving-local')) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (geometry.current.size) flushGeometry();
+      if (localWrites.current.size === 0) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [boardSync.status, flushGeometry, hasGeometryPreview, isV2]);
   
   // User preferences
   const [currentUsername, setCurrentUsername] = useState(username);
@@ -340,19 +411,70 @@ export default function OpenJamCanvas({
   // UI state
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [initialReviewThread] = useState(() => new URLSearchParams(window.location.search).get('thread') ?? undefined);
+  const [showReview, setShowReview] = useState(Boolean(initialReviewThread));
+  const [showVersions, setShowVersions] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
+  const [agentPreview, setAgentPreview] = useState<AgentPreview>();
+  const [agentProfile, setAgentProfile] = useState<AgentProfile>();
+  const [editAgentProfile, setEditAgentProfile] = useState(false);
+  const [attributions, setAttributions] = useState<{ page: string; entries: Map<string, AgentAttribution> }>();
+  const showAssistant = showAgent || Boolean(sharedRunId);
+  const closeAssistant = () => {
+    setShowAgent(false);
+    if (sharedRunId !== undefined) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('conversation');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  useEffect(() => {
+    if (!showAgent || !canEdit) return;
+    const controller = new AbortController();
+    void readAgentProfile(controller.signal).then(profile => {
+      if (!controller.signal.aborted) setAgentProfile(profile);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [canEdit, showAgent]);
+
+  useEffect(() => {
+    if (!isV2 || !canUseBoard || !currentPageId || !boardSync.isConnected) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void readAgentAttributions(boardId, currentPageId, controller.signal).then(entries => {
+        if (!controller.signal.aborted) setAttributions({ page: currentPageId, entries });
+      }).catch(() => {});
+    }, 220);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [boardId, boardSync.epoch, boardSync.isConnected, boardSync.seq, canUseBoard, currentPageId, isV2]);
+
+  const ghostElements = useMemo(() => (
+    agentPreview?.placement === 'current-page' && agentPreview.pageId === currentPageId
+      ? agentPreview.operations.flatMap(operation => operation.kind === 'add' && operation.collection === 'elements' && 'type' in operation.value
+        ? [operation.value] : [])
+      : []
+  ), [agentPreview, currentPageId]);
+  const [reviewPickingPoint, setReviewPickingPoint] = useState(false);
+  const [pickedReviewLocation, setPickedReviewLocation] = useState<ReviewLocation>();
+  const [focusedReviewLocation, setFocusedReviewLocation] = useState<ReviewLocation>();
   const [showHelpPanel, setShowHelpPanel] = useState(false);
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showFileInfo, setShowFileInfo] = useState(false);
   const [showTableCreation, setShowTableCreation] = useState(false);
   const [showTimerCreation, setShowTimerCreation] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
-  const [noticeDialog, setNoticeDialog] = useState<{ title: string; message: string } | null>(null);
+  const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
   const [deleteBoardDialogOpen, setDeleteBoardDialogOpen] = useState(false);
+  const [conflictToDiscard, setConflictToDiscard] = useState<string | null>(null);
+  const [discardingConflict, setDiscardingConflict] = useState(false);
   const [boardActionBusy, setBoardActionBusy] = useState(false);
-  
-  // Mock version history
-  const versions = useMemo(() => generateMockVersions(userId, currentUsername, currentUserColor), [userId, currentUsername, currentUserColor]);
+  const isBoardOwner = isLegacy ? legacyOwner : boardSync.permission === 'owner';
+  const canReview = isV2 && ['owner', 'edit', 'comment'].includes(boardSync.permission ?? '');
+  const canViewVersions = isV2 && ['owner', 'edit'].includes(boardSync.permission ?? '');
+  const reviewOnline = isV2 && !['offline', 'loading', 'revoked'].includes(boardSync.status);
+  const unsavedDraft = boardSync.conflict?.code === 'LOCAL_WRITE_REJECTED';
 
   // Selected element for property inspector
   const selectedElement = useMemo(() => {
@@ -363,31 +485,32 @@ export default function OpenJamCanvas({
   
   // File info
   const fileInfo = useMemo(() => ({
-    id: _boardId,
+    id: boardId,
     name: boardName,
     createdAt: new Date(Date.now() - 7 * 24 * 3600000),
     updatedAt: new Date(),
     createdBy: currentUsername,
     size: '2.4 KB',
     elementsCount: elements.length,
-  }), [_boardId, boardName, currentUsername, elements.length]);
+  }), [boardId, boardName, currentUsername, elements.length]);
 
   const handleRemoteElementsChanged = useCallback(() => {
     setElements(elementStoreRef.current.getElements());
   }, []);
 
-  const collaboration = useCollaboration({
-    roomId: _boardId,
+  const legacyCollaboration = useCollaboration({
+    roomId: boardId,
     userId,
     elementStore: elementStoreRef.current,
     onElementsChanged: handleRemoteElementsChanged,
+    enabled: isLegacy && legacyReady,
   });
   const {
     isConnected: isCollaborationConnected,
     collaborators: remoteCollaborators,
     cursors: remoteCursors,
     sendCursor,
-  } = collaboration;
+  } = isLegacy ? legacyCollaboration : boardSync;
 
   const liveCursors = useMemo(() => (
     Array.from(remoteCursors.values()).map((cursor) => ({
@@ -403,10 +526,10 @@ export default function OpenJamCanvas({
     {
       id: userId,
       name: currentUsername,
-      email: `${currentUsername.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+      email: email ?? '',
       avatarUrl: currentUserAvatarUrl,
       color: currentUserColor,
-      permission: 'edit',
+      permission: canEdit ? 'edit' : 'view',
       isOnline: true,
     },
     ...remoteCollaborators
@@ -419,39 +542,81 @@ export default function OpenJamCanvas({
         permission: 'edit' as const,
         isOnline: true,
       })),
-  ], [userId, currentUsername, currentUserAvatarUrl, currentUserColor, remoteCollaborators]);
+  ], [userId, currentUsername, email, currentUserAvatarUrl, currentUserColor, remoteCollaborators, canEdit]);
   const [shareLinkPermission, setShareLinkPermission] = useState<LinkPermission>('restricted');
   const [shareMembers, setShareMembers] = useState<RoomMember[]>([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareSaving, setShareSaving] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
-  const [autosaveReady, setAutosaveReady] = useState(false);
-  const [boardLoadError, setBoardLoadError] = useState<string | null>(null);
+  // Structured load error: carries the HTTP status so we can tell "no access"
+  // (403) / "not found" (404) apart from a transient network failure, and offer
+  // the right next step instead of a dead-end retry.
+  const [boardLoadError, setBoardLoadError] = useState<{ message: string; status?: number } | null>(null);
+  const boardUpdatedAtRef = useRef<string | undefined>(undefined);
+
+  // Reload board and merge after a save conflict (optimistic-lock mismatch)
+  const handleSaveConflict = useCallback((remoteBoard: BoardData) => {
+    const savedElements = Array.isArray(remoteBoard.elements) ? remoteBoard.elements as Element[] : [];
+    const savedStamps = Array.isArray(remoteBoard.stamps) ? remoteBoard.stamps as Stamp[] : [];
+    const savedPages = Array.isArray(remoteBoard.pages) && remoteBoard.pages.length > 0
+      ? remoteBoard.pages as Page[]
+      : pages;
+    boardUpdatedAtRef.current = remoteBoard.updatedAt;
+    elementStoreRef.current.loadSavedElements(savedElements);
+    setStamps(savedStamps);
+    setPages(savedPages);
+    setCurrentPageId(remoteBoard.currentPageId || savedPages[0]?.id || currentPageId);
+  }, [pages, currentPageId]);
 
   // Debounced autosave
-  const { saveStatus, saveError, markDirty, saveToDatabase } = useAutoSave({
-    boardId: _boardId,
+  const { saveStatus, saveError, markDirty, saveToDatabase, getSavedUpdatedAt } = useAutoSave({
+    boardId,
     getElements: () => elementStoreRef.current.getElements(),
     getBoardName: () => boardName,
-    getStamps: () => stamps,
+    getStamps: () => allStamps,
     getPages: () => pages,
     getCurrentPageId: () => currentPageId,
-    enabled: autosaveReady && !boardLoadError,
+    getExpectedUpdatedAt: () => boardUpdatedAtRef.current,
+    onConflict: handleSaveConflict,
+    enabled: isLegacy && legacyReady && legacyEditable && !boardLoadError,
   });
 
-  const connectionState = isCollaborationConnected ? 'connected' : saveStatus === 'offline' ? 'offline' : 'connecting';
+  // Sync the optimistic-lock version after a successful save
+  useEffect(() => {
+    if (isLegacy && saveStatus === 'saved') {
+      const saved = getSavedUpdatedAt();
+      if (saved) boardUpdatedAtRef.current = saved;
+    }
+  }, [isLegacy, saveStatus, getSavedUpdatedAt]);
 
-  const handleBoardNameChange = useCallback((name: string) => {
+  const displayedSaveStatus = isLegacy ? (legacyReady ? saveStatus : 'loading')
+    : hasGeometryPreview && (boardSync.status === 'synced' || boardSync.status === 'offline')
+      ? 'saving-local' : boardSync.status;
+  const connectionState = (isLegacy ? saveStatus : boardSync.status) === 'offline'
+    ? 'offline' : isCollaborationConnected ? 'connected' : 'connecting';
+
+  const handleBoardNameChange = useCallback((name: string, expectedName: string) => {
+    if (!canEdit || name === expectedName) return;
     setBoardName(name);
-    markDirty();
-  }, [markDirty]);
+    if (isV2) void submit([{ kind: 'rename', value: name, expected: { name: expectedName } }]);
+    else markDirty();
+  }, [canEdit, isV2, markDirty, submit]);
+
+  const save = useCallback(() => {
+    if (isLegacy) {
+      if (canEdit) void saveToDatabase();
+      return;
+    }
+    flushGeometry();
+    retry();
+  }, [canEdit, flushGeometry, isLegacy, retry, saveToDatabase]);
 
   const loadShareSettings = useCallback(async () => {
     setShareLoading(true);
     setShareError(null);
 
     try {
-      const settings = await getRoomShareSettings(_boardId);
+      const settings = await getRoomShareSettings(boardId);
       setShareLinkPermission(settings.linkPermission);
       setShareMembers(settings.members || []);
     } catch (err) {
@@ -459,13 +624,13 @@ export default function OpenJamCanvas({
     } finally {
       setShareLoading(false);
     }
-  }, [_boardId]);
+  }, [boardId]);
 
   useEffect(() => {
-    if (showShareDialog) {
+    if (showShareDialog && isLegacy) {
       void loadShareSettings();
     }
-  }, [loadShareSettings, showShareDialog]);
+  }, [isLegacy, loadShareSettings, showShareDialog]);
 
   const handleChangeLinkPermission = useCallback(async (permission: LinkPermission) => {
     const previousPermission = shareLinkPermission;
@@ -474,7 +639,7 @@ export default function OpenJamCanvas({
     setShareLinkPermission(permission);
 
     try {
-      const settings = await updateRoomShareSettings(_boardId, permission);
+      const settings = await updateRoomShareSettings(boardId, permission);
       setShareLinkPermission(settings.linkPermission);
       setShareMembers(settings.members || []);
     } catch (err) {
@@ -485,14 +650,14 @@ export default function OpenJamCanvas({
     } finally {
       setShareSaving(false);
     }
-  }, [_boardId, shareLinkPermission]);
+  }, [boardId, shareLinkPermission]);
 
   const handleInviteMember = useCallback(async (email: string, permission: MemberPermission) => {
     setShareSaving(true);
     setShareError(null);
 
     try {
-      const member = await inviteRoomMember(_boardId, email, permission);
+      const member = await inviteRoomMember(boardId, email, permission);
       setShareMembers((current) => {
         const withoutExisting = current.filter((item) => item.userId !== member.userId);
         return [member, ...withoutExisting];
@@ -504,14 +669,14 @@ export default function OpenJamCanvas({
     } finally {
       setShareSaving(false);
     }
-  }, [_boardId]);
+  }, [boardId]);
 
   const handleRemoveMember = useCallback(async (memberId: string) => {
     setShareSaving(true);
     setShareError(null);
 
     try {
-      await removeRoomMember(_boardId, memberId);
+      await removeRoomMember(boardId, memberId);
       setShareMembers((current) => current.filter((member) => member.userId !== memberId));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to remove member';
@@ -520,15 +685,15 @@ export default function OpenJamCanvas({
     } finally {
       setShareSaving(false);
     }
-  }, [_boardId]);
+  }, [boardId]);
   
   // Interaction state
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const { selectionBox, setSelectionBox, handleSelect, selectAll, getSelectedFromBox } = useSelection({
-    elements, setSelectedIds,
+    elements, stamps, objectBounds, setSelectedIds,
   });
-  const { isDrawing, drawingPath, startDrawing, continueDrawing, endDrawing } = useDrawing({
+  const { isDrawing, drawingPath, startDrawing, continueDrawing, endDrawing, cancelDrawing } = useDrawing({
     elementStoreRef, currentTool, toolOptions,
   });
   
@@ -542,51 +707,66 @@ export default function OpenJamCanvas({
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const store = elementStoreRef.current;
-    return store.on('operation', () => {
-      markDirty();
+    return store.on('operation', (op, previous) => {
+      if (isLegacy) {
+        markDirty();
+        return;
+      }
+      if (!isV2) return;
+      const mutation = elementMutation(op, store.getElementById(op.elementId), previous);
+      if (!mutation) return;
+      if (elementBatch.current) elementBatch.current.push(mutation);
+      else if (isGeometryPatch(mutation)) queueGeometry(mutation);
+      else void submit([mutation]);
     });
-  }, [markDirty]);
+  }, [isLegacy, isV2, markDirty, queueGeometry, submit]);
 
-  // Load board data from database on mount
   useEffect(() => {
-    setAutosaveReady(false);
+    if (!isLegacy) return;
+    let cancelled = false;
+    setLegacyReady(false);
     setBoardLoadError(null);
     const loadBoardFromDatabase = async () => {
-      let failed = false;
       try {
-        const { loadBoard } = await import('../lib/api');
-        const data = await loadBoard(_boardId);
-        if (data) {
-          if (data.name) setBoardName(data.name);
-          // Load elements directly without creating operations
-          const savedElements = Array.isArray(data.elements) ? data.elements as Element[] : [];
-          const savedStamps = Array.isArray(data.stamps) ? data.stamps as Stamp[] : [];
-          const savedPages = Array.isArray(data.pages) && data.pages.length > 0
-            ? data.pages as Page[]
-            : [{ id: 'page-1', name: 'Page 1' }];
-
-          elementStoreRef.current.loadSavedElements(savedElements);
-          setStamps(savedStamps);
-          setPages(savedPages);
-          setCurrentPageId(data.currentPageId || savedPages[0]?.id || 'page-1');
-        }
+        const [data, room] = await Promise.all([loadBoard(boardId), getRoom(boardId)]);
+        if (cancelled) return;
+        setBoardName(data.name || room.name);
+        boardUpdatedAtRef.current = data.updatedAt;
+        const savedElements = Array.isArray(data.elements) ? data.elements as Element[] : [];
+        const savedStamps = Array.isArray(data.stamps) ? data.stamps as Stamp[] : [];
+        const savedPages = Array.isArray(data.pages) && data.pages.length > 0
+          ? data.pages as Page[]
+          : [{ id: 'page-1', name: 'Page 1' }];
+        const owner = room.permission === 'owner' || room.ownerId === userId;
+        elementStoreRef.current.loadSavedElements(savedElements);
+        setStamps(savedStamps);
+        setPages(savedPages);
+        setCurrentPageId(data.currentPageId || savedPages[0].id);
+        setDefaultPageId(data.currentPageId || savedPages[0].id);
+        setLegacyOwner(owner);
+        setLegacyEditable(owner || room.permission === 'edit');
+        setLegacyReady(true);
       } catch (err) {
+        if (cancelled) return;
+        const status = err instanceof ApiError ? err.status : undefined;
         const message = err instanceof Error ? err.message : 'Failed to load board data';
-        console.error('Failed to load board data:', message);
-        failed = true;
-        setBoardLoadError(message);
-        setAutosaveReady(false);
-        return;
-      } finally {
-        if (!failed) {
-          setAutosaveReady(true);
-        }
+        setBoardLoadError({ message, status });
       }
     };
-    loadBoardFromDatabase();
-  }, [_boardId]);
+    void loadBoardFromDatabase();
+    return () => { cancelled = true; };
+  }, [boardId, isLegacy, legacyReload, userId]);
+
+  const visibleIds = useMemo(() => new Set([...elements, ...stamps].map(record => record.id)), [elements, stamps]);
+  useEffect(() => {
+    setSelectedIds(ids => {
+      if ([...ids].every(id => visibleIds.has(id))) return ids;
+      return new Set([...ids].filter(id => visibleIds.has(id)));
+    });
+    setEditingId(id => canEdit && id && visibleIds.has(id) ? id : null);
+  }, [canEdit, visibleIds]);
   
   // Convert screen coordinates to canvas coordinates
   const screenToCanvas = useCallback(
@@ -605,8 +785,8 @@ export default function OpenJamCanvas({
   // handleSelect is provided by useSelection hook
   
   // Handle element update
-  const handleUpdate = useCallback((id: string, changes: Partial<Element>) => {
-    elementStoreRef.current.updateElement(id, changes);
+  const handleUpdate = useCallback((id: string, changes: Partial<Element>, expected?: Record<string, unknown>) => {
+    elementStoreRef.current.updateElement(id, changes, expected);
   }, []);
   
   // Handle element move
@@ -621,163 +801,173 @@ export default function OpenJamCanvas({
   
   // Handle start editing
   const handleStartEdit = useCallback((id: string) => {
-    setEditingId(id);
-  }, []);
+    if (canEdit) setEditingId(id);
+  }, [canEdit]);
   
   // Handle end editing
   const handleEndEdit = useCallback(() => {
     setEditingId(null);
   }, []);
   
-  // Create new element at position
-  const createElementAt = useCallback(
-    (type: ElementType, x: number, y: number): Element => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let overrides: Record<string, any> = {};
-      
-      if (type === 'sticky') {
-        overrides = { color: toolOptions.stickyColor };
-      } else if (type === 'shape') {
-        overrides = {
-          shapeType: toolOptions.shapeType,
-          strokeColor: toolOptions.strokeColor,
-          strokeWidth: toolOptions.strokeWidth,
-          fillColor: toolOptions.fillColor,
-        };
-      } else if (type === 'text') {
-        overrides = { fontSize: toolOptions.fontSize };
-      } else if (type === 'connector') {
-        overrides = {
-          strokeColor: toolOptions.strokeColor,
-          strokeWidth: toolOptions.strokeWidth,
-        };
-      } else if (type === 'drawing') {
-        overrides = {
-          color: toolOptions.strokeColor,
-          strokeWidth: toolOptions.strokeWidth,
-        };
-      }
-      
-      const op = elementStoreRef.current.addElement(type, x, y, overrides as Partial<Element>);
-      const element = op.element;
-      setSelectedIds(new Set([element.id]));
-      
-      if (type === 'sticky' || type === 'text') {
-        setEditingId(element.id);
-      }
-      
-      return element;
-    },
-    [toolOptions]
-  );
-  
   // Delete selected elements
   const deleteSelected = useCallback(() => {
-    selectedIds.forEach((id) => {
-      elementStoreRef.current.deleteElement(id);
-    });
-    setStamps((prev) => prev.filter((s) => !selectedIds.has(s.id)));
-    markDirty();
+    if (!canEdit) return;
+    const selectedElements = elements.filter(element => selectedIds.has(element.id) && !element.locked);
+    const removedStamps = stamps.filter(stamp => selectedIds.has(stamp.id));
+    if (isV2) {
+      const operations: DocumentMutation[] = [
+        ...selectedElements.map(element => ({ kind: 'delete' as const, collection: 'elements' as const, id: element.id, expected: { ...element } })),
+        ...removedStamps.map(stamp => ({ kind: 'delete' as const, collection: 'stamps' as const, id: stamp.id, expected: { ...stamp } })),
+      ];
+      void submit(operations);
+    } else {
+      runElementBatch(() => selectedElements.forEach(element => elementStoreRef.current.deleteElement(element.id)));
+      if (removedStamps.length) {
+        setStamps(prev => prev.filter(stamp => !selectedIds.has(stamp.id)));
+        markDirty();
+      }
+    }
     setSelectedIds(new Set());
-  }, [selectedIds, markDirty]);
+  }, [canEdit, elements, isV2, markDirty, runElementBatch, selectedIds, stamps, submit]);
+
+  const { undo: undoDocument, redo: redoDocument } = boardSync;
+  const replayHistory = useCallback((reversing: boolean) => {
+    if (!canEdit) return;
+    if (isV2) {
+      flushGeometry();
+      void (reversing ? undoDocument() : redoDocument());
+      return;
+    }
+    const store = elementStoreRef.current;
+    const hasHistory = reversing ? store.canUndo() : store.canRedo();
+    if (!hasHistory) return;
+    if (!(reversing ? store.undo() : store.redo())) {
+      setNoticeDialog({
+        title: reversing ? 'Could not undo the edit' : 'Could not redo the edit',
+        message: 'The object has changed since this action. Review the latest version on the canvas.',
+      });
+    }
+  }, [canEdit, flushGeometry, isV2, redoDocument, undoDocument]);
+  const undo = useCallback(() => replayHistory(true), [replayHistory]);
+  const redo = useCallback(() => replayHistory(false), [replayHistory]);
   
   // Clipboard operations
-  const { clipboard, duplicateSelected, copySelected, cutSelected, pasteElements } = useClipboard({
-    elements, selectedIds, elementStoreRef, setSelectedIds, onDelete: deleteSelected,
+  const insertCopies = useCallback((copies: Element[], stampCopies: Stamp[]) => {
+    if (!canEdit || (!copies.length && !stampCopies.length)) return;
+    const selectCopies = () => setSelectedIds(new Set([...copies, ...stampCopies].map(item => item.id)));
+    if (isV2) {
+      const operations: DocumentMutation[] = [
+        ...copies.map(value => ({ kind: 'add' as const, collection: 'elements' as const, id: value.id, value })),
+        ...stampCopies.map(value => ({ kind: 'add' as const, collection: 'stamps' as const, id: value.id, value })),
+      ];
+      void submit(operations).then(saved => { if (saved) selectCopies(); });
+      return;
+    }
+    runElementBatch(() => copies.forEach(element => elementStoreRef.current.addElement(element)));
+    if (stampCopies.length) {
+      setStamps(previous => [...previous, ...stampCopies]);
+      markDirty();
+    }
+    selectCopies();
+  }, [canEdit, isV2, markDirty, runElementBatch, submit]);
+  const { hasClipboard, duplicateSelected, copySelected, cutSelected, pasteElements } = useClipboard({
+    elements, stamps, selectedIds, currentPageId: isV2 ? currentPageId : undefined,
+    userId, insertCopies, onDelete: deleteSelected,
   });
 
   // selectAll is provided by useSelection hook
   
   // Bring to front / send to back
-  const bringToFront = useCallback(() => {
-    const maxZ = Math.max(...elements.map((el) => el.zIndex), 0);
-    selectedIds.forEach((id) => {
-      elementStoreRef.current.updateElement(id, { zIndex: maxZ + 1 } as Partial<Element>);
-    });
-  }, [selectedIds, elements]);
-  
-  const sendToBack = useCallback(() => {
-    const minZ = Math.min(...elements.map((el) => el.zIndex), 0);
-    selectedIds.forEach((id) => {
-      elementStoreRef.current.updateElement(id, { zIndex: minZ - 1 } as Partial<Element>);
-    });
-  }, [selectedIds, elements]);
+  const changeLayers = useCallback((front: boolean) => {
+    const moving = elements.filter(element => selectedIds.has(element.id) && !element.locked);
+    const edge = elements.reduce((value, element) => front ? Math.max(value, element.zIndex) : Math.min(value, element.zIndex), 0);
+    runElementBatch(() => moving.forEach((element, index) => {
+      elementStoreRef.current.reorderElement(element.id, front ? edge + index + 1 : edge - moving.length + index);
+    }));
+  }, [elements, runElementBatch, selectedIds]);
+  const bringToFront = useCallback(() => changeLayers(true), [changeLayers]);
+  const sendToBack = useCallback(() => changeLayers(false), [changeLayers]);
   
   // Lock/Unlock elements
   const lockSelected = useCallback(() => {
-    selectedIds.forEach((id) => {
-      elementStoreRef.current.updateElement(id, { locked: true } as Partial<Element>);
-    });
-  }, [selectedIds]);
+    const selected = elements.filter(element => selectedIds.has(element.id));
+    const locked = selected.some(element => !element.locked);
+    runElementBatch(() => selected.forEach(element => {
+      if (element.locked !== locked) elementStoreRef.current.lockElement(element.id, locked);
+    }));
+  }, [elements, runElementBatch, selectedIds]);
   
   const unlockAll = useCallback(() => {
-    elements.forEach((el) => {
-      if (el.locked) {
-        elementStoreRef.current.updateElement(el.id, { locked: false } as Partial<Element>);
-      }
-    });
-  }, [elements]);
+    runElementBatch(() => elements.forEach(element => {
+      if (element.locked) elementStoreRef.current.lockElement(element.id, false);
+    }));
+  }, [elements, runElementBatch]);
   
   // Group/Ungroup elements
   const groupSelected = useCallback(() => {
-    if (selectedIds.size < 2) return;
-    const groupId = `group-${Date.now()}`;
-    selectedIds.forEach((id) => {
-      elementStoreRef.current.updateElement(id, { groupId } as Partial<Element>);
-    });
-  }, [selectedIds]);
+    const selected = elements.filter(element => selectedIds.has(element.id));
+    if (selected.length < 2 || selected.some(element => element.locked)) return;
+    const groupId = generateElementId();
+    runElementBatch(() => selected.forEach(element => elementStoreRef.current.updateElement(element.id, { groupId })));
+  }, [elements, runElementBatch, selectedIds]);
   
   const ungroupSelected = useCallback(() => {
-    selectedIds.forEach((id) => {
-      elementStoreRef.current.updateElement(id, { groupId: undefined } as Partial<Element>);
-    });
-  }, [selectedIds]);
+    runElementBatch(() => elements.forEach(element => {
+      if (selectedIds.has(element.id) && element.groupId && !element.locked) {
+        elementStoreRef.current.updateElement(element.id, { groupId: undefined });
+      }
+    }));
+  }, [elements, runElementBatch, selectedIds]);
   
-  // Page management handlers
-  const handleAddPage = useCallback(() => {
-    const newPage: Page = {
-      id: `page-${Date.now()}`,
-      name: `Page ${pages.length + 1}`,
-    };
-    setPages((prev) => [...prev, newPage]);
-    setCurrentPageId(newPage.id);
-    markDirty();
-  }, [pages.length, markDirty]);
-  
-  const handleSelectPage = useCallback((pageId: string) => {
-    setCurrentPageId(pageId);
-    markDirty();
-  }, [markDirty]);
-  
-  const handleRenamePage = useCallback((pageId: string, name: string) => {
-    setPages((prev) => prev.map((p) => (p.id === pageId ? { ...p, name } : p)));
-    markDirty();
-  }, [markDirty]);
-  
-  const handleDuplicatePage = useCallback((pageId: string) => {
-    const pageToDuplicate = pages.find((p) => p.id === pageId);
-    if (!pageToDuplicate) return;
-    const newPage: Page = {
-      id: `page-${Date.now()}`,
-      name: `${pageToDuplicate.name} (Copy)`,
-    };
-    const index = pages.findIndex((p) => p.id === pageId);
-    const newPages = [...pages];
-    newPages.splice(index + 1, 0, newPage);
-    setPages(newPages);
-    setCurrentPageId(newPage.id);
-    markDirty();
-  }, [pages, markDirty]);
-  
-  const handleDeletePage = useCallback((pageId: string) => {
-    if (pages.length <= 1) return; // Can't delete last page
-    setPages((prev) => prev.filter((p) => p.id !== pageId));
-    if (currentPageId === pageId) {
-      const remaining = pages.filter((p) => p.id !== pageId);
-      setCurrentPageId(remaining[0]?.id || '');
+  // Page management
+  const {
+    handleAddPage,
+    handleSelectPage,
+    handleRenamePage,
+    handleDuplicatePage,
+    handleDeletePage,
+    handleReorderPage,
+    handleDefaultPage,
+  } = usePages({
+    pages, currentPageId, setPages, setCurrentPageId, markDirty, canEdit,
+    submit: isV2 ? submit : undefined,
+    elementStore, stamps: allStamps, userId, defaultPageId, onNotice: setNoticeDialog,
+  });
+  const selectBoardPage = useCallback((pageId: string) => {
+    stopFollowing();
+    handleSelectPage(pageId);
+  }, [handleSelectPage, stopFollowing]);
+
+  const moveSelectionToPage = useCallback((pageId: string) => {
+    if (!isV2 || !canEdit || !selectedIds.size || pageId === currentPageId) return;
+    const moving = pageMoveSelection(elements, selectedIds);
+    if (!moving) {
+      setNoticeDialog({ title: 'Selection has linked objects', message: 'Select the connected objects together and unlock them before moving to another page.' });
+      return;
     }
-    markDirty();
-  }, [pages, currentPageId, markDirty]);
+    const operations: DocumentMutation[] = [
+      ...moving.map(element => ({
+        kind: 'patch' as const, collection: 'elements' as const, id: element.id, fields: { pageId },
+        expected: { pageId: element.pageId, groupId: element.groupId ?? null },
+      })),
+      ...stamps.filter(stamp => selectedIds.has(stamp.id)).map(stamp => ({
+        kind: 'patch' as const, collection: 'stamps' as const, id: stamp.id, fields: { pageId }, expected: { pageId: stamp.pageId },
+      })),
+    ];
+    void submit(operations).then(saved => { if (saved) setCurrentPageId(pageId); });
+  }, [canEdit, currentPageId, elements, isV2, selectedIds, stamps, submit]);
+
+  const copyPageLink = useCallback(async (pageId: string, elementId?: string) => {
+    try {
+      const url = new URL(`/board/${encodeURIComponent(boardId)}`, window.location.origin);
+      url.searchParams.set('page', pageId);
+      if (elementId) url.searchParams.set('element', elementId);
+      await navigator.clipboard.writeText(url.toString());
+      return true;
+    } catch {
+      return false;
+    }
+  }, [boardId]);
   
   // User profile update handler
   const handleUpdateProfile = useCallback((settings: { username: string; color: string; avatarUrl?: string }) => {
@@ -788,99 +978,17 @@ export default function OpenJamCanvas({
     }
   }, []);
   
-  // Alignment functions
-  const getSelectedElements = useCallback(() => {
-    return elements.filter((el) => selectedIds.has(el.id));
-  }, [elements, selectedIds]);
-  
-  const alignLeft = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 2) return;
-    const minX = Math.min(...selected.map((el) => el.x));
-    selected.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, minX, el.y);
-    });
-  }, [getSelectedElements]);
-  
-  const alignCenter = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 2) return;
-    const minX = Math.min(...selected.map((el) => el.x));
-    const maxX = Math.max(...selected.map((el) => el.x + el.width));
-    const centerX = (minX + maxX) / 2;
-    selected.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, centerX - el.width / 2, el.y);
-    });
-  }, [getSelectedElements]);
-  
-  const alignRight = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 2) return;
-    const maxX = Math.max(...selected.map((el) => el.x + el.width));
-    selected.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, maxX - el.width, el.y);
-    });
-  }, [getSelectedElements]);
-  
-  const alignTop = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 2) return;
-    const minY = Math.min(...selected.map((el) => el.y));
-    selected.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, el.x, minY);
-    });
-  }, [getSelectedElements]);
-  
-  const alignMiddle = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 2) return;
-    const minY = Math.min(...selected.map((el) => el.y));
-    const maxY = Math.max(...selected.map((el) => el.y + el.height));
-    const centerY = (minY + maxY) / 2;
-    selected.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, el.x, centerY - el.height / 2);
-    });
-  }, [getSelectedElements]);
-  
-  const alignBottom = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 2) return;
-    const maxY = Math.max(...selected.map((el) => el.y + el.height));
-    selected.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, el.x, maxY - el.height);
-    });
-  }, [getSelectedElements]);
-  
-  const distributeHorizontally = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 3) return;
-    const sorted = [...selected].sort((a, b) => a.x - b.x);
-    const totalWidth = sorted.reduce((sum, el) => sum + el.width, 0);
-    const minX = sorted[0].x;
-    const maxX = sorted[sorted.length - 1].x + sorted[sorted.length - 1].width;
-    const spacing = (maxX - minX - totalWidth) / (sorted.length - 1);
-    let currentX = minX;
-    sorted.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, currentX, el.y);
-      currentX += el.width + spacing;
-    });
-  }, [getSelectedElements]);
-  
-  const distributeVertically = useCallback(() => {
-    const selected = getSelectedElements();
-    if (selected.length < 3) return;
-    const sorted = [...selected].sort((a, b) => a.y - b.y);
-    const totalHeight = sorted.reduce((sum, el) => sum + el.height, 0);
-    const minY = sorted[0].y;
-    const maxY = sorted[sorted.length - 1].y + sorted[sorted.length - 1].height;
-    const spacing = (maxY - minY - totalHeight) / (sorted.length - 1);
-    let currentY = minY;
-    sorted.forEach((el) => {
-      elementStoreRef.current.moveElement(el.id, el.x, currentY);
-      currentY += el.height + spacing;
-    });
-  }, [getSelectedElements]);
-  
+  // Alignment and distribution
+  const {
+    alignLeft,
+    alignCenter,
+    alignRight,
+    alignTop,
+    alignMiddle,
+    alignBottom,
+    distributeHorizontally,
+    distributeVertically,
+  } = useAlignDistribute({ elements, selectedIds, elementStoreRef, runElementBatch });
   // Export functions
   const exportToPNG = useCallback(() => {
     const canvas = document.createElement('canvas');
@@ -944,8 +1052,10 @@ export default function OpenJamCanvas({
     const data = {
       name: boardName,
       exportedAt: new Date().toISOString(),
-      elements: elements,
-      stamps: stamps,
+      elements: allElements,
+      stamps: allStamps,
+      pages,
+      currentPageId: defaultPageId || currentPageId,
     };
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -954,7 +1064,7 @@ export default function OpenJamCanvas({
     link.href = URL.createObjectURL(blob);
     link.click();
     URL.revokeObjectURL(link.href);
-  }, [boardName, elements, stamps]);
+  }, [boardName, allElements, allStamps, currentPageId, defaultPageId, pages]);
   
   // Insert widget handler - creates interactive widget elements
   const handleInsertWidget = useCallback((widgetId: string) => {
@@ -1069,254 +1179,276 @@ export default function OpenJamCanvas({
     setCurrentTool('select');
   }, [offset, scale]);
   
-  // Handle canvas mouse down
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      // Close context menu on any click
-      if (contextMenu) {
-        setContextMenu(null);
-      }
-      
-      if (e.button !== 0) return; // Only left click
-      
-      // Check if click is on a widget - if so, let the widget handle it
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-widget]')) {
-        return;
-      }
-      
-      const canvas = screenToCanvas(e.clientX, e.clientY);
-      
-      // Pan mode
-      if (currentTool === 'pan') {
-        setIsPanning(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
-      }
-      
-      // Selection mode - check if clicking on an element first
-      if (currentTool === 'select') {
-        const padding = 6; // Hit detection padding for easier clicking
-        // Check if clicking on an element (top-to-bottom z-order)
-        const clickedElement = [...elements].reverse().find((el) => {
-          // For connectors, use start/end points to build correct bounds
-          if (el.type === 'connector') {
-            const conn = el as import('../lib/elements').ConnectorElement;
-            const minX = Math.min(conn.startPoint.x, conn.endPoint.x) - padding - 8;
-            const maxX = Math.max(conn.startPoint.x, conn.endPoint.x) + padding + 8;
-            const minY = Math.min(conn.startPoint.y, conn.endPoint.y) - padding - 8;
-            const maxY = Math.max(conn.startPoint.y, conn.endPoint.y) + padding + 8;
-            return canvas.x >= minX && canvas.x <= maxX && canvas.y >= minY && canvas.y <= maxY;
-          }
-          // For drawings, use element position + point bounds
-          if (el.type === 'drawing') {
-            const draw = el as import('../lib/elements').DrawingElement;
-            if (draw.points.length === 0) return false;
-            const xs = draw.points.map((p: { x: number; y: number }) => p.x);
-            const ys = draw.points.map((p: { x: number; y: number }) => p.y);
-            const minX = draw.x + Math.min(...xs) - padding;
-            const maxX = draw.x + Math.max(...xs) + padding;
-            const minY = draw.y + Math.min(...ys) - padding;
-            const maxY = draw.y + Math.max(...ys) + padding;
-            return canvas.x >= minX && canvas.x <= maxX && canvas.y >= minY && canvas.y <= maxY;
-          }
-          // Standard bounding box for other elements
-          const width = el.width || 100;
-          const height = el.height || 100;
-          return canvas.x >= el.x - padding && canvas.x <= el.x + width + padding &&
-                 canvas.y >= el.y - padding && canvas.y <= el.y + height + padding;
-        });
+  const handlePointerDownCapture = useCallback((event: React.PointerEvent) => {
+    if (!event.isPrimary || event.button !== 0) return;
+    stopFollowing();
+    if (isV2 && activePointer.current === null && geometry.current.size) flushGeometry();
+    activePointer.current = event.pointerId;
+  }, [flushGeometry, isV2, stopFollowing]);
 
-        if (clickedElement && !clickedElement.locked) {
-          // If shift-clicking, toggle in selection
-          if (e.shiftKey) {
-            setSelectedIds(prev => {
-              const next = new Set(prev);
-              if (next.has(clickedElement.id)) next.delete(clickedElement.id);
-              else next.add(clickedElement.id);
-              return next;
-            });
-          } else if (!selectedIds.has(clickedElement.id)) {
-            setSelectedIds(new Set([clickedElement.id]));
-          }
-          // Start dragging all selected elements (or just the clicked one)
-          const idsToMove = selectedIds.has(clickedElement.id) && selectedIds.size > 1
-            ? Array.from(selectedIds)
-            : [clickedElement.id];
-          startDragMove(
-            { x: canvas.x, y: canvas.y },
-            idsToMove,
-            (id) => {
-              const el = elementStoreRef.current.getElementById(id);
-              return el ? { x: el.x, y: el.y } : undefined;
-            },
-          );
-          return;
-        }
+  const hitElement = useCallback((x: number, y: number) => {
+    const point = { left: x, right: x, top: y, bottom: y };
+    for (let index = renderElements.length - 1; index >= 0; index--) {
+      const element = renderElements[index];
+      const bounds = objectBounds.get(element.id);
+      if (bounds && overlapsBounds(expandBounds(bounds, 5 / scale), point)) return element;
+    }
+  }, [objectBounds, renderElements, scale]);
 
-        // If no element clicked, start selection box
-        setSelectionBox({ start: canvas, end: canvas });
-        return;
-      }
-      
-      // Create elements with drag-to-size
-      if (currentTool === 'sticky' || currentTool === 'shape' || currentTool === 'text' || currentTool === 'connector') {
-        startDragCreate({ x: canvas.x, y: canvas.y }, currentTool);
-        return;
-      }
-      
-      if (currentTool === 'frame') {
-        createElementAt('frame', canvas.x, canvas.y);
-        setCurrentTool('select');
-        return;
-      }
-      
-      // Stamp mode
-      if (currentTool === 'stamp' && selectedStampEmoji) {
-        const newStamp: Stamp = {
-          id: generateStampId(),
-          emoji: selectedStampEmoji,
-          x: canvas.x,
-          y: canvas.y,
-          scale: 1,
-          rotation: Math.random() * 20 - 10,
-          userId,
-          createdAt: Date.now(),
-        };
-        setStamps((prev) => [...prev, newStamp]);
-        markDirty();
-        return;
-      }
-      
-      // Drawing mode (pen or marker)
-      if (currentTool === 'draw' || currentTool === 'marker') {
-        startDrawing({ x: canvas.x, y: canvas.y });
-        return;
-      }
-      
-      // Eraser mode - start erasing and erase drawing strokes under cursor
-      if (currentTool === 'eraser') {
-        startErasing({ x: canvas.x, y: canvas.y }, elements);
-        return;
-      }
-    },
-    [currentTool, screenToCanvas, createElementAt, selectedStampEmoji, userId, contextMenu, elements, startErasing, startDrawing, selectedIds, startDragMove, startDragCreate, setSelectionBox, elementStoreRef, markDirty]
-  );
-  
-  // Handle canvas mouse move
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      const canvas = screenToCanvas(e.clientX, e.clientY);
-      sendCursor(canvas.x, canvas.y);
-      
-      // Track eraser position for visual cursor
-      if (currentTool === 'eraser') {
-        setEraserPosition(canvas);
-      } else {
-        setEraserPosition(null);
-      }
-      
-      if (isPanning) {
-        const dx = e.clientX - dragStart.x;
-        const dy = e.clientY - dragStart.y;
-        setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
-      }
-      
-      if (selectionBox) {
-        setSelectionBox((prev) => prev ? { ...prev, end: canvas } : null);
-        return;
-      }
-      
-      if (isDrawing) {
-        continueDrawing({ x: canvas.x, y: canvas.y });
-        return;
-      }
-      
-      // Eraser - erase drawing strokes where cursor touches
-      if (isErasing) {
-        continueErasing({ x: canvas.x, y: canvas.y }, elements);
-        return;
-      }
-      
-      // Drag-to-create elements
-      if (dragCreateStart) {
-        updateDragCreate({ x: canvas.x, y: canvas.y });
-        return;
-      }
-
-      // Element dragging (moving)
-      if (dragMoveStart) {
-        updateDragMove({ x: canvas.x, y: canvas.y });
-        return;
-      }
-    },
-    [isPanning, dragStart, selectionBox, isDrawing, screenToCanvas, dragCreateStart, isErasing, elements, dragMoveStart, currentTool, setEraserPosition, setSelectionBox, continueDrawing, continueErasing, updateDragCreate, updateDragMove, sendCursor]
-  );
-  
-  // Handle canvas mouse up
-  const handleMouseUp = useCallback(() => {
-    if (isPanning) {
-      setIsPanning(false);
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (contextMenu) setContextMenu(null);
+    if (event.button !== 0 || !event.isPrimary) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-widget], [data-canvas-stamp], input, textarea, button, select, [contenteditable]')) return;
+    if (event.pointerType !== 'mouse' || (currentTool !== 'select' && canEdit)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    const point = screenToCanvas(event.clientX, event.clientY);
+    if (reviewPickingPoint && canReview) {
+      const location = { pageId: currentPageId, x: point.x, y: point.y };
+      setPickedReviewLocation(location);
+      setFocusedReviewLocation(location);
+      setReviewPickingPoint(false);
       return;
     }
-    
-    if (selectionBox) {
+    if (currentTool === 'pan') {
+      setIsPanning(true);
+      setDragStart({ x: event.clientX, y: event.clientY });
+      return;
+    }
+    if (currentTool === 'select' || !canEdit) {
+      const element = hitElement(point.x, point.y);
+      if (!element) {
+        setSelectionBox({ start: point, end: point });
+        return;
+      }
+      if (event.shiftKey) return;
+      const startingIds = selectedIds.has(element.id) ? selectedIds : new Set(selectionGroup(elements, element.id));
+      if (!selectedIds.has(element.id)) setSelectedIds(startingIds);
+      if (!canEdit || element.locked) return;
+      const moving = movementSelection(elements, startingIds).filter(item => !item.locked);
+      if (isV2 && moving.length > MAX_BATCH_OPERATIONS) {
+        setNoticeDialog({ title: 'Selection exceeds the move limit', message: 'Select fewer objects before moving them.' });
+        return;
+      }
+      startDragMove(point, moving.map(item => item.id), id => elementStoreRef.current.getElementById(id));
+      return;
+    }
+    if (['sticky', 'shape', 'text', 'connector', 'frame'].includes(currentTool)) {
+      startDragCreate(point, currentTool);
+      return;
+    }
+    if (currentTool === 'stamp' && selectedStampEmoji) {
+      const stamp: Stamp = {
+        id: generateStampId(), emoji: selectedStampEmoji, x: point.x, y: point.y, scale: 1,
+        rotation: Math.random() * 20 - 10, userId, createdAt: Date.now(),
+        ...(isV2 ? { pageId: currentPageId } : {}),
+      };
+      if (isV2) void submit([{ kind: 'add', collection: 'stamps', id: stamp.id, value: stamp }]);
+      else {
+        setStamps(previous => [...previous, stamp]);
+        markDirty();
+      }
+      return;
+    }
+    if (currentTool === 'draw' || currentTool === 'marker') startDrawing(point);
+    else if (currentTool === 'eraser') startErasing(point, elements);
+  }, [canEdit, canReview, contextMenu, currentPageId, currentTool, elements, hitElement, isV2, markDirty, reviewPickingPoint,
+    screenToCanvas, selectedIds, selectedStampEmoji, setSelectionBox, startDragCreate, startDragMove, startDrawing, startErasing, submit, userId]);
+
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary) return;
+    const point = screenToCanvas(event.clientX, event.clientY);
+    sendCursor(point.x, point.y);
+    if (currentTool === 'eraser') setEraserPosition(point);
+    else setEraserPosition(null);
+    if (isPanning) {
+      const dx = event.clientX - dragStart.x;
+      const dy = event.clientY - dragStart.y;
+      setOffset(previous => ({ x: previous.x + dx, y: previous.y + dy }));
+      setDragStart({ x: event.clientX, y: event.clientY });
+    } else if (currentTool === 'select' && selectionBox) {
+      setSelectionBox(previous => previous ? { ...previous, end: point } : null);
+    } else if (isInkTool && activePointer.current === event.pointerId) {
+      const samples = event.nativeEvent.getCoalescedEvents?.() ?? [];
+      const points = samples.map(sample => screenToCanvas(sample.clientX, sample.clientY));
+      points.push(point);
+      if (currentTool === 'eraser') continueErasing(points, elements);
+      else continueDrawing(points);
+    }
+    else if (dragCreateStart) updateDragCreate(point);
+    else if (dragMoveStart) updateDragMove(point, snapToGrid);
+  }, [continueDrawing, continueErasing, currentTool, dragCreateStart, dragMoveStart, dragStart, elements,
+    isInkTool, isPanning, screenToCanvas, selectionBox, sendCursor, setEraserPosition,
+    setSelectionBox, snapToGrid, updateDragCreate, updateDragMove]);
+
+  const finishCanvasGesture = useCallback((point?: { x: number; y: number }) => {
+    activePointer.current = null;
+    if (isPanning) setIsPanning(false);
+    else if (currentTool === 'select' && selectionBox) {
       setSelectedIds(getSelectedFromBox(selectionBox));
       setSelectionBox(null);
-      return;
-    }
-    
-    if (isDrawing) {
-      endDrawing();
-      return;
-    }
-    
-    // Drag-to-create element complete
-    if (dragCreateStart) {
-      endDragCreate();
-      return;
-    }
-
-    // Stop element dragging
-    if (dragMoveStart) {
-      endDragMove();
-      return;
-    }
-
-    // Stop erasing
-    if (isErasing) {
+    } else if (currentTool === 'draw' || currentTool === 'marker') endDrawing(point);
+    else if (currentTool === 'eraser') {
+      if (point) continueErasing([point], elements);
       endErasingHook();
+    }
+    else if (dragCreateStart) {
+      endDragCreate({
+        getAnchor: point => findAnchor(renderElements, point, 8 / scale),
+        getFrameChildren: bounds => elements.filter(element => {
+          const child = objectBounds.get(element.id);
+          return child && withinBounds(bounds, child);
+        }).map(element => element.id),
+      });
+    } else if (dragMoveStart) endDragMove();
+    if (isV2 && geometry.current.size) flushGeometry();
+  }, [continueErasing, currentTool, dragCreateStart, dragMoveStart, elements, endDragCreate, endDragMove, endDrawing, endErasingHook, flushGeometry,
+    getSelectedFromBox, isPanning, isV2, objectBounds, renderElements, scale, selectionBox, setSelectionBox]);
+
+  const cancelCanvasGesture = useCallback(() => {
+    activePointer.current = null;
+    resizeGesture.current = null;
+    setIsPanning(false);
+    setSelectionBox(null);
+    cancelDrawing();
+    cancelDragCreate();
+    endDragMove();
+    endErasingHook();
+    if (isV2 && geometry.current.size) {
+      clearGeometry();
+      if (projectedDocument.current) applyDocument(projectedDocument.current, projectedEpoch.current);
+    }
+  }, [applyDocument, cancelDragCreate, cancelDrawing, clearGeometry, endDragMove, endErasingHook, isV2, setSelectionBox]);
+
+  useEffect(() => {
+    cancelCanvasGesture();
+  }, [boardSync.epoch, currentPageId, currentTool, cancelCanvasGesture]);
+
+  // Zoom functions (defined early for use in context menu)
+  const zoomAtCenter = useCallback((next: number) => {
+    stopFollowing();
+    const zoom = Math.max(0.1, Math.min(5, next));
+    const center = { x: viewport.width / 2, y: viewport.height / 2 };
+    setOffset(previous => ({ x: center.x + (previous.x - center.x) * zoom / scale, y: center.y + (previous.y - center.y) * zoom / scale }));
+    setScale(zoom);
+  }, [scale, stopFollowing, viewport]);
+  const handleZoomIn = useCallback(() => zoomAtCenter(scale * 1.2), [scale, zoomAtCenter]);
+  const handleZoomOut = useCallback(() => zoomAtCenter(scale / 1.2), [scale, zoomAtCenter]);
+  const handleZoomReset = useCallback(() => zoomAtCenter(1), [zoomAtCenter]);
+  const handleZoomFit = useCallback(() => {
+    stopFollowing();
+    const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+    for (const box of [...objectBounds.values(), ...stamps.map(stamp => ({ left: stamp.x - 16, top: stamp.y - 16, right: stamp.x + 16, bottom: stamp.y + 16 }))]) {
+      bounds.left = Math.min(bounds.left, box.left);
+      bounds.top = Math.min(bounds.top, box.top);
+      bounds.right = Math.max(bounds.right, box.right);
+      bounds.bottom = Math.max(bounds.bottom, box.bottom);
+    }
+    if (!Number.isFinite(bounds.left)) {
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
       return;
     }
+    const next = Math.max(0.1, Math.min(1.5, (viewport.width - 128) / Math.max(1, bounds.right - bounds.left),
+      (viewport.height - 170) / Math.max(1, bounds.bottom - bounds.top)));
+    setScale(next);
+    setOffset({ x: viewport.width / 2 - (bounds.left + bounds.right) * next / 2,
+      y: viewport.height / 2 - (bounds.top + bounds.bottom) * next / 2 });
+  }, [objectBounds, stamps, stopFollowing, viewport]);
 
-    endDrawing();
-  }, [isPanning, selectionBox, isDrawing, dragCreateStart, isErasing, dragMoveStart, getSelectedFromBox, setSelectionBox, endDrawing, endErasingHook, endDragCreate, endDragMove]);
-  
-  // Zoom functions (defined early for use in context menu)
-  const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.2, 5)), []);
-  const handleZoomOut = useCallback(() => setScale((s) => Math.max(s / 1.2, 0.1)), []);
-  const handleZoomReset = useCallback(() => setScale(1), []);
-  const handleZoomFit = useCallback(() => {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-  }, []);
+  const centerOn = useCallback((x: number, y: number) => {
+    setOffset({ x: viewport.width / 2 - x * scale, y: viewport.height / 2 - y * scale });
+  }, [scale, viewport]);
+
+  const focusBoardLocation = useCallback((location: { pageId: string; elementId?: string; x?: number; y?: number }) => {
+    if (!pages.some(page => page.id === location.pageId)) return;
+    selectBoardPage(location.pageId);
+    const object = location.elementId ? elementStoreRef.current.getElementById(location.elementId) : undefined;
+    if (object && (object.pageId === location.pageId || isLegacy)) {
+      const bounds = elementBounds(resolveConnector(object, new Map(allElements.map(item => [item.id, item]))));
+      centerOn((bounds.left + bounds.right) / 2, (bounds.top + bounds.bottom) / 2);
+      setSelectedIds(new Set([object.id]));
+    } else if (typeof location.x === 'number' && typeof location.y === 'number') centerOn(location.x, location.y);
+  }, [allElements, centerOn, isLegacy, pages, selectBoardPage]);
+
+  const pageSections = useMemo(() => elements.flatMap(element => element.type === 'frame'
+    ? [{ id: element.id, name: element.name || 'Untitled section' }] : []), [elements]);
+
+  const focusReviewAnchor = useCallback((anchor: ReviewAnchor) => {
+    if (!anchor.currentPageId) return;
+    const location = { pageId: anchor.currentPageId, elementId: anchor.status === 'missing-object' ? undefined : anchor.elementId,
+      x: anchor.x, y: anchor.y };
+    setFocusedReviewLocation(location);
+    focusBoardLocation(location);
+  }, [focusBoardLocation]);
+
+  useEffect(() => {
+    const elementId = initialLocation.current.get('element');
+    if (!elementId || !currentPageId || !viewport.width) return;
+    initialLocation.current.delete('element');
+    focusBoardLocation({ pageId: currentPageId, elementId });
+  }, [currentPageId, focusBoardLocation, viewport.width]);
+
+  const startResize = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!canEdit || !selectedElement || selectedElement.locked || event.button !== 0 || !event.isPrimary) return;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    activePointer.current = event.pointerId;
+    resizeGesture.current = { element: selectedElement, x: event.clientX, y: event.clientY };
+  }, [canEdit, selectedElement]);
+
+  const resizeSelection = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const gesture = resizeGesture.current;
+    if (!gesture || activePointer.current !== event.pointerId || !canEdit) return;
+    event.stopPropagation();
+    const dx = (event.clientX - gesture.x) / scale;
+    const dy = (event.clientY - gesture.y) / scale;
+    const element = gesture.element;
+    const angle = (element.rotation || 0) * Math.PI / 180;
+    let width = Math.max(32, element.width + dx * Math.cos(angle) + dy * Math.sin(angle));
+    let height = Math.max(32, element.height - dx * Math.sin(angle) + dy * Math.cos(angle));
+    if ((element.type === 'shape' && element.shapeType === 'circle') || (element.type === 'sticky' && element.stickyShape === 'circle') || event.shiftKey) {
+      const ratio = element.width / Math.max(element.height, 1);
+      if (width / height > ratio) height = width / ratio;
+      else width = height * ratio;
+    }
+    handleResize(element.id, width, height);
+  }, [canEdit, handleResize, scale]);
+
+  const nudgeSelection = useCallback((dx: number, dy: number) => {
+    const moving = movementSelection(elements, selectedIds).filter(element => !element.locked);
+    if (!canEdit || !moving.length) return;
+    runElementBatch(() => moving.forEach(element => elementStoreRef.current.moveElement(element.id, element.x + dx, element.y + dy)));
+  }, [canEdit, elements, runElementBatch, selectedIds]);
 
   // Delete stamp by id
   const deleteStamp = useCallback((stampId: string) => {
-    setStamps((prev) => prev.filter((s) => s.id !== stampId));
-    markDirty();
+    const stamp = stamps.find(item => item.id === stampId);
+    if (!canEdit || !stamp) return;
+    if (isV2) void submit([{ kind: 'delete', collection: 'stamps', id: stampId, expected: { ...stamp } }]);
+    else {
+      setStamps((prev) => prev.filter((s) => s.id !== stampId));
+      markDirty();
+    }
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
       newSet.delete(stampId);
       return newSet;
     });
-  }, [markDirty]);
+  }, [canEdit, isV2, markDirty, stamps, submit]);
+
+  const moveStamp = useCallback((id: string, x: number, y: number) => {
+    if (!canEdit || !stamps.some(stamp => stamp.id === id)) return;
+    setStamps(previous => previous.map(stamp => stamp.id === id ? { ...stamp, x, y } : stamp));
+    if (isV2) queueGeometry({ kind: 'patch', collection: 'stamps', id, fields: { x, y } });
+    else markDirty();
+  }, [canEdit, isV2, markDirty, queueGeometry, stamps]);
 
   // Handle right-click context menu
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      if (!canEdit || (e.target as HTMLElement).closest('input, textarea, [contenteditable]')) return;
       e.preventDefault();
       const canvas = screenToCanvas(e.clientX, e.clientY);
       
@@ -1347,61 +1479,12 @@ export default function OpenJamCanvas({
         return;
       }
       
-      // Check if right-clicking on an element with improved hit detection
-      const clickedElement = [...elements].reverse().find((el) => {
-        // Special handling for connectors - use line distance
-        if (el.type === 'connector') {
-          const connector = el as { startPoint?: { x: number; y: number }; endPoint?: { x: number; y: number } };
-          const startX = el.x;
-          const startY = el.y;
-          const endX = connector.endPoint?.x ?? el.x + el.width;
-          const endY = connector.endPoint?.y ?? el.y;
-          
-          // Calculate distance from point to line segment
-          const lineLength = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-          if (lineLength === 0) {
-            return Math.sqrt(Math.pow(canvas.x - startX, 2) + Math.pow(canvas.y - startY, 2)) <= 15;
-          }
-          
-          const t = Math.max(0, Math.min(1, 
-            ((canvas.x - startX) * (endX - startX) + (canvas.y - startY) * (endY - startY)) / (lineLength * lineLength)
-          ));
-          const projX = startX + t * (endX - startX);
-          const projY = startY + t * (endY - startY);
-          const distance = Math.sqrt(Math.pow(canvas.x - projX, 2) + Math.pow(canvas.y - projY, 2));
-          
-          return distance <= 15; // 15px tolerance for connectors
-        }
-        
-        // Special handling for drawings - check proximity to path
-        if (el.type === 'drawing') {
-          const drawing = el as DrawingElement;
-          const isNearPath = drawing.points.some((point) => {
-            const absX = drawing.x + point.x;
-            const absY = drawing.y + point.y;
-            const distance = Math.sqrt(
-              Math.pow(canvas.x - absX, 2) + Math.pow(canvas.y - absY, 2)
-            );
-            return distance <= 15 + drawing.strokeWidth / 2;
-          });
-          return isNearPath;
-        }
-        
-        // Standard bounding box check for other elements
-        const bounds = {
-          left: el.x,
-          right: el.x + (el.width || 100),
-          top: el.y,
-          bottom: el.y + (el.height || 100),
-        };
-        return canvas.x >= bounds.left && canvas.x <= bounds.right && 
-               canvas.y >= bounds.top && canvas.y <= bounds.bottom;
-      });
-      
+      const clickedElement = hitElement(canvas.x, canvas.y);
+
       if (clickedElement) {
         // Select if not already selected
         if (!selectedIds.has(clickedElement.id)) {
-          setSelectedIds(new Set([clickedElement.id]));
+          setSelectedIds(new Set(selectionGroup(elements, clickedElement.id)));
         }
         
         const items = getElementContextMenuItems(
@@ -1414,7 +1497,7 @@ export default function OpenJamCanvas({
           lockSelected,
           groupSelected,
           ungroupSelected,
-          false,
+          Boolean(clickedElement.groupId),
           clickedElement.locked || false
         );
         setContextMenu({ x: e.clientX, y: e.clientY, items });
@@ -1426,19 +1509,20 @@ export default function OpenJamCanvas({
           handleZoomIn,
           handleZoomOut,
           handleZoomFit,
-          clipboard.length > 0,
-          () => elementStoreRef.current.undo(),
-          () => elementStoreRef.current.redo()
+          hasClipboard,
+          undo,
+          redo,
         );
         setContextMenu({ x: e.clientX, y: e.clientY, items });
       }
     },
-    [elements, stamps, selectedIds, screenToCanvas, duplicateSelected, deleteSelected, copySelected, bringToFront, sendToBack, lockSelected, groupSelected, ungroupSelected, pasteElements, selectAll, clipboard, handleZoomIn, handleZoomOut, handleZoomFit, deleteStamp]
+    [canEdit, elements, stamps, selectedIds, screenToCanvas, duplicateSelected, deleteSelected, copySelected, bringToFront, sendToBack, lockSelected, groupSelected, ungroupSelected, pasteElements, selectAll, hasClipboard, hitElement, handleZoomIn, handleZoomOut, handleZoomFit, deleteStamp, undo, redo]
   );
   
   // Handle zoom with wheel
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
+      stopFollowing();
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -1461,18 +1545,19 @@ export default function OpenJamCanvas({
         }));
       }
     },
-    [scale, offset]
+    [scale, offset, stopFollowing]
   );
   
   // Keyboard shortcuts
   useKeyboardShortcuts({
     editingId,
+    editable: canEdit,
     onDelete: deleteSelected,
     onDuplicate: duplicateSelected,
     onCopy: copySelected,
     onPaste: pasteElements,
-    onUndo: () => elementStoreRef.current.undo(),
-    onRedo: () => elementStoreRef.current.redo(),
+    onUndo: undo,
+    onRedo: redo,
     onSelectAll: selectAll,
     onZoomIn: handleZoomIn,
     onZoomOut: handleZoomOut,
@@ -1484,34 +1569,49 @@ export default function OpenJamCanvas({
     onHelp: () => setShowHelpPanel(true),
     onSetTool: (tool) => {
       setCurrentTool(tool as ToolType);
-      if (tool === 'stamp') {
-        setShowStampPicker(true);
-      }
     },
     onEscape: () => {
       setCurrentTool('select');
       setEditingId(null);
-      setShowStampPicker(false);
       setContextMenu(null);
     },
-    onSave: saveToDatabase,
+    onSave: save,
     onCut: cutSelected,
     onToggleLock: lockSelected,
+    onNudge: nudgeSelection,
     onGroup: groupSelected,
     onUngroup: ungroupSelected,
   });
   
-  // Sort elements by z-index
-  const sortedElements = useMemo(() => {
-    return [...elements].sort((a, b) => a.zIndex - b.zIndex);
-  }, [elements]);
+  const visibleCanvasBounds = useMemo(() => expandBounds({
+    left: -offset.x / scale, top: -offset.y / scale,
+    right: (viewport.width - offset.x) / scale, bottom: (viewport.height - offset.y) / scale,
+  }, 160 / scale), [offset, scale, viewport]);
+  const visibleElements = useMemo(() => renderElements.filter(element => {
+    const bounds = objectBounds.get(element.id);
+    return !viewport.width || element.id === editingId || (bounds && overlapsBounds(bounds, visibleCanvasBounds));
+  }), [editingId, objectBounds, renderElements, viewport.width, visibleCanvasBounds]);
+  const visibleStamps = useMemo(() => stamps.filter(stamp => !viewport.width || overlapsBounds(visibleCanvasBounds, {
+    left: stamp.x - 22, right: stamp.x + 22, top: stamp.y - 22, bottom: stamp.y + 22,
+  })), [stamps, viewport.width, visibleCanvasBounds]);
+  const resizable = canEdit && !isInkTool && !editingId && selectedElement && !selectedElement.locked
+    && !['widget', 'connector', 'drawing'].includes(selectedElement.type) ? selectedElement : undefined;
+  const resizeHandle = resizable ? (() => {
+    const angle = (resizable.rotation || 0) * Math.PI / 180;
+    return {
+      x: resizable.x + (resizable.width + resizable.width * Math.cos(angle) - resizable.height * Math.sin(angle)) / 2,
+      y: resizable.y + (resizable.height + resizable.width * Math.sin(angle) + resizable.height * Math.cos(angle)) / 2,
+    };
+  })() : undefined;
   
   // Get cursor based on tool
   const getCursor = () => {
+    if (reviewPickingPoint) return 'crosshair';
     switch (currentTool) {
       case 'pan':
         return isPanning ? 'grabbing' : 'grab';
       case 'draw':
+      case 'marker':
         return 'crosshair';
       case 'text':
         return 'text';
@@ -1534,11 +1634,11 @@ export default function OpenJamCanvas({
     { id: 'connector', label: 'Connector', category: 'Tools', shortcut: 'C', action: () => setCurrentTool('connector') },
     { id: 'draw', label: 'Pen tool', category: 'Tools', shortcut: 'P', action: () => setCurrentTool('draw') },
     { id: 'marker', label: 'Marker tool', category: 'Tools', shortcut: 'M', action: () => setCurrentTool('marker') },
-    { id: 'stamp', label: 'Stamp tool', category: 'Tools', shortcut: 'E', action: () => { setCurrentTool('stamp'); setShowStampPicker(true); } },
+    { id: 'stamp', label: 'Stamp tool', category: 'Tools', shortcut: 'E', action: () => setCurrentTool('stamp') },
     { id: 'eraser', label: 'Eraser tool', category: 'Tools', shortcut: 'X', action: () => setCurrentTool('eraser') },
     { id: 'frame', label: 'Frame tool', category: 'Tools', shortcut: 'F', action: () => setCurrentTool('frame') },
-    { id: 'undo', label: 'Undo', category: 'Edit', shortcut: 'Ctrl+Z', action: () => elementStoreRef.current.undo() },
-    { id: 'redo', label: 'Redo', category: 'Edit', shortcut: 'Ctrl+Shift+Z', action: () => elementStoreRef.current.redo() },
+    { id: 'undo', label: 'Undo', category: 'Edit', shortcut: 'Ctrl+Z', action: undo },
+    { id: 'redo', label: 'Redo', category: 'Edit', shortcut: 'Ctrl+Shift+Z', action: redo },
     { id: 'copy', label: 'Copy', category: 'Edit', shortcut: 'Ctrl+C', action: copySelected },
     { id: 'paste', label: 'Paste', category: 'Edit', shortcut: 'Ctrl+V', action: pasteElements },
     { id: 'duplicate', label: 'Duplicate', category: 'Edit', shortcut: 'Ctrl+D', action: duplicateSelected },
@@ -1551,16 +1651,22 @@ export default function OpenJamCanvas({
     { id: 'toggleGrid', label: 'Toggle grid', category: 'View', action: () => setShowGrid((g) => !g) },
     { id: 'share', label: 'Share...', category: 'File', action: () => setShowShareDialog(true) },
     { id: 'help', label: 'Help & shortcuts', category: 'Help', shortcut: '?', action: () => setShowHelpPanel(true) },
-  ], [copySelected, pasteElements, duplicateSelected, selectAll, deleteSelected, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit]);
+  ].filter(command => canEdit || ['select', 'pan', 'copy', 'selectAll', 'share', 'help'].includes(command.id) || command.category === 'View'),
+  [canEdit, undo, redo, copySelected, pasteElements, duplicateSelected, selectAll, deleteSelected, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--surface-canvas)' }}>
+    <div className="relative w-full h-full overflow-clip" style={{ background: 'var(--surface-canvas)' }}>
       {/* Menu Bar — self-positions absolute top-right, includes avatar stack */}
       <MenuBar
+        canUndo={isV2 ? boardSync.canUndo : elementStore.canUndo()}
+        canRedo={isV2 ? boardSync.canRedo : elementStore.canRedo()}
         boardName={boardName}
         onBoardNameChange={handleBoardNameChange}
-        onUndo={() => elementStoreRef.current.undo()}
-        onRedo={() => elementStoreRef.current.redo()}
+        canEdit={canEdit}
+        limitedAccess={limitedAccess}
+        pendingCount={isLegacy ? undefined : boardSync.pendingCount}
+        onUndo={undo}
+        onRedo={redo}
         onSelectAll={selectAll}
         onDelete={deleteSelected}
         onDuplicate={duplicateSelected}
@@ -1570,34 +1676,97 @@ export default function OpenJamCanvas({
         onZoomOut={handleZoomOut}
         onZoomReset={handleZoomReset}
         onZoomFit={handleZoomFit}
-        onSave={saveToDatabase}
-        saveStatus={saveStatus}
-        saveError={saveError}
-        onExportPNG={exportToPNG}
-        onExportJSON={exportToJSONFile}
+        onSave={save}
+        saveStatus={displayedSaveStatus}
+        saveError={isLegacy ? saveError : boardSync.error}
+        onExportPNG={isLegacy && canUseBoard ? exportToPNG : undefined}
+        onExportJSON={isLegacy && canUseBoard ? exportToJSONFile : undefined}
+        onOpenFiles={isV2 && canEdit ? () => {
+          flushGeometry();
+          setShowReview(false);
+          setShowVersions(false);
+          closeAssistant();
+          setReviewPickingPoint(false);
+          setShowFiles(open => !open);
+        } : undefined}
         onShare={() => setShowShareDialog(true)}
+        commentsOpen={showReview}
+        onOpenComments={isV2 && canUseBoard ? () => {
+          setShowVersions(false);
+          setShowFiles(false);
+          closeAssistant();
+          setReviewPickingPoint(false);
+          setShowReview(open => !open);
+        } : undefined}
+        onOpenVersions={canViewVersions && canUseBoard ? () => {
+          flushGeometry();
+          setShowReview(false);
+          setShowFiles(false);
+          closeAssistant();
+          setReviewPickingPoint(false);
+          setShowVersions(true);
+        } : undefined}
+        onOpenAgent={isV2 && canEdit ? () => {
+          flushGeometry();
+          setShowFiles(false);
+          setShowReview(false);
+          setShowVersions(false);
+          setReviewPickingPoint(false);
+          if (showAssistant) closeAssistant();
+          else setShowAgent(true);
+        } : undefined}
+        onOpenHelp={() => setShowHelpPanel(true)}
+        onOpenCommands={() => setShowCommandPalette(true)}
+        presentationControls={isV2 && canUseBoard ? <BoardPresentationControls
+          connected={boardSync.isConnected}
+          canPresent={canPresent}
+          presenting={presentation.presenting}
+          followingId={presentation.followingId}
+          presenters={Array.from(boardSync.presenters.keys(), id => ({
+            id,
+            displayName: boardSync.collaborators.find(user => user.id === id)?.displayName ?? 'Participant',
+          }))}
+          onTogglePresenting={presentation.togglePresenting}
+          onFollow={presentation.follow}
+          onStopFollowing={stopFollowing}
+        /> : undefined}
         onToggleGrid={() => setShowGrid((g) => !g)}
         showGrid={showGrid}
-        onVersionHistory={() => setShowVersionHistory(true)}
+        snapToGrid={snapToGrid}
+        onToggleSnap={() => setSnapToGrid(value => !value)}
         onFileInfo={() => setShowFileInfo(true)}
-        onDeleteBoard={() => setDeleteBoardDialogOpen(true)}
+        onDeleteBoard={isBoardOwner && canUseBoard ? () => setDeleteBoardDialogOpen(true) : undefined}
         // Page management
-        pages={pages}
+        pages={canUseBoard ? pages : undefined}
         currentPageId={currentPageId}
-        onSelectPage={handleSelectPage}
-        onAddPage={handleAddPage}
+        onSelectPage={selectBoardPage}
+        onAddPage={() => { stopFollowing(); handleAddPage(); }}
         onRenamePage={handleRenamePage}
         onDuplicatePage={handleDuplicatePage}
-        onDeletePage={handleDeletePage}
-        onDuplicateBoard={async () => {
+        onDeletePage={id => setPageToDelete(pages.find(page => page.id === id) ?? null)}
+        defaultPageId={isV2 ? defaultPageId : undefined}
+        onDefaultPage={isV2 ? handleDefaultPage : undefined}
+        onReorderPage={isV2 ? handleReorderPage : undefined}
+        onCopyPageLink={isV2 ? copyPageLink : undefined}
+        onMoveSelection={isV2 && selectedIds.size ? moveSelectionToPage : undefined}
+        sections={pageSections}
+        onSelectSection={id => focusBoardLocation({ pageId: currentPageId, elementId: id })}
+        onCopySectionLink={isV2 ? id => copyPageLink(currentPageId, id) : undefined}
+        onDuplicateBoard={canUseBoard ? async () => {
           setBoardActionBusy(true);
           try {
             const name = `${boardName} (Copy)`;
+            if (isV2) {
+              if (boardSync.status !== 'synced' || hasGeometryPreview) throw new Error('Wait for the current edits to sync before cloning the board.');
+              const result = await copyPrivateBoard(boardId, name);
+              window.location.href = `/board/${encodeURIComponent(result.boardId)}`;
+              return;
+            }
             const room = await createRoom(name);
             await saveBoard(room.id, {
               name,
               elements: elementStoreRef.current.getElements(),
-              stamps,
+              stamps: allStamps,
               pages,
               currentPageId,
             });
@@ -1610,10 +1779,10 @@ export default function OpenJamCanvas({
           } finally {
             setBoardActionBusy(false);
           }
-        }}
-        // User settings
+        } : undefined}
+        // User settings — real account email, not a fabricated one
         username={currentUsername}
-        userEmail={`${currentUsername.toLowerCase().replace(/\s+/g, '.')}@example.com`}
+        userEmail={email}
         userColor={currentUserColor}
         userId={userId}
         userAvatarUrl={currentUserAvatarUrl}
@@ -1622,11 +1791,16 @@ export default function OpenJamCanvas({
         onUpdateProfile={handleUpdateProfile}
         onLogout={async () => {
           try {
-            const { logout } = await import('../lib/api');
-            await logout();
-            window.location.href = '/';
-          } catch {
-            window.location.href = '/';
+            flushGeometry();
+            const writes = await Promise.all(localWrites.current);
+            if ((unsavedDraft || writes.includes(false))
+              && !window.confirm('An edit could not be saved on this device. Sign out and discard it? Cancel to review the draft.')) return;
+            if (await logout()) window.location.href = '/';
+          } catch (error) {
+            setNoticeDialog({
+              title: 'Could not sign out',
+              message: error instanceof Error ? error.message : 'Try signing out again.',
+            });
           }
         }}
         // Menu actions
@@ -1639,24 +1813,88 @@ export default function OpenJamCanvas({
         collaborators={collaborators.filter(c => c.id !== userId).map(c => ({ id: c.id, name: c.name, color: c.color, avatarUrl: undefined }))}
         connectionState={connectionState}
         isDark={isDark}
-        onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
+        theme={theme}
+        onToggleTheme={() => {
+          // Cycle light -> dark -> system so users can get back to
+          // "follow OS" without a separate settings screen.
+          const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+          setTheme(next);
+        }}
       />
 
-      {boardLoadError && (
-        <div className="pointer-events-auto absolute left-1/2 top-24 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg" role="alert">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>Could not load this board. Autosave is paused to protect existing content.</span>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="min-h-11 rounded-xl bg-red-600 px-3 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-            >
-              Retry
-            </button>
+      {isLegacy && boardLoadError && (() => {
+        const status = boardLoadError.status;
+        const isForbidden = status === 403;
+        const isNotFound = status === 404;
+        const title = isForbidden
+          ? "You don't have access to this board."
+          : isNotFound
+            ? 'This board no longer exists.'
+            : 'Could not load this board.';
+        const detail = isForbidden
+          ? 'Ask the board owner to share it with you, or switch to an account that has access.'
+          : isNotFound
+            ? 'It may have been deleted. Any local edits will not be saved.'
+            : 'Check your connection. Autosave is paused to protect existing content.';
+        return (
+          <div className="pointer-events-auto absolute left-1/2 top-24 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg" role="alert">
+            <p className="font-semibold">{title}</p>
+            <p className="mt-1 text-red-700">{detail}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {(isForbidden || isNotFound) ? (
+                <a
+                  href="/workplace"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-red-600 px-3 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                >
+                  Back to workplace
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setLegacyReload(value => value + 1)}
+                  className="min-h-11 rounded-xl bg-red-600 px-3 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
           </div>
+        );
+      })()}
+
+      {!isLegacy && (
+        <BoardSyncNotice
+          state={boardSync}
+          onRetry={retry}
+          onExportDraft={boardSync.exportDraft}
+          onDiscard={() => setConflictToDiscard(boardSync.conflict?.commandId ?? null)}
+        />
+      )}
+      {isV2 && boardSync.historyNotice && (
+        <p role="status" className="pointer-events-none absolute left-1/2 top-20 z-[51] w-max max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-xl border px-3 py-2 text-sm shadow-lg"
+          style={{ background: 'var(--surface-panel)', borderColor: 'var(--glass-border-strong)', color: 'var(--text-primary)' }}>
+          {boardSync.historyNotice}
+        </p>
+      )}
+      {isLegacy && !boardLoadError && saveStatus === 'offline' && (
+        <div className="pointer-events-auto absolute left-1/2 top-24 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-lg" role="status" aria-live="polite">
+          <p className="flex items-center gap-2 font-semibold">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" aria-hidden="true" />
+            You're offline
+          </p>
+          <p className="mt-1 text-amber-800">Keep this tab open until you reconnect and the board saves.</p>
         </div>
       )}
-      
+      {isLegacy && !boardLoadError && saveStatus === 'conflict' && (
+        <div className="pointer-events-auto absolute left-1/2 top-24 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900 shadow-lg" role="alert">
+          <p className="flex items-center gap-2 font-semibold">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" aria-hidden="true" />
+            Board reloaded after a save conflict
+          </p>
+          <p className="mt-1 text-orange-800">The editor loaded the latest saved version. Review it before continuing.</p>
+        </div>
+      )}
+
       {/* Command Palette */}
       <CommandPalette
         isOpen={showCommandPalette}
@@ -1665,11 +1903,12 @@ export default function OpenJamCanvas({
       />
       
       {/* Share Dialog */}
-      <ShareDialog
+      {isV2 && <BoardSharingDialog isOpen={showShareDialog} onClose={() => setShowShareDialog(false)} boardId={boardId} boardName={boardName} />}
+      {isLegacy && <ShareDialog
         isOpen={showShareDialog}
         onClose={() => setShowShareDialog(false)}
         boardName={boardName}
-        shareLink={`${window.location.origin}/board/${_boardId}`}
+        shareLink={`${window.location.origin}/board/${boardId}`}
         linkPermission={shareLinkPermission}
         members={shareMembers}
         isLoading={shareLoading}
@@ -1679,32 +1918,93 @@ export default function OpenJamCanvas({
         onInvite={handleInviteMember}
         onRemoveMember={handleRemoveMember}
         onCopyLink={() => {}}
-      />
+      />}
+
+      {isV2 && canUseBoard && <BoardReviewPanel
+        open={showReview}
+        boardId={boardId}
+        userId={userId}
+        canComment={canReview}
+        online={reviewOnline}
+        epoch={boardSync.epoch}
+        page={pages.find(page => page.id === currentPageId) ?? { id: currentPageId, name: 'Current page' }}
+        selectedObject={selectedElement ? { id: selectedElement.id, label: 'name' in selectedElement ? selectedElement.name
+          : 'text' in selectedElement && selectedElement.text ? selectedElement.text : selectedElement.type } : undefined}
+        pickedLocation={pickedReviewLocation}
+        pickingPoint={reviewPickingPoint}
+        initialThreadId={initialReviewThread}
+        onPickPoint={() => { setPickedReviewLocation(undefined); setReviewPickingPoint(true); }}
+        onFocusAnchor={focusReviewAnchor}
+        onClose={() => { setShowReview(false); setReviewPickingPoint(false); }}
+      />}
+      {showVersions && canViewVersions && <BoardVersionsPanel
+        boardId={boardId}
+        permission={boardSync.permission}
+        epoch={boardSync.epoch}
+        seq={boardSync.seq}
+        pendingCount={boardSync.pendingCount + (hasGeometryPreview ? 1 : 0)}
+        online={reviewOnline}
+        onClose={() => setShowVersions(false)}
+        onRestore={() => { cancelCanvasGesture(); return retry(); }}
+        onOpenBoard={id => { window.location.href = `/board/${encodeURIComponent(id)}`; }}
+      />}
+      {showFiles && isV2 && canEdit && <BoardFilesPanel
+        boardId={boardId}
+        theme={isDark ? 'dark' : 'light'}
+        pageId={currentPageId}
+        elementIds={elements.filter(element => selectedIds.has(element.id)).map(element => element.id)}
+        stampIds={stamps.filter(stamp => selectedIds.has(stamp.id)).map(stamp => stamp.id)}
+        canExport={boardSync.status === 'synced' && !hasGeometryPreview}
+        onClose={() => setShowFiles(false)}
+      />}
+      {showAssistant && isV2 && canUseBoard && (canEdit || Boolean(sharedRunId)) && <BoardAgentPanel
+        key={sharedRunId ?? 'private'}
+        boardId={boardId}
+        pageId={currentPageId}
+        sharedRunId={sharedRunId}
+        pages={pages}
+        selectedTextIds={elements.filter(element => selectedIds.has(element.id) && (element.type === 'sticky' || element.type === 'text')).map(element => element.id)}
+        pendingCount={boardSync.pendingCount + (hasGeometryPreview || boardSync.status !== 'synced' ? 1 : 0)}
+        online={reviewOnline}
+        clientId={boardSync.clientId}
+        agentIdentity={agentProfile?.name ? { name: agentProfile.name, kind: 'ring' } : undefined}
+        identityVisual={status => <AgentCharacter profile={agentProfile} pose={characterPose(status)} />}
+        onEditIdentity={() => {
+          if (agentProfile) setEditAgentProfile(true);
+          else void readAgentProfile().then(value => {
+            setAgentProfile(value);
+            setEditAgentProfile(true);
+          }).catch(() => setNoticeDialog({ title: characterText.title, message: characterText.loadError }));
+        }}
+        renderCanvasPreview={preview => <AgentCanvasPreview preview={preview} />}
+        onPreviewChange={setAgentPreview}
+        onUndo={async ack => {
+          flushGeometry();
+          return undoDocument(ack.commandId);
+        }}
+        onClose={closeAssistant}
+        onApplied={async (ack, pageId) => {
+          if (!await boardSync.adoptAdditions(ack)) await retry();
+          stopFollowing();
+          setSelectedIds(new Set());
+          setCurrentPageId(pageId);
+        }}
+      />}
+      {editAgentProfile && agentProfile && <AgentProfileDialog profile={agentProfile} onClose={() => setEditAgentProfile(false)}
+        onSave={value => { setAgentProfile(value); setEditAgentProfile(false); }} />}
       
       {/* Help Panel */}
       <HelpPanel
         isOpen={showHelpPanel}
         onClose={() => setShowHelpPanel(false)}
       />
-      
-      {/* Version History Panel */}
-      <VersionHistoryPanel
-        isOpen={showVersionHistory}
-        onClose={() => setShowVersionHistory(false)}
-        versions={versions}
-        onRestore={(versionId) => {
-          console.log('Restore version:', versionId);
-          setShowVersionHistory(false);
-        }}
-        onPreview={(versionId) => console.log('Preview version:', versionId)}
-        onNameVersion={(versionId, name) => console.log('Name version:', versionId, name)}
-      />
-      
       {/* Image Upload Dialog */}
       <ImageUploadDialog
-        isOpen={showImageUpload}
+        isOpen={canEdit && showImageUpload}
+        boardId={isV2 ? boardId : undefined}
         onClose={() => setShowImageUpload(false)}
         onUpload={(imageData) => {
+          if (!canEdit) return;
           // Calculate center of viewport for image placement
           const container = containerRef.current;
           const centerX = container ? (container.clientWidth / 2 - offset.x) / scale : 400;
@@ -1725,6 +2025,7 @@ export default function OpenJamCanvas({
           // Add image element at center of viewport
           const op = elementStoreRef.current.addElement('image', centerX - width / 2, centerY - height / 2, {
             src: imageData.url,
+            ...(imageData.assetId ? { assetId: imageData.assetId } : {}),
             originalWidth: imageData.width,
             originalHeight: imageData.height,
             width,
@@ -1745,7 +2046,7 @@ export default function OpenJamCanvas({
       />
 
       <ConfirmDialog
-        isOpen={deleteBoardDialogOpen}
+        isOpen={isBoardOwner && canUseBoard && deleteBoardDialogOpen}
         title="Delete Board"
         message={(
           <span>
@@ -1758,7 +2059,7 @@ export default function OpenJamCanvas({
         onConfirm={async () => {
           setBoardActionBusy(true);
           try {
-            await deleteRoomApi(_boardId);
+            await deleteRoomApi(boardId);
             window.location.href = '/workplace';
           } catch (err) {
             setNoticeDialog({
@@ -1779,9 +2080,43 @@ export default function OpenJamCanvas({
         message={noticeDialog?.message || ''}
         onClose={() => setNoticeDialog(null)}
       />
+      <ConfirmDialog
+        isOpen={pageToDelete !== null}
+        title="Delete page?"
+        message={isV2 ? 'This page and its objects will be removed together. Undo can restore them.' : 'This page will be removed.'}
+        confirmLabel="Delete page"
+        tone="danger"
+        onConfirm={() => {
+          if (pageToDelete) handleDeletePage(pageToDelete.id);
+          setPageToDelete(null);
+        }}
+        onClose={() => setPageToDelete(null)}
+      />
+      <ConfirmDialog
+        isOpen={conflictToDiscard !== null && conflictToDiscard === boardSync.conflict?.commandId}
+        title={unsavedDraft ? 'Discard unsaved draft?' : 'Discard blocked edit?'}
+        message={unsavedDraft
+          ? 'The unsaved draft will be removed. Edits already saved to this device stay queued.'
+          : 'The blocked edit will be removed from this device. Later edits stay queued and are checked against the latest board.'}
+        confirmLabel="Discard edit"
+        tone="danger"
+        isBusy={discardingConflict}
+        onClose={() => setConflictToDiscard(null)}
+        onConfirm={async () => {
+          if (!conflictToDiscard) return;
+          setDiscardingConflict(true);
+          try {
+            await boardSync.discardConflict(conflictToDiscard);
+            elementStore.resetHistory();
+            setConflictToDiscard(null);
+          } finally {
+            setDiscardingConflict(false);
+          }
+        }}
+      />
       
       {/* Context Menu */}
-      {contextMenu && (
+      {canEdit && contextMenu && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -1792,7 +2127,7 @@ export default function OpenJamCanvas({
       
       {/* Multi-select toolbar */}
       <MultiSelectToolbar
-        selectedCount={selectedIds.size}
+        selectedCount={canEdit && !isInkTool ? selectedIds.size : 0}
         onAlignLeft={alignLeft}
         onAlignCenter={alignCenter}
         onAlignRight={alignRight}
@@ -1811,7 +2146,7 @@ export default function OpenJamCanvas({
       />
 
       <FloatingObjectToolbar
-        element={selectedElement}
+        element={canEdit && !isInkTool ? selectedElement : null}
         scale={scale}
         offset={offset}
         onUpdate={handleUpdate}
@@ -1820,16 +2155,35 @@ export default function OpenJamCanvas({
       />
 
       <LiveCursorLayer cursors={liveCursors} scale={scale} offset={offset} />
+      {canUseBoard && !isInkTool && attributions?.page === currentPageId && (
+        <div className="board-agent-attribution-layer">
+          {visibleElements.map(element => {
+            const attribution = attributions.entries.get(element.id);
+            if (!attribution || attribution.actorId !== element.createdBy) return null;
+            const bounds = elementBounds(element);
+            const name = characterText.attribution(attribution.actorName, attribution.agentName || characterText.defaultName);
+            return <span key={element.id} data-agent-attribution={element.id} role="img" aria-label={name} title={name}
+              tabIndex={selectedIds.has(element.id) ? 0 : undefined} className="board-agent-attribution"
+              style={{ left: bounds.right * scale + offset.x, top: bounds.top * scale + offset.y }}>
+              <AgentCharacter profile={attribution.glyph ? { name: '', kind: 'glyph', glyph: attribution.glyph } : undefined} />
+            </span>;
+          })}
+        </div>
+      )}
 
       {/* Canvas */}
       <div
         ref={containerRef}
-        className="w-full h-full"
-        style={{ cursor: getCursor() }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        className={`h-full w-full ${isInkTool ? 'ink-input' : ''}`}
+        style={{ cursor: getCursor(), touchAction: 'none' }}
+        onPointerDownCapture={handlePointerDownCapture}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={event => { if (event.isPrimary) finishCanvasGesture(screenToCanvas(event.clientX, event.clientY)); }}
+        onPointerLeave={event => {
+          if (event.isPrimary && event.pointerType === 'mouse' && !event.currentTarget.hasPointerCapture(event.pointerId)) finishCanvasGesture();
+        }}
+        onPointerCancel={event => { if (event.isPrimary) cancelCanvasGesture(); }}
         onContextMenu={handleContextMenu}
         onWheel={handleWheel}
       >
@@ -1845,11 +2199,8 @@ export default function OpenJamCanvas({
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
-                backgroundImage: `
-                  repeating-linear-gradient(to right, #E5E7EB 0px, #E5E7EB 4px, transparent 4px, transparent 8px),
-                  repeating-linear-gradient(to bottom, #E5E7EB 0px, #E5E7EB 4px, transparent 4px, transparent 8px)
-                `,
-                backgroundSize: '20px 1px, 1px 20px',
+                backgroundImage: 'radial-gradient(circle, var(--canvas-grid-dot) 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
                 width: '10000px',
                 height: '10000px',
                 left: '-5000px',
@@ -1859,7 +2210,7 @@ export default function OpenJamCanvas({
           )}
           
           {/* Elements */}
-          {sortedElements.map((element) => {
+          {canUseBoard && visibleElements.map((element) => {
             // Render widget elements with their specific components
             if (element.type === 'widget') {
               const widgetEl = element as WidgetElement;
@@ -1867,10 +2218,16 @@ export default function OpenJamCanvas({
                 <WidgetRenderer
                   key={element.id}
                   element={widgetEl}
-                  isSelected={selectedIds.has(element.id)}
+                  isSelected={canEdit && !isInkTool && selectedIds.has(element.id)}
+                  editable={canEdit}
                   onSelect={handleSelect}
                   onUpdate={handleUpdate}
+                  onVote={isV2 && canEdit ? action => { void submit([{ kind: 'vote', collection: 'elements', id: widgetEl.id, value: action }]); } : undefined}
+                  votePending={boardSync.pendingVoteIds?.includes(widgetEl.id)}
                   onDelete={() => elementStoreRef.current.deleteElement(element.id)}
+                  userId={userId}
+                  userName={currentUsername}
+                  userColor={currentUserColor}
                 />
               );
             }
@@ -1878,9 +2235,10 @@ export default function OpenJamCanvas({
             return (
               <ElementRenderer
                 key={element.id}
+                boardId={boardId}
                 element={element}
-                isSelected={selectedIds.has(element.id)}
-                isEditing={editingId === element.id}
+                isSelected={canEdit && !isInkTool && selectedIds.has(element.id)}
+                isEditing={canEdit && editingId === element.id}
                 scale={scale}
                 onSelect={handleSelect}
                 onStartEdit={handleStartEdit}
@@ -1888,31 +2246,46 @@ export default function OpenJamCanvas({
                 onUpdate={handleUpdate}
                 onMove={handleMove}
                 onResize={handleResize}
-                isPinned={isPinned && element.createdBy === userId}
+                isPinned={isPinned && !isInkTool && element.type !== 'drawing' && element.createdBy === userId}
               />
             );
           })}
+          {showAssistant && ghostElements.length > 0 && (
+            <div className="board-agent-ghost"><AgentPreviewObjects elements={ghostElements} scale={scale} /></div>
+          )}
           
           {/* Stamps */}
-          {stamps.map((stamp) => (
+          {canUseBoard && visibleStamps.map((stamp) => (
             <StampElement
               key={stamp.id}
               stamp={stamp}
-              isSelected={selectedIds.has(stamp.id)}
+              isSelected={!isInkTool && selectedIds.has(stamp.id)}
+              scale={scale}
               onSelect={handleSelect}
-              onDelete={(id) => {
-                setStamps((prev) => prev.filter((s) => s.id !== id));
-                markDirty();
-              }}
-              onMove={(id, x, y) => {
-                setStamps((prev) => prev.map((s) => s.id === id ? { ...s, x, y } : s));
-                markDirty();
-              }}
+              onDelete={deleteStamp}
+              onMove={canEdit ? moveStamp : undefined}
             />
           ))}
           
+          {resizeHandle && <button
+            type="button"
+            aria-label="Resize selected object"
+            className="absolute grid place-items-center rounded-full border-2 border-white bg-blue-500 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+            style={{ left: resizeHandle.x, top: resizeHandle.y, width: 14 / scale, height: 14 / scale, transform: 'translate(-50%, -50%)', cursor: 'nwse-resize', zIndex: 1100 }}
+            onPointerDown={startResize}
+            onPointerMove={resizeSelection}
+            onPointerUp={() => { resizeGesture.current = null; if (isV2) flushGeometry(); }}
+          />}
+
+          {showReview && focusedReviewLocation?.pageId === currentPageId && !focusedReviewLocation.elementId
+            && focusedReviewLocation.x !== undefined && focusedReviewLocation.y !== undefined && (
+            <div className="pointer-events-none absolute rounded-full border-2 border-blue-300 bg-blue-600 shadow-md"
+              aria-label="Comment anchor" style={{ left: focusedReviewLocation.x, top: focusedReviewLocation.y,
+                width: 12 / scale, height: 12 / scale, transform: 'translate(-50%, -50%)', zIndex: 1101 }} />
+          )}
+
           {/* Drawing preview */}
-          {isDrawing && drawingPath.length > 1 && (
+          {isDrawing && drawingPath.length > 0 && (
             <DrawingPreview
               drawingPath={drawingPath}
               isMarker={currentTool === 'marker'}
@@ -1922,7 +2295,7 @@ export default function OpenJamCanvas({
           )}
           
           {/* Selection box */}
-          {selectionBox && (
+          {currentTool === 'select' && selectionBox && (
             <div
               className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
               style={{
@@ -1947,7 +2320,7 @@ export default function OpenJamCanvas({
       </div>
       
       {/* Bottom Toolbar */}
-      <BottomToolbar
+      {canEdit && <BottomToolbar
         currentTool={currentTool}
         onToolChange={setCurrentTool}
         toolOptions={toolOptions}
@@ -1957,10 +2330,9 @@ export default function OpenJamCanvas({
         selectedColor={selectedColor}
         onColorChange={setSelectedColor}
         onSelectStamp={setSelectedStampEmoji}
-      />
+      />}
       
-      {/* Zoom controls - bottom right */}
-      <div className="absolute bottom-6 right-4 z-40 flex items-center gap-2">
+      <div className="absolute bottom-22 right-3 z-40 flex items-center gap-2 min-[960px]:bottom-6">
         <ZoomControls
           scale={scale}
           onZoomIn={handleZoomIn}
@@ -1970,15 +2342,14 @@ export default function OpenJamCanvas({
           onHelp={() => setShowHelpPanel(true)}
         />
       </div>
-      
-      {/* Status bar */}
-      <div className="glass-subtle absolute bottom-6 left-4 z-40 flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        <span className="flex items-center gap-1.5 rounded-lg px-2" title={`${elements.length} elements`} aria-label={`${elements.length} elements`}>
+
+      <div className="glass-subtle absolute bottom-22 left-3 z-40 hidden min-h-11 items-center gap-2 rounded-full px-2 text-sm min-[420px]:flex min-[960px]:bottom-6" style={{ color: 'var(--text-secondary)' }}>
+        <span className="flex items-center gap-1.5 rounded-full px-2" title={`${elements.length} elements`} aria-label={`${elements.length} elements`}>
           <ElementsIcon />
           <span>{elements.length}</span>
         </span>
-        {selectedIds.size > 0 && (
-          <span className="badge flex items-center gap-1.5 rounded-lg px-2 py-1" title={`${selectedIds.size} selected`} aria-label={`${selectedIds.size} selected`}>
+        {!isInkTool && selectedIds.size > 0 && (
+          <span className="badge flex items-center gap-1.5 rounded-full px-2 py-1" title={`${selectedIds.size} selected`} aria-label={`${selectedIds.size} selected`}>
             <SelectionCountIcon />
             <span>{selectedIds.size}</span>
           </span>
@@ -1986,18 +2357,15 @@ export default function OpenJamCanvas({
       </div>
 
       {/* Table Creation Dialog */}
-      {showTableCreation && (
+      {canEdit && showTableCreation && (
         <TableCreationDialog
           onConfirm={(rows, cols) => {
             const centerX = (-offset.x + window.innerWidth / 2) / scale;
             const centerY = (-offset.y + window.innerHeight / 2) / scale;
-            const cells = Array(rows).fill(null).map(() =>
-              Array(cols).fill(null).map(() => ({ content: '', backgroundColor: '#ffffff' }))
-            );
             elementStoreRef.current.addElement('widget', centerX - 200, centerY - 150, {
               width: 400, height: 300,
               widgetType: 'table',
-              widgetData: { rows, cols, cells },
+              widgetData: createDefaultTable(rows, cols),
             } as Partial<Element>);
             setShowTableCreation(false);
             setCurrentTool('select');
@@ -2007,7 +2375,7 @@ export default function OpenJamCanvas({
       )}
 
       {/* Timer Creation Dialog */}
-      {showTimerCreation && (
+      {canEdit && showTimerCreation && (
         <TimerCreationDialog
           onConfirm={(minutes) => {
             const centerX = (-offset.x + window.innerWidth / 2) / scale;

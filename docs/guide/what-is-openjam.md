@@ -4,7 +4,7 @@ OpenJam is an open-source, self-hosted collaborative whiteboard application. It 
 
 ## Key Capabilities
 
-- **Multi-user real-time collaboration** via WebSocket with CRDT conflict resolution
+- **Multi-user real-time collaboration** via WebSocket with operation-log sync and vector-clock dedup
 - **Rich canvas** with sticky notes, shapes, text, connectors, freehand drawing, and images
 - **11 interactive widgets** including timers, polls, kanban boards, retro boards, and more
 - **Session-based authentication** with bcrypt password hashing
@@ -21,7 +21,7 @@ OpenJam is an open-source, self-hosted collaborative whiteboard application. It 
 | Database | PostgreSQL 16 |
 | Cache | Redis 7 (optional) |
 | Storage | MinIO / S3 (optional) |
-| Real-time | WebSocket with CRDT vector clocks |
+| Real-time | WebSocket with vector clocks (last-writer-wins) |
 
 ## Who is it for?
 

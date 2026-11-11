@@ -10,7 +10,7 @@ interface TextBoxProps {
   onSelect: (id: string, addToSelection: boolean) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: () => void;
-  onUpdate: (id: string, changes: Partial<TextElement>) => void;
+  onUpdate: (id: string, changes: Partial<TextElement>, expected?: Record<string, unknown>) => void;
 }
 
 export default function TextBox({
@@ -25,20 +25,20 @@ export default function TextBox({
   onUpdate,
 }: TextBoxProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const originalText = useRef<string | null>(null);
   const [localText, setLocalText] = useState(element.text);
 
-  // Focus input when editing starts
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (!isEditing) {
+      originalText.current = null;
+      setLocalText(element.text);
+    } else if (originalText.current === null) {
+      originalText.current = element.text;
+      setLocalText(element.text);
+      inputRef.current?.focus();
+      inputRef.current?.select();
     }
-  }, [isEditing]);
-
-  // Sync local text with element
-  useEffect(() => {
-    setLocalText(element.text);
-  }, [element.text]);
+  }, [isEditing, element.text]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,14 +63,22 @@ export default function TextBox({
   };
 
   const handleTextBlur = () => {
-    if (localText !== element.text) {
-      onUpdate(element.id, { text: localText });
+    const expected = originalText.current;
+    originalText.current = null;
+    if (expected !== null && localText !== expected) {
+      onUpdate(element.id, { text: localText }, { text: expected });
     }
     onEndEdit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      inputRef.current?.blur();
+    }
     if (e.key === 'Escape') {
+      originalText.current = null;
       setLocalText(element.text);
       onEndEdit();
     }
@@ -121,7 +129,7 @@ export default function TextBox({
             fontSize: element.fontSize,
             fontWeight: element.fontWeight,
             fontStyle: element.fontStyle,
-            color: element.color,
+            color: element.color || 'var(--text-primary)',
             textAlign: element.textAlign,
             backgroundColor: element.backgroundColor || 'transparent',
           }}
@@ -135,7 +143,7 @@ export default function TextBox({
             fontSize: element.fontSize,
             fontWeight: element.fontWeight,
             fontStyle: element.fontStyle,
-            color: element.color,
+            color: element.color || 'var(--text-primary)',
             textAlign: element.textAlign,
             backgroundColor: element.backgroundColor || 'transparent',
             padding: '4px',

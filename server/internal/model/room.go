@@ -29,6 +29,7 @@ var ErrInvalidRoomPermission = errors.New("invalid room permission")
 var ErrInvalidSharePermission = errors.New("invalid share permission")
 var ErrRoomMemberIsOwner = errors.New("room owner already has access")
 var ErrRoomMemberNotFound = errors.New("room member not found")
+var ErrBoardConflict = errors.New("board was modified by someone else")
 
 type RoomPermission string
 
@@ -50,6 +51,7 @@ const (
 type RoomAccess struct {
 	IsOwner    bool
 	Permission RoomPermission
+	Source     string
 }
 
 type RoomMember struct {
@@ -169,10 +171,11 @@ func GetRoomsByOwner(ctx context.Context, ownerID uuid.UUID) ([]*Room, error) {
 func GetRoomsAccessibleByUser(ctx context.Context, userID uuid.UUID) ([]*Room, error) {
 	rows, err := db.Pool().Query(ctx, `
 		SELECT r.id, r.name, r.owner_id, r.created_at, r.updated_at,
-			CASE WHEN r.owner_id = $1 THEN 'owner' ELSE rm.permission END AS permission
+			CASE WHEN r.owner_id = $1 THEN 'owner' ELSE COALESCE(rm.permission, g.permission) END AS permission
 		FROM rooms r
 		LEFT JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $1
-		WHERE r.owner_id = $1 OR rm.user_id = $1
+		LEFT JOIN board_live_link_grants g ON g.room_id = r.id AND g.user_id = $1
+		WHERE r.owner_id = $1 OR rm.user_id = $1 OR g.user_id = $1
 		ORDER BY r.updated_at DESC
 	`, userID)
 	if err != nil {
@@ -193,17 +196,29 @@ func GetRoomsAccessibleByUser(ctx context.Context, userID uuid.UUID) ([]*Room, e
 }
 
 func GetRoomAccess(ctx context.Context, roomID string, userID uuid.UUID) (*RoomAccess, error) {
+	return QueryRoomAccess(ctx, db.Pool(), roomID, userID)
+}
+
+type roomAccessQuery interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+// QueryRoomAccess uses the supplied transaction when access must be checked
+// against the same database view as a document read or write.
+func QueryRoomAccess(ctx context.Context, query roomAccessQuery, roomID string, userID uuid.UUID) (*RoomAccess, error) {
 	var ownerID uuid.UUID
 	var memberPermission sql.NullString
 	var linkPermission sql.NullString
+	var legacyPermission sql.NullString
 
-	err := db.Pool().QueryRow(ctx, `
-		SELECT r.owner_id, rm.permission, rss.link_permission
+	err := query.QueryRow(ctx, `
+		SELECT r.owner_id, rm.permission, g.permission, rss.link_permission
 		FROM rooms r
 		LEFT JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $2
-		LEFT JOIN room_share_settings rss ON rss.room_id = r.id
+		LEFT JOIN board_live_link_grants g ON g.room_id = r.id AND g.user_id = $2
+		LEFT JOIN room_share_settings rss ON rss.room_id = r.id AND rss.legacy_access_expires_at > statement_timestamp()
 		WHERE r.id = $1
-	`, roomID, userID).Scan(&ownerID, &memberPermission, &linkPermission)
+	`, roomID, userID).Scan(&ownerID, &memberPermission, &linkPermission, &legacyPermission)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRoomNotFound
@@ -212,21 +227,27 @@ func GetRoomAccess(ctx context.Context, roomID string, userID uuid.UUID) (*RoomA
 	}
 
 	if ownerID == userID {
-		return &RoomAccess{IsOwner: true, Permission: RoomPermissionEdit}, nil
+		return &RoomAccess{IsOwner: true, Permission: RoomPermissionEdit, Source: "owner"}, nil
 	}
 
 	if memberPermission.Valid {
 		permission, ok := NormalizeRoomPermission(memberPermission.String)
 		if ok {
-			return &RoomAccess{Permission: permission}, nil
+			return &RoomAccess{Permission: permission, Source: "member"}, nil
 		}
 	}
 
 	if linkPermission.Valid {
-		sharePermission, ok := NormalizeSharePermission(linkPermission.String)
+		if permission, ok := NormalizeRoomPermission(linkPermission.String); ok {
+			return &RoomAccess{Permission: permission, Source: "link"}, nil
+		}
+	}
+
+	if legacyPermission.Valid {
+		sharePermission, ok := NormalizeSharePermission(legacyPermission.String)
 		if ok {
 			if permission, allowed := SharePermissionToRoomPermission(sharePermission); allowed {
-				return &RoomAccess{Permission: permission}, nil
+				return &RoomAccess{Permission: permission, Source: "legacy-link"}, nil
 			}
 		}
 	}
@@ -366,28 +387,44 @@ type BoardData struct {
 	Stamps        interface{} `json:"stamps,omitempty"`
 	Pages         interface{} `json:"pages,omitempty"`
 	CurrentPageId string      `json:"currentPageId,omitempty"`
+	UpdatedAt     time.Time   `json:"updatedAt,omitempty"`
 }
 
 func SaveBoardData(ctx context.Context, roomID string, data *BoardData) error {
+	_, err := SaveBoardDataWithVersion(ctx, roomID, data, time.Time{})
+	return err
+}
+
+// SaveBoardDataWithVersion saves the board with optional optimistic locking.
+// When expectedUpdatedAt is non-zero, the UPDATE only succeeds if the row's
+// updated_at still matches; a zero RowsAffected on a match condition means
+// the row changed underneath us and returns ErrBoardConflict. Returns the new
+// updated_at so callers can chain subsequent saves.
+func SaveBoardDataWithVersion(ctx context.Context, roomID string, data *BoardData, expectedUpdatedAt time.Time) (time.Time, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
 
-	result, err := db.Pool().Exec(ctx, `
+	var expected *time.Time
+	if !expectedUpdatedAt.IsZero() {
+		expected = &expectedUpdatedAt
+	}
+
+	var newUpdatedAt time.Time
+	err = db.Pool().QueryRow(ctx, `
 		UPDATE rooms
 		SET board_data = $1::jsonb, name = $2, updated_at = NOW()
-		WHERE id = $3
-	`, jsonData, data.Name, roomID)
-	if err != nil {
-		return err
+		WHERE id = $3 AND ($4::timestamptz IS NULL OR updated_at = $4)
+		RETURNING updated_at
+	`, jsonData, data.Name, roomID, expected).Scan(&newUpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		if expected == nil {
+			return time.Time{}, ErrRoomNotFound
+		}
+		return time.Time{}, ErrBoardConflict
 	}
-
-	if result.RowsAffected() == 0 {
-		return ErrRoomNotFound
-	}
-
-	return nil
+	return newUpdatedAt, err
 }
 
 func SaveBoardDataForOwner(ctx context.Context, roomID string, ownerID uuid.UUID, data *BoardData) error {
@@ -413,18 +450,26 @@ func SaveBoardDataForOwner(ctx context.Context, roomID string, ownerID uuid.UUID
 }
 
 func SaveBoardDataForEditor(ctx context.Context, roomID string, userID uuid.UUID, data *BoardData) error {
+	_, err := SaveBoardDataForEditorWithVersion(ctx, roomID, userID, data, time.Time{})
+	return err
+}
+
+func SaveBoardDataForEditorWithVersion(ctx context.Context, roomID string, userID uuid.UUID, data *BoardData, expectedUpdatedAt time.Time) (time.Time, error) {
 	if err := UserCanEditRoom(ctx, roomID, userID); err != nil {
-		return err
+		return time.Time{}, err
 	}
 
-	return SaveBoardData(ctx, roomID, data)
+	return SaveBoardDataWithVersion(ctx, roomID, data, expectedUpdatedAt)
 }
 
 func LoadBoardData(ctx context.Context, roomID string) (*BoardData, error) {
 	var jsonData []byte
+	var name string
+	var updatedAt time.Time
+	data := &BoardData{}
 	err := db.Pool().QueryRow(ctx, `
-		SELECT COALESCE(board_data, '{}')::jsonb FROM rooms WHERE id = $1
-	`, roomID).Scan(&jsonData)
+		SELECT COALESCE(board_data, '{}')::jsonb, name, updated_at FROM rooms WHERE id = $1
+	`, roomID).Scan(&jsonData, &name, &updatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRoomNotFound
@@ -432,11 +477,13 @@ func LoadBoardData(ctx context.Context, roomID string) (*BoardData, error) {
 		return nil, err
 	}
 
-	var data BoardData
-	if err := json.Unmarshal(jsonData, &data); err != nil {
+	if err := json.Unmarshal(jsonData, data); err != nil {
 		return nil, err
 	}
-	return &data, nil
+	// Directory renames and server revisions are stored in the room row.
+	data.Name = name
+	data.UpdatedAt = updatedAt
+	return data, nil
 }
 
 func LoadBoardDataForUser(ctx context.Context, roomID string, userID uuid.UUID) (*BoardData, error) {
@@ -458,30 +505,26 @@ func LoadBoardDataForOwner(ctx context.Context, roomID string, ownerID uuid.UUID
 }
 
 func GetRoomShareSettings(ctx context.Context, roomID string, userID uuid.UUID) (*RoomShareSettings, error) {
-	if err := UserCanAccessRoom(ctx, roomID, userID); err != nil {
-		return nil, err
-	}
-
-	linkPermission := SharePermissionRestricted
-	err := db.Pool().QueryRow(ctx, `
-		SELECT COALESCE(
-			(SELECT link_permission FROM room_share_settings WHERE room_id = $1),
-			'restricted'
-		)
-	`, roomID).Scan(&linkPermission)
+	settings := &RoomShareSettings{Members: make([]*RoomMember, 0)}
+	err := pgx.BeginTxFunc(ctx, db.Pool(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
+		access, err := QueryRoomAccess(ctx, tx, roomID, userID)
+		if err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `SELECT COALESCE((SELECT link_permission FROM room_share_settings
+			WHERE room_id = $1 AND legacy_access_expires_at > statement_timestamp()), 'restricted')`, roomID).
+			Scan(&settings.LinkPermission); err != nil {
+			return err
+		}
+		if access.IsOwner {
+			settings.Members, err = queryBoardMembers(ctx, tx, roomID)
+		}
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	members, err := ListRoomMembers(ctx, roomID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RoomShareSettings{
-		LinkPermission: linkPermission,
-		Members:        members,
-	}, nil
+	return settings, nil
 }
 
 func UpdateRoomShareSettings(ctx context.Context, roomID string, ownerID uuid.UUID, linkPermission SharePermission) (*RoomShareSettings, error) {
@@ -489,22 +532,27 @@ func UpdateRoomShareSettings(ctx context.Context, roomID string, ownerID uuid.UU
 		return nil, ErrInvalidSharePermission
 	}
 
-	room, err := GetRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if room.OwnerID != ownerID {
-		return nil, ErrNotRoomOwner
-	}
-
-	_, err = db.Pool().Exec(ctx, `
-		INSERT INTO room_share_settings (room_id, link_permission, updated_by, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (room_id) DO UPDATE
-		SET link_permission = EXCLUDED.link_permission,
-			updated_by = EXCLUDED.updated_by,
-			updated_at = NOW()
-	`, roomID, linkPermission, ownerID)
+	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		if err := requireBoardOwner(ctx, tx, roomID, ownerID); err != nil {
+			return err
+		}
+		if linkPermission != SharePermissionRestricted {
+			var active bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM board_heads WHERE board_id = $1 AND mode = 'active')`, roomID).Scan(&active); err != nil {
+				return err
+			}
+			if active {
+				return ErrLegacyShareClosed
+			}
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO room_share_settings (room_id, link_permission, updated_by, updated_at, legacy_access_expires_at)
+			VALUES ($1, $2::varchar, $3, statement_timestamp(), CASE WHEN $2::varchar = 'restricted' THEN NULL
+			ELSE statement_timestamp() + INTERVAL '30 days' END)
+			ON CONFLICT (room_id) DO UPDATE SET link_permission = EXCLUDED.link_permission,
+			updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at,
+			legacy_access_expires_at = EXCLUDED.legacy_access_expires_at`, roomID, linkPermission, ownerID)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -512,12 +560,8 @@ func UpdateRoomShareSettings(ctx context.Context, roomID string, ownerID uuid.UU
 	return GetRoomShareSettings(ctx, roomID, ownerID)
 }
 
-func ListRoomMembers(ctx context.Context, roomID string, userID uuid.UUID) ([]*RoomMember, error) {
-	if err := UserCanAccessRoom(ctx, roomID, userID); err != nil {
-		return nil, err
-	}
-
-	rows, err := db.Pool().Query(ctx, `
+func queryBoardMembers(ctx context.Context, tx pgx.Tx, roomID string) ([]*RoomMember, error) {
+	rows, err := tx.Query(ctx, `
 		SELECT u.id, u.email, u.display_name, u.avatar_color, rm.permission, rm.created_at, rm.updated_at
 		FROM room_members rm
 		JOIN users u ON u.id = rm.user_id
@@ -555,39 +599,39 @@ func InviteRoomMemberByEmail(ctx context.Context, roomID string, ownerID uuid.UU
 		return nil, ErrInvalidRoomPermission
 	}
 
-	room, err := GetRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if room.OwnerID != ownerID {
-		return nil, ErrNotRoomOwner
-	}
-
-	user, err := GetUserByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
-	if err != nil {
-		return nil, err
-	}
-	if user.ID == ownerID {
-		return nil, ErrRoomMemberIsOwner
-	}
-
-	_, err = db.Pool().Exec(ctx, `
-		INSERT INTO room_members (room_id, user_id, permission, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (room_id, user_id) DO UPDATE
-		SET permission = EXCLUDED.permission,
-			updated_at = NOW()
-	`, roomID, user.ID, normalizedPermission)
-	if err != nil {
-		return nil, err
-	}
-
-	return GetRoomMember(ctx, roomID, user.ID)
+	var member *RoomMember
+	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		if err := requireBoardOwner(ctx, tx, roomID, ownerID); err != nil {
+			return err
+		}
+		var userID uuid.UUID
+		err := tx.QueryRow(ctx, `SELECT id FROM users WHERE email = $1`, strings.ToLower(strings.TrimSpace(email))).Scan(&userID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if userID == ownerID {
+			return ErrRoomMemberIsOwner
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO room_members (room_id, user_id, permission, updated_at)
+			VALUES ($1, $2, $3, statement_timestamp()) ON CONFLICT (room_id, user_id) DO UPDATE
+			SET permission = EXCLUDED.permission, updated_at = EXCLUDED.updated_at`, roomID, userID, normalizedPermission); err != nil {
+			return err
+		}
+		if err := revokePendingMemberInvites(ctx, tx, roomID, userID); err != nil {
+			return err
+		}
+		member, err = queryBoardMember(ctx, tx, roomID, userID)
+		return err
+	})
+	return member, err
 }
 
-func GetRoomMember(ctx context.Context, roomID string, userID uuid.UUID) (*RoomMember, error) {
+func queryBoardMember(ctx context.Context, query roomAccessQuery, roomID string, userID uuid.UUID) (*RoomMember, error) {
 	member := &RoomMember{}
-	err := db.Pool().QueryRow(ctx, `
+	err := query.QueryRow(ctx, `
 		SELECT u.id, u.email, u.display_name, u.avatar_color, rm.permission, rm.created_at, rm.updated_at
 		FROM room_members rm
 		JOIN users u ON u.id = rm.user_id
@@ -611,26 +655,20 @@ func GetRoomMember(ctx context.Context, roomID string, userID uuid.UUID) (*RoomM
 }
 
 func RemoveRoomMember(ctx context.Context, roomID string, ownerID, memberID uuid.UUID) error {
-	room, err := GetRoom(ctx, roomID)
-	if err != nil {
-		return err
-	}
-	if room.OwnerID != ownerID {
-		return ErrNotRoomOwner
-	}
-	if memberID == ownerID {
-		return ErrRoomMemberIsOwner
-	}
-
-	result, err := db.Pool().Exec(ctx, `
-		DELETE FROM room_members
-		WHERE room_id = $1 AND user_id = $2
-	`, roomID, memberID)
-	if err != nil {
-		return err
-	}
-	if result.RowsAffected() == 0 {
-		return ErrRoomMemberNotFound
-	}
-	return nil
+	return pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		if err := requireBoardOwner(ctx, tx, roomID, ownerID); err != nil {
+			return err
+		}
+		if memberID == ownerID {
+			return ErrRoomMemberIsOwner
+		}
+		result, err := tx.Exec(ctx, `DELETE FROM room_members WHERE room_id = $1 AND user_id = $2`, roomID, memberID)
+		if err != nil {
+			return err
+		}
+		if result.RowsAffected() == 0 {
+			return ErrRoomMemberNotFound
+		}
+		return revokePendingMemberInvites(ctx, tx, roomID, memberID)
+	})
 }

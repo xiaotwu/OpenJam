@@ -205,16 +205,9 @@ func GetSession(ctx context.Context, token string) (*Session, error) {
 		_ = db.InvalidateSession(ctx, token)
 	}
 
-	session := &Session{}
-	err := db.Pool().QueryRow(ctx, `
-		SELECT token, user_id, expires_at, created_at
-		FROM sessions WHERE token = $1 AND expires_at > NOW()
-	`, token).Scan(&session.Token, &session.UserID, &session.ExpiresAt, &session.CreatedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
+	session, err := GetStoredSession(ctx, token)
+	if err != nil || session == nil {
+		return session, err
 	}
 
 	cacheDuration := time.Until(session.ExpiresAt)
@@ -223,6 +216,22 @@ func GetSession(ctx context.Context, token string) (*Session, error) {
 	}
 	_ = db.CacheSession(ctx, token, session, cacheDuration)
 
+	return session, nil
+}
+
+// GetStoredSession checks the authoritative session row for durable requests.
+func GetStoredSession(ctx context.Context, token string) (*Session, error) {
+	session := &Session{}
+	err := db.Pool().QueryRow(ctx, `
+		SELECT token, user_id, expires_at, created_at
+		FROM sessions WHERE token = $1 AND expires_at > NOW()
+	`, token).Scan(&session.Token, &session.UserID, &session.ExpiresAt, &session.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
 	return session, nil
 }
 

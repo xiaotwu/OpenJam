@@ -1,0 +1,99 @@
+name: Application
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'agent/**'
+      - 'server/**'
+      - 'contracts/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - 'docker-compose.dev.yml'
+      - 'Makefile'
+      - '.github/workflows/application.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'agent/**'
+      - 'server/**'
+      - 'contracts/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - 'docker-compose.dev.yml'
+      - 'Makefile'
+      - '.github/workflows/application.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENJAM_CI_PROJECT: openjam-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      OPENJAM_IMAGE: openjam-ci:${{ github.run_id }}-${{ github.run_attempt }}
+      OPENJAM_PUBLISH_PORT: "18080"
+      POSTGRES_PASSWORD: openjam-ci-fixture
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Run application tests
+        run: |
+          docker buildx build --output type=cacheonly --target frontend-test .
+          docker buildx build --output type=cacheonly --target backend-test .
+          python3 -B -m unittest discover -s agent -v
+
+      - name: Build and start the application
+        run: |
+          docker buildx build --load --tag "$OPENJAM_IMAGE" .
+          docker compose --env-file /dev/null -p "$OPENJAM_CI_PROJECT" --profile storage config --quiet
+          docker compose --env-file /dev/null -p "$OPENJAM_CI_PROJECT" -f docker-compose.dev.yml config --quiet
+          docker compose --env-file /dev/null -p "$OPENJAM_CI_PROJECT" up --no-build --wait --wait-timeout 120
+
+      - name: Check workspace API and embedded frontend
+        run: |
+          base_url="http://127.0.0.1:$OPENJAM_PUBLISH_PORT"
+          for probe in livez startupz readyz; do
+            curl --fail --silent --show-error "$base_url/$probe" --output /dev/null
+          done
+
+          ci_scratch="$(mktemp -d)"
+          trap 'rm -rf "$ci_scratch"' EXIT
+          curl --fail --silent --show-error --cookie-jar "$ci_scratch/cookies" \
+            -H "Origin: $base_url" -H 'Content-Type: application/json' \
+            -d '{"email":"release-check@example.test","password":"fixture-only","displayName":"Release check"}' \
+            "$base_url/api/auth/register" --output /dev/null
+
+          project_id="$(curl --fail --silent --show-error --cookie "$ci_scratch/cookies" \
+            "$base_url/api/v2/directory" | python3 -c 'import json, sys; print(json.load(sys.stdin)["projects"][0]["id"])')"
+          board_id="$(curl --fail --silent --show-error --cookie "$ci_scratch/cookies" \
+            -H "Origin: $base_url" -H 'Content-Type: application/json' \
+            -d '{"name":"Release check board"}' "$base_url/api/v2/projects/$project_id/boards" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])')"
+
+          home="$(curl --fail --silent --show-error "$base_url/")"
+          deep_link="$(curl --fail --silent --show-error "$base_url/board/$board_id")"
+          test "$home" = "$deep_link"
+          asset_path="$(printf '%s\n' "$home" | sed -n 's/.*src="\(\/assets\/[^"]*\.js\)".*/\1/p' | head -n 1)"
+          test -n "$asset_path"
+          curl --fail --silent --show-error "$base_url$asset_path" --output /dev/null
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose --env-file /dev/null -p "$OPENJAM_CI_PROJECT" logs --no-color
+
+      - name: Remove CI containers and volumes
+        if: always()
+        run: docker compose --env-file /dev/null -p "$OPENJAM_CI_PROJECT" down --volumes --remove-orphans

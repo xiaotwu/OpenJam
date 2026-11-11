@@ -21,9 +21,10 @@
 ## Features
 
 - 🎨 **Real-time Collaboration** - Work together on the same canvas with your team
+- 📁 **Board Workbench** - Browse and organize boards in projects, favorite frequently used boards, and archive finished work
 - 🖼️ **Rich Drawing Tools** - Shapes, freehand drawing, text, and more
-- 💾 **Auto-save** - Never lose your work
-- 🔒 **Secure** - Session-based authentication
+- 💾 **Auto-save** - Save board changes as you work
+- 🔒 **Access Control** - Session-based authentication and per-board sharing
 - 📤 **Export** - Save your boards as images
 - 🐳 **Docker Ready** - One-command deployment
 
@@ -37,20 +38,20 @@ cd openjam
 docker compose up --build -d
 ```
 
-Open `http://localhost:8080` in your browser.
+Open `http://localhost:8080` in your browser. Sign in to create a board in your personal Drafts or set up a new organization and project. Existing boards appear in Drafts, and named invitations continue to appear under Shared with me.
 
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose (for containerized deployment)
 - [Go](https://golang.org/dl/) 1.22+ (for backend development)
-- [Bun](https://bun.sh/) or [Node.js](https://nodejs.org/) 20+ (for frontend development)
+- [Bun](https://bun.sh/) (for the frontend lockfile and scripts) and [Node.js](https://nodejs.org/) (for the Vite toolchain)
 
 ## Development
 
 ### 1. Start Services
 
 ```bash
-# Start PostgreSQL, Redis, and MinIO
+# Start PostgreSQL and Redis
 docker compose -f docker-compose.dev.yml up -d
 ```
 
@@ -67,7 +68,7 @@ go run .
 
 ```bash
 cd app
-bun install
+bun install --frozen-lockfile
 bun run dev
 ```
 
@@ -75,16 +76,17 @@ bun run dev
 |---------|-----|
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8080 |
-| MinIO Console | http://localhost:9001 |
 
 ## Deployment
 
 ### Docker (Recommended)
 
 ```bash
-# Build and start all services
+# Build the image and run the database migration before starting the app
 docker compose up --build -d
 ```
+
+See the [Docker guide](docs/guide/docker.md) for a reverse proxy or an optional existing MinIO deployment.
 
 ### Single Binary (Recommended for production)
 
@@ -95,7 +97,9 @@ make build
 This builds the frontend, embeds it into the Go binary via `go:embed`, and produces a single `./openjam-server` file (~17MB). Deploy it anywhere — no Node.js runtime needed.
 
 ```bash
-DATABASE_URL=postgres://... ./openjam-server
+export DATABASE_URL=postgres://...
+./openjam-server migrate
+OPENJAM_AUTO_MIGRATE=false ./openjam-server api
 ```
 
 ### Manual Build
@@ -103,18 +107,12 @@ DATABASE_URL=postgres://... ./openjam-server
 <details>
 <summary>Click to expand</summary>
 
-**Frontend:**
 ```bash
-cd app
-bun install
-bun run build
+make frontend
+make backend
 ```
 
-**Backend:**
-```bash
-rm -rf server/static && cp -r app/dist server/static
-cd server && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../openjam-server .
-```
+The backend build embeds the generated assets using a temporary build directory.
 
 </details>
 
@@ -123,16 +121,21 @@ cd server && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../openjam-server .
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `8080` |
+| `OPENJAM_BIND_HOST` | Interface to bind the API to | All interfaces |
+| `OPENJAM_AUTO_MIGRATE` | Apply migrations at API startup. Compose runs an explicit migration first | `true` |
+| `OPENJAM_TRUSTED_PROXIES` | Comma-separated addresses or CIDRs allowed to forward client IPs | _(empty)_ |
 | `ENVIRONMENT` | `development` / `production` | `development` |
 | `DATABASE_URL` | PostgreSQL connection string | - |
 | `REDIS_URL` | Redis connection string | - |
 | `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` |
-| `SESSION_SECRET` | Session encryption key | ⚠️ **Change in production** |
+| `SESSION_SECRET` | *(ignored — sessions are DB-stored tokens)* | - |
 | `MINIO_ENDPOINT` | MinIO/S3 endpoint | - |
 | `MINIO_ACCESS_KEY` | MinIO access key | - |
 | `MINIO_SECRET_KEY` | MinIO secret key | - |
 
 See [`.env.example`](server/.env.example) for all available options.
+
+The [directory API contract](contracts/directory.openapi.yaml) describes the authenticated organization, project, favorite and archive endpoints.
 
 ## Project Structure
 

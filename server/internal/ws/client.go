@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/project-wb/server/internal/document"
 	"github.com/project-wb/server/internal/model"
 )
 
@@ -19,13 +20,18 @@ const (
 )
 
 type Client struct {
-	hub        *Hub
-	conn       *websocket.Conn
-	send       chan []byte
-	user       *model.User
-	roomID     string
-	permission model.RoomPermission
-	clock      map[string]int64
+	hub              *Hub
+	conn             *websocket.Conn
+	send             chan []byte
+	user             *model.User
+	roomID           string
+	permission       model.RoomPermission
+	clock            map[string]int64
+	documentToken    string
+	documentEpoch    int64
+	documentLease    string
+	lastCursorAccess time.Time
+	lastViewport     time.Time
 }
 
 type MessageType string
@@ -101,11 +107,17 @@ func (c *Client) ReadPump() {
 		c.conn.Close()
 	}()
 
+	wait := pongWait
+	if c.documentToken != "" {
+		wait = documentPongWait
+	}
 	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetReadDeadline(time.Now().Add(wait))
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		if c.documentToken != "" && c.roomID != "" && time.Since(c.lastCursorAccess) > time.Second {
+			c.checkDocumentSubscription()
+		}
+		return c.conn.SetReadDeadline(time.Now().Add(wait))
 	})
 
 	for {
@@ -122,7 +134,11 @@ func (c *Client) ReadPump() {
 }
 
 func (c *Client) WritePump() {
-	ticker := time.NewTicker(pingPeriod)
+	period := pingPeriod
+	if c.documentToken != "" {
+		period = documentPingPeriod
+	}
+	ticker := time.NewTicker(period)
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
@@ -156,6 +172,10 @@ func (c *Client) handleMessage(data []byte) {
 		c.sendError("Invalid message format")
 		return
 	}
+	if c.documentToken != "" {
+		c.handleDocumentMessage(msg)
+		return
+	}
 
 	switch msg.Type {
 	case MsgTypeJoin:
@@ -185,14 +205,21 @@ func (c *Client) handleJoin(payload json.RawMessage) {
 
 	ctx := context.Background()
 
-	_, err := model.EnsureRoomAccessible(ctx, join.RoomID, "Whiteboard", c.user.ID)
+	// A WS join must not create rooms. Rooms are created explicitly via the
+	// REST API (or via the first board save). Auto-creating here would let any
+	// authenticated user claim an arbitrary room UUID just by joining it.
+	access, err := model.GetRoomAccess(ctx, join.RoomID, c.user.ID)
 	if err != nil {
 		c.sendError("Failed to join room")
 		return
 	}
-	access, err := model.GetRoomAccess(ctx, join.RoomID, c.user.ID)
+	active, err := document.IsActive(ctx, join.RoomID)
 	if err != nil {
-		c.sendError("Failed to join room")
+		c.sendError("Failed to check board protocol")
+		return
+	}
+	if active {
+		c.sendUpgradeRequired()
 		return
 	}
 	c.permission = access.Permission
@@ -205,21 +232,25 @@ func (c *Client) handleJoin(payload json.RawMessage) {
 		operations = []*model.Operation{}
 	}
 
-	clients := c.hub.GetRoomClients(join.RoomID)
+	c.sendMessage(MsgTypeSync, SyncPayload{
+		Operations: operations,
+		Users:      c.roomUsers(join.RoomID),
+	})
+	c.announceJoined(join.RoomID)
+}
+
+func (c *Client) roomUsers(roomID string) []UserInfo {
+	clients := c.hub.GetRoomClients(roomID)
 	users := make([]UserInfo, 0, len(clients))
 	for _, client := range clients {
 		users = append(users, UserInfo{
-			ID:          client.user.ID.String(),
-			DisplayName: client.user.DisplayName,
-			AvatarColor: client.user.AvatarColor,
+			ID: client.user.ID.String(), DisplayName: client.user.DisplayName, AvatarColor: client.user.AvatarColor,
 		})
 	}
+	return users
+}
 
-	c.sendMessage(MsgTypeSync, SyncPayload{
-		Operations: operations,
-		Users:      users,
-	})
-
+func (c *Client) announceJoined(roomID string) {
 	presenceMsg := OutgoingMessage{
 		Type: MsgTypePresence,
 		Payload: PresencePayload{
@@ -233,11 +264,15 @@ func (c *Client) handleJoin(payload json.RawMessage) {
 		},
 	}
 	presenceBytes, _ := json.Marshal(presenceMsg)
-	c.hub.Broadcast(join.RoomID, presenceBytes, c)
+	c.hub.Broadcast(roomID, presenceBytes, c)
 }
 
 func (c *Client) handleLeave() {
 	if c.roomID == "" {
+		return
+	}
+	if c.documentToken != "" {
+		c.hub.LeaveRoom(c)
 		return
 	}
 
@@ -259,16 +294,30 @@ func (c *Client) handleOperation(payload json.RawMessage) {
 		c.sendError("Not in a room")
 		return
 	}
-	if !model.RoomPermissionAllowsEdit(c.permission) {
-		c.sendError("You do not have permission to edit this board")
-		return
-	}
 
 	var opPayload OperationPayload
 	if err := json.Unmarshal(payload, &opPayload); err != nil {
 		c.sendError("Invalid operation payload")
 		return
 	}
+
+	// Re-check edit permission against the database on every op rather than
+	// trusting the snapshot captured at join time. A member whose access is
+	// revoked (or downgraded edit -> view) mid-session must not be able to keep
+	// writing over an already-open socket. GetRoomAccess is a single indexed
+	// PK/FK lookup; op frequency is low enough that this stays cheap.
+	ctx := context.Background()
+	access, err := model.GetRoomAccess(ctx, c.roomID, c.user.ID)
+	if err != nil || !model.RoomPermissionAllowsEdit(access.Permission) {
+		// Keep the cached permission in sync so a re-granted user can edit again
+		// without reconnecting, and a revoked user stops here.
+		if err == nil {
+			c.permission = access.Permission
+		}
+		c.sendError("You do not have permission to edit this board")
+		return
+	}
+	c.permission = access.Permission
 
 	if opPayload.OpID == "" {
 		opPayload.OpID = uuid.New().String()
@@ -286,9 +335,14 @@ func (c *Client) handleOperation(payload json.RawMessage) {
 		VectorClock: opPayload.VectorClock,
 	}
 
-	ctx := context.Background()
 	if err := model.SaveOperation(ctx, op); err != nil {
-		log.Printf("Failed to save operation: %v", err)
+		if document.LegacyWriteFenced(err) {
+			c.sendUpgradeRequired()
+		} else {
+			log.Printf("Failed to save operation: %v", err)
+			c.sendError("Failed to save operation")
+		}
+		return
 	}
 
 	opMsg := OutgoingMessage{
@@ -342,9 +396,21 @@ func (c *Client) sendMessage(msgType MessageType, payload interface{}) {
 	select {
 	case c.send <- data:
 	default:
+		if c.documentToken != "" {
+			// Reconnect and recover from the durable feed if a response cannot
+			// fit into the bounded WebSocket send queue.
+			_ = c.conn.Close()
+		}
 	}
 }
 
 func (c *Client) sendError(message string) {
 	c.sendMessage(MsgTypeError, map[string]string{"message": message})
+}
+
+func (c *Client) sendUpgradeRequired() {
+	c.sendMessage(MsgTypeError, map[string]string{
+		"code":    "PROTOCOL_UPGRADE_REQUIRED",
+		"message": "This board uses persistent sync. Reload OpenJam to edit it.",
+	})
 }

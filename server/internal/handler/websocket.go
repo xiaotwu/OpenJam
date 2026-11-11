@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -24,7 +25,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
-		if origin == "" {
+		if origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host {
 			return true
 		}
 		for _, allowed := range allowedOrigins {
@@ -36,10 +37,24 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// TODO: Add per-IP rate limiting to WebSocket connections to prevent abuse.
-
 func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
-	token := c.Query("token")
+	handleWebSocket(hub, c, false)
+}
+
+func HandleDocumentWebSocket(hub *ws.Hub, c *gin.Context) {
+	handleWebSocket(hub, c, true)
+}
+
+func handleWebSocket(hub *ws.Hub, c *gin.Context, durable bool) {
+	// Browsers use the session cookie. Legacy connections may use the old URL
+	// parameter, while V2 allows an Authorization header for non-browser clients.
+	token := ""
+	if cookie, err := c.Cookie("wb_session"); err == nil && cookie != "" {
+		token = cookie
+	}
+	if token == "" && !durable {
+		token = c.Query("token")
+	}
 	if token == "" {
 		auth := c.GetHeader("Authorization")
 		if strings.HasPrefix(auth, "Bearer ") {
@@ -52,7 +67,11 @@ func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
 		return
 	}
 
-	session, err := model.GetSession(c.Request.Context(), token)
+	getSession := model.GetSession
+	if durable {
+		getSession = model.GetStoredSession
+	}
+	session, err := getSession(c.Request.Context(), token)
 	if err != nil || session == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
 		return
@@ -64,14 +83,36 @@ func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
 		return
 	}
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	socketUpgrader := upgrader
+	if durable {
+		socketUpgrader.CheckOrigin = func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host {
+				return true
+			}
+			for _, allowed := range allowedOrigins {
+				if allowed == origin {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	conn, err := socketUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
 
 	client := ws.NewClient(hub, conn, user)
-	hub.Register(client)
+	if durable {
+		client.UseDocumentProtocol(token)
+	}
+	if !hub.Register(client) {
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseServiceRestart, "OpenJam is restarting"), time.Now().Add(time.Second))
+		_ = conn.Close()
+		return
+	}
 
 	go client.WritePump()
 	go client.ReadPump()

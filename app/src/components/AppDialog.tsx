@@ -43,9 +43,8 @@ function DialogFrame({ isOpen, title, children, footer, onClose, tone = 'default
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl"
+        className="board-chrome-popover relative w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl"
         style={{
-          background: 'var(--surface-panel)',
           borderColor: tone === 'danger' ? 'rgba(239,68,68,0.38)' : 'var(--glass-border-strong)',
           color: 'var(--text-primary)',
         }}

@@ -26,6 +26,34 @@ type AuthResponse struct {
 	User  *model.User `json:"user"`
 }
 
+const sessionCookieMaxAge = 86400 * 7
+
+// secureCookies is toggled by SetCookieSecurity based on ENVIRONMENT. In
+// production the session cookie is marked Secure + SameSite=Lax; in local
+// development (plain HTTP) we keep Secure off so the cookie still works.
+var secureCookies = false
+
+// SetCookieSecurity is called from main with the configured environment.
+func SetCookieSecurity(environment string) {
+	secureCookies = environment == "production"
+}
+
+// setSessionCookie writes the wb_session cookie with HttpOnly and SameSite=Lax
+// always, plus Secure when serving over HTTPS in production. SameSite=Lax
+// blocks the cookie on cross-site POST (CSRF) while allowing top-level
+// navigation so shared links still open the app logged-in.
+func setSessionCookie(c *gin.Context, token string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "wb_session",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   secureCookies || c.Request.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 func Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -52,7 +80,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("wb_session", session.Token, 86400*7, "/", "", false, true)
+	setSessionCookie(c, session.Token, sessionCookieMaxAge)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		Token: session.Token,
@@ -85,7 +113,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("wb_session", session.Token, 86400*7, "/", "", false, true)
+	setSessionCookie(c, session.Token, sessionCookieMaxAge)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		Token: session.Token,
@@ -103,10 +131,13 @@ func Logout(c *gin.Context) {
 	}
 
 	if token != "" {
-		_ = model.DeleteSession(c.Request.Context(), token)
+		if err := model.DeleteSession(c.Request.Context(), token); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not end the session. Try again."})
+			return
+		}
 	}
 
-	c.SetCookie("wb_session", "", -1, "/", "", false, true)
+	setSessionCookie(c, "", -1)
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

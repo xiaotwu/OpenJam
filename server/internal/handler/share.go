@@ -157,6 +157,8 @@ func writeRoomShareError(c *gin.Context, err error, fallback string) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Room member not found"})
 	case errors.Is(err, model.ErrRoomMemberIsOwner):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "The board owner already has full access"})
+	case errors.Is(err, model.ErrLegacyShareClosed):
+		c.JSON(http.StatusConflict, gin.H{"code": "LEGACY_SHARE_CLOSED", "error": err.Error()})
 	case errors.Is(err, model.ErrInvalidRoomPermission), errors.Is(err, model.ErrInvalidSharePermission):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid sharing permission"})
 	default:

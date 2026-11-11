@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n';
+
 export interface PresenceCollaborator {
   id: string;
   name: string;
@@ -10,9 +12,11 @@ interface CollaborationPresenceProps {
   collaborators: PresenceCollaborator[];
   currentUserId?: string;
   currentUserName?: string;
+  compact?: boolean;
 }
 
-export default function CollaborationPresence({ collaborators, currentUserId, currentUserName }: CollaborationPresenceProps) {
+export default function CollaborationPresence({ collaborators, currentUserId, currentUserName, compact }: CollaborationPresenceProps) {
+  const { messages: { board: text } } = useI18n();
   const visibleCollaborators = collaborators.filter((collaborator) => (
     currentUserId ? collaborator.id !== currentUserId : collaborator.name !== currentUserName
   ));
@@ -22,11 +26,11 @@ export default function CollaborationPresence({ collaborators, currentUserId, cu
   }
 
   return (
-    <div className="hidden items-center -space-x-2 px-2 sm:flex" aria-label={`${visibleCollaborators.length} collaborators online`}>
-      {visibleCollaborators.slice(0, 4).map((collaborator) => (
+    <div className={`flex items-center -space-x-1.5 ${compact ? 'px-3 py-2' : 'pl-1.5 pr-0.5'}`} aria-label={text.collaboratorsOnline(visibleCollaborators.length)}>
+      {visibleCollaborators.slice(0, 2).map((collaborator) => (
         <div
           key={collaborator.id}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold text-white shadow-sm"
+          className="relative flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-semibold text-white"
           style={{ backgroundColor: collaborator.color, borderColor: 'var(--glass-bg-elevated)' }}
           title={collaborator.name}
         >
@@ -35,17 +39,14 @@ export default function CollaborationPresence({ collaborators, currentUserId, cu
           ) : (
             collaborator.name.charAt(0).toUpperCase()
           )}
-          {collaborator.isOnline !== false && (
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500" style={{ border: '1.5px solid var(--glass-bg-elevated)' }} />
-          )}
         </div>
       ))}
-      {visibleCollaborators.length > 4 && (
+      {visibleCollaborators.length > 2 && (
         <div
-          className="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold"
+          className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-semibold"
           style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-bg-elevated)', color: 'var(--text-secondary)' }}
         >
-          +{visibleCollaborators.length - 4}
+          +{visibleCollaborators.length - 2}
         </div>
       )}
     </div>

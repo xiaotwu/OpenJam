@@ -1,30 +1,7 @@
 // Widget default data creators
 // Separated from components for fast refresh compatibility
 
-interface TableCell {
-  id: string;
-  content: string;
-  backgroundColor?: string;
-}
-
-interface PollOption {
-  id: string;
-  text: string;
-  votes: number;
-  voters: string[];
-}
-
-interface KanbanCard {
-  id: string;
-  title: string;
-  color?: string;
-}
-
-interface KanbanColumn {
-  id: string;
-  title: string;
-  cards: KanbanCard[];
-}
+import { createTable, newWidgetPartId, type DotVote, type KanbanColumn, type PollOption } from '../../lib/workshopWidgets';
 
 interface RetroNote {
   id: string;
@@ -51,43 +28,21 @@ interface MoodEntry {
   y: number;
 }
 
-interface Vote {
-  id: string;
-  userId: string;
-  userColor: string;
-  targetId: string;
-  x: number;
-  y: number;
-}
-
 interface Reaction {
   emoji: string;
   count: number;
   users: string[];
 }
 
-export function createDefaultTable(rows = 3, cols = 3): { rows: number; cols: number; cells: TableCell[][] } {
-  const cells = Array(rows).fill(null).map((_, ri) =>
-    Array(cols).fill(null).map((_, ci) => ({
-      id: `cell-${ri}-${ci}`,
-      content: ri === 0 ? `Column ${ci + 1}` : '',
-      backgroundColor: ri === 0 ? '#F3F4F6' : undefined,
-    }))
-  );
-  return { rows, cols, cells };
-}
+export const createDefaultTable = createTable;
 
 export function createDefaultPoll(): { question: string; options: PollOption[]; showResults: boolean } {
   return { question: '', options: [], showResults: false };
 }
 
-export function createDefaultKanban(): { columns: KanbanColumn[] } {
+export function createDefaultKanban(titles = ['To Do', 'In Progress', 'Done']): { columns: KanbanColumn[] } {
   return {
-    columns: [
-      { id: 'col-1', title: 'To Do', cards: [] },
-      { id: 'col-2', title: 'In Progress', cards: [] },
-      { id: 'col-3', title: 'Done', cards: [] },
-    ],
+    columns: titles.map(title => ({ id: newWidgetPartId('column'), title, cards: [] })),
   };
 }
 
@@ -125,7 +80,7 @@ export function createDefaultQuestionCard(category = 'icebreaker'): { category: 
   return { category, currentIndex: 0, customQuestions: [] };
 }
 
-export function createDefaultDotVoting(): { maxVotesPerUser: number; votes: Vote[] } {
+export function createDefaultDotVoting(): { maxVotesPerUser: number; votes: DotVote[] } {
   return { maxVotesPerUser: 3, votes: [] };
 }
 

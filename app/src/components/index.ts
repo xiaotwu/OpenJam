@@ -14,10 +14,8 @@ export { default as ShareDialog } from './ShareDialog';
 export { default as HelpPanel } from './HelpPanel';
 export { default as ImageUploadDialog } from './ImageUploadDialog';
 export { default as FileInfoDialog } from './FileInfoDialog';
-export { default as VersionHistoryPanel } from './VersionHistoryPanel';
 
 // Panels
-export { default as DocumentMenu } from './DocumentMenu';
 export { default as PagesPanel } from './PagesPanel';
 export { default as WidgetsPanel } from './WidgetsPanel';
 export { default as CollaboratorPanel } from './CollaboratorPanel';

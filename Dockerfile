@@ -1,46 +1,45 @@
-# Stage 1: Build Frontend
-FROM node:20-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM oven/bun:1.3.3-alpine@sha256:d2bc1fbc3afcd3d70afc2bb2544235bf559caae2a3084e9abed126e233797511 AS bun
 
-WORKDIR /app
-
-# Install bun for faster builds
-RUN npm install -g bun
-
-# Copy package files first for better layer caching
-COPY app/package.json app/bun.lock* app/package-lock.json* ./
-RUN bun install --frozen-lockfile || bun install
-
+FROM --platform=$BUILDPLATFORM node:24.22.2-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS frontend
+WORKDIR /src/app
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+COPY app/package.json app/bun.lock ./
+RUN bun install --frozen-lockfile
 COPY app/ ./
 
+FROM frontend AS frontend-test
+RUN bun run test
+
+FROM frontend AS frontend-build
 RUN bun run build
 
-# Stage 2: Build Backend
-FROM golang:1.22-alpine AS backend-builder
-
-WORKDIR /app
-
-RUN apk add --no-cache git
-
+FROM --platform=$BUILDPLATFORM golang:1.25.14-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 AS backend
+ENV GOTOOLCHAIN=local
+WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
 RUN go mod download
-
 COPY server/ ./
+COPY --from=frontend-build /src/app/dist/ ./static/
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server .
+FROM backend AS backend-test
+RUN CGO_ENABLED=0 go test -mod=readonly ./...
 
-# Stage 3: Production Runtime
-FROM alpine:3.19
+FROM backend AS backend-build
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
+    -mod=readonly -trimpath -buildvcs=false -ldflags="-s -w" -o /openjam-server .
 
+FROM alpine:3.23.8@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
 WORKDIR /app
-
-RUN apk add --no-cache ca-certificates curl
-
-COPY --from=backend-builder /app/server .
-COPY --from=frontend-builder /app/dist ./static
-
+RUN apk add --no-cache font-noto-cjk=0_git20220127-r1
+COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=backend-build /openjam-server /usr/local/bin/openjam
+USER 10001:10001
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
+    CMD wget -qO /dev/null "http://127.0.0.1:${PORT:-8080}/readyz" || exit 1
 
-CMD ["./server"]
+ENTRYPOINT ["/usr/local/bin/openjam"]
+CMD ["api"]

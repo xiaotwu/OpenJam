@@ -3,7 +3,7 @@ layout: home
 hero:
   name: OpenJam
   text: Collaborative Whiteboard
-  tagline: Real-time, self-hosted whiteboard for teams with rich drawing tools, interactive widgets, and CRDT-based collaboration.
+  tagline: Real-time, self-hosted whiteboard for teams with rich drawing tools, interactive widgets, and operation-log based collaboration.
   actions:
     - theme: brand
       text: Get Started
@@ -14,7 +14,7 @@ hero:
 
 features:
   - title: Real-Time Collaboration
-    details: Work together on the same canvas with live cursors, presence indicators, and CRDT-based conflict resolution.
+    details: Work together on the same canvas with live cursors, presence indicators, and operation-log based conflict resolution.
   - title: Rich Canvas Tools
     details: Shapes, sticky notes, freehand drawing, text, connectors, images, frames, and 11 interactive widgets.
   - title: Self-Hosted

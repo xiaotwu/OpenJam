@@ -1,87 +1,91 @@
-// Stopwatch Widget - Track elapsed time with lap support
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { newWidgetPartId, type WidgetData } from '../../lib/workshopWidgets';
+
+type Lap = { id: string; elapsedMs: number };
+type StopwatchData = { startedAt: number | null; elapsedMs: number; laps: Lap[] };
 
 interface StopwatchWidgetProps {
-  id: string;
   x: number;
   y: number;
+  data: WidgetData;
+  editable: boolean;
+  onUpdate: (data: StopwatchData) => void;
   onDelete: () => void;
   isSelected: boolean;
   onSelect: () => void;
 }
 
-export default function StopwatchWidget({ x, y, onDelete, isSelected, onSelect }: StopwatchWidgetProps) {
-  const [milliseconds, setMilliseconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [laps, setLaps] = useState<number[]>([]);
+function elapsedValue(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function readStopwatch(data: WidgetData): StopwatchData {
+  return {
+    startedAt: elapsedValue(data.startedAt) && data.startedAt > 0 ? data.startedAt : null,
+    elapsedMs: elapsedValue(data.elapsedMs) ? data.elapsedMs : 0,
+    laps: Array.isArray(data.laps) ? data.laps.flatMap((value: unknown, index): Lap[] => {
+      if (elapsedValue(value)) return [{ id: `legacy-lap-${index}`, elapsedMs: value }];
+      if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string'
+        && 'elapsedMs' in value && elapsedValue(value.elapsedMs)) return [{ id: value.id, elapsedMs: value.elapsedMs }];
+      return [];
+    }) : [],
+  };
+}
+
+function elapsed(stopwatch: StopwatchData, now: number) {
+  return stopwatch.elapsedMs + (stopwatch.startedAt === null ? 0 : Math.max(0, now - stopwatch.startedAt));
+}
+
+function formatTime(ms: number) {
+  return `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}.${String(Math.floor(ms / 10) % 100).padStart(2, '0')}`;
+}
+
+const control = 'rounded-lg bg-gray-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-gray-600 disabled:opacity-45';
+
+export default function StopwatchWidget({ x, y, data, editable, onUpdate, onDelete, isSelected, onSelect }: StopwatchWidgetProps) {
+  const [now, setNow] = useState(Date.now);
+  const stopwatch = readStopwatch(data);
+  const running = stopwatch.startedAt !== null;
 
   useEffect(() => {
-    let interval: number | undefined;
-    if (isRunning) {
-      interval = window.setInterval(() => setMilliseconds((prev) => prev + 10), 10);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning]);
-
-  const formatTime = useCallback((ms: number) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    const centiseconds = Math.floor((ms % 1000) / 10);
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
-  }, []);
-
-  const handleStart = () => setIsRunning(true);
-  const handlePause = () => setIsRunning(false);
-  const handleReset = () => { setIsRunning(false); setMilliseconds(0); setLaps([]); };
-  const handleLap = () => setLaps((prev) => [...prev, milliseconds]);
+    if (!running) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 50);
+    return () => window.clearInterval(timer);
+  }, [running]);
 
   return (
     <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="stopwatch">
-      <div className={`bg-gray-900 rounded-2xl p-4 shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-700'} min-w-[200px]`}>
-        {/* Time display */}
-        <div className="text-center mb-4">
-          <span className="text-4xl font-mono font-bold text-white">{formatTime(milliseconds)}</span>
+      <div className={`min-w-[200px] rounded-2xl border-2 canvas-widget-surface widget-dark p-4 shadow-xl ${isSelected ? 'border-blue-500' : 'border-gray-700'}`}>
+        <div className="mb-3 text-center">
+          <span role="timer" aria-label="Elapsed time" className="font-mono text-3xl font-bold tabular-nums text-white">{formatTime(elapsed(stopwatch, now))}</span>
         </div>
-
-        {/* Controls */}
-        <div className="flex justify-center gap-2 mb-3">
-          {isRunning ? (
-            <button onClick={handlePause} className="p-2 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-white">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
-            </button>
-          ) : (
-            <button onClick={handleStart} className="p-2 bg-green-500 hover:bg-green-600 rounded-lg text-white">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-          )}
-          <button onClick={handleLap} disabled={!isRunning} className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 rounded-lg text-white">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-            </svg>
-          </button>
-          <button onClick={handleReset} className="p-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-white">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Laps */}
-        {laps.length > 0 && (
-          <div className="max-h-24 overflow-y-auto">
-            {laps.map((lap, i) => (
-              <div key={i} className="flex justify-between text-xs text-gray-400 py-0.5">
-                <span>Lap {i + 1}</span>
-                <span className="font-mono">{formatTime(lap)}</span>
-              </div>
-            ))}
+        {editable && (
+          <div className="mb-3 flex justify-center gap-1.5">
+            <button type="button" className={control} onClick={() => {
+              const currentTime = Date.now();
+              setNow(currentTime);
+              onUpdate(running ? { ...stopwatch, elapsedMs: elapsed(stopwatch, currentTime), startedAt: null }
+                : { ...stopwatch, startedAt: currentTime });
+            }}>{running ? 'Pause' : 'Start'}</button>
+            <button type="button" className={control} disabled={!running || stopwatch.laps.length >= 100}
+              onClick={() => onUpdate({ ...stopwatch, laps: [...stopwatch.laps, { id: newWidgetPartId('lap'), elapsedMs: elapsed(stopwatch, Date.now()) }] })}>Lap</button>
+            <button type="button" className={control} onClick={() => onUpdate({ startedAt: null, elapsedMs: 0, laps: [] })}>Reset</button>
           </div>
         )}
+        {stopwatch.laps.length > 0 && (
+          <ol className="max-h-24 overflow-y-auto" aria-label="Laps">
+            {stopwatch.laps.map((lap, index) => (
+              <li key={lap.id} className="flex justify-between py-0.5 text-xs text-gray-300">
+                <span>Lap {index + 1}</span>
+                <span className="font-mono">{formatTime(lap.elapsedMs)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
-
-      {isSelected && (
-        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs">✕</button>
-      )}
+      {editable && isSelected && <button type="button" aria-label="Delete stopwatch" onClick={event => { event.stopPropagation(); onDelete(); }}
+        className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-600 text-xs text-white hover:bg-red-700">✕</button>}
     </div>
   );
 }

@@ -1,0 +1,269 @@
+openapi: 3.1.0
+info:
+  title: OpenJam directory API
+  version: 0.1.0
+servers:
+  - url: /api/v2
+security:
+  - sessionCookie: []
+  - bearerSession: []
+paths:
+  /directory:
+    get:
+      operationId: getDirectory
+      summary: List the caller's organizations, projects, and visible boards
+      responses:
+        "200":
+          description: Directory for the authenticated caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Directory"
+        default:
+          $ref: "#/components/responses/Error"
+  /organizations:
+    post:
+      operationId: createOrganization
+      summary: Create an organization with its default workspace and project
+      requestBody:
+        $ref: "#/components/requestBodies/Name"
+      responses:
+        "201":
+          description: Created organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        default:
+          $ref: "#/components/responses/Error"
+  /organizations/{orgId}/workspaces:
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: createWorkspace
+      requestBody:
+        $ref: "#/components/requestBodies/Name"
+      responses:
+        "201":
+          description: Created workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        default:
+          $ref: "#/components/responses/Error"
+  /workspaces/{workspaceId}/projects:
+    parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: createProject
+      requestBody:
+        $ref: "#/components/requestBodies/Name"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        default:
+          $ref: "#/components/responses/Error"
+  /projects/{projectId}/boards:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: createProjectBoard
+      requestBody:
+        $ref: "#/components/requestBodies/Name"
+      responses:
+        "201":
+          description: Created board, including its project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+        default:
+          $ref: "#/components/responses/Error"
+  /boards/{id}/favorite:
+    parameters:
+      - $ref: "#/components/parameters/BoardId"
+    put:
+      operationId: setBoardFavorite
+      summary: Set the caller's favorite flag for a visible board
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Favorite"
+      responses:
+        "200":
+          description: Updated favorite flag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Favorite"
+        default:
+          $ref: "#/components/responses/Error"
+  /boards/{id}/archive:
+    parameters:
+      - $ref: "#/components/parameters/BoardId"
+    put:
+      operationId: setBoardArchive
+      summary: Archive or restore a board in the directory as its owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [archived]
+              properties:
+                archived: {type: boolean}
+      responses:
+        "200":
+          description: Archive timestamp or null after restore
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [archivedAt]
+                properties:
+                  archivedAt:
+                    $ref: "#/components/schemas/ArchiveTimestamp"
+        default:
+          $ref: "#/components/responses/Error"
+  /boards/{id}/location:
+    parameters:
+      - $ref: "#/components/parameters/BoardId"
+    put:
+      operationId: moveBoard
+      summary: Move a board to an owned project in the same organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Location"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "409":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    sessionCookie: {type: apiKey, in: cookie, name: wb_session}
+    bearerSession: {type: http, scheme: bearer}
+  parameters:
+    BoardId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 36}
+  requestBodies:
+    Name:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name: {type: string, minLength: 1, maxLength: 120}
+  responses:
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: {type: string}
+  schemas:
+    Directory:
+      type: object
+      required: [organizations, workspaces, projects, boards]
+      properties:
+        organizations:
+          type: array
+          items: {$ref: "#/components/schemas/Organization"}
+        workspaces:
+          type: array
+          items: {$ref: "#/components/schemas/Workspace"}
+        projects:
+          type: array
+          items: {$ref: "#/components/schemas/Project"}
+        boards:
+          type: array
+          items: {$ref: "#/components/schemas/Board"}
+    Organization:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        kind: {type: string, enum: [personal, team]}
+    Workspace:
+      type: object
+      required: [id, organizationId, name]
+      properties:
+        id: {type: string, format: uuid}
+        organizationId: {type: string, format: uuid}
+        name: {type: string}
+    Project:
+      type: object
+      required: [id, workspaceId, name]
+      properties:
+        id: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        name: {type: string}
+    Board:
+      type: object
+      required: [id, name, ownerId, permission, createdAt, updatedAt, projectId, archivedAt, favorite]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 36}
+        name: {type: string}
+        ownerId: {type: string, format: uuid}
+        permission: {type: string, enum: [owner, view, comment, edit]}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        projectId:
+          type: [string, "null"]
+          format: uuid
+          description: Visible project ID, or null for a directly shared board
+        archivedAt:
+          $ref: "#/components/schemas/ArchiveTimestamp"
+        favorite: {type: boolean}
+    ArchiveTimestamp:
+      type: [string, "null"]
+      format: date-time
+    Favorite:
+      type: object
+      additionalProperties: false
+      required: [favorite]
+      properties:
+        favorite: {type: boolean}
+    Location:
+      type: object
+      additionalProperties: false
+      required: [projectId]
+      properties:
+        projectId: {type: string, format: uuid}

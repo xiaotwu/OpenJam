@@ -16,6 +16,7 @@ const (
 	UserKeyPrefix       = "user:"
 	RoomOnlineKeyPrefix = "room:online:"
 	PubSubChannel       = "openjam:broadcast"
+	documentPresenceKey = "openjam:document:presence:"
 )
 
 func InitRedis(redisURL string) error {
@@ -23,13 +24,17 @@ func InitRedis(redisURL string) error {
 	if err != nil {
 		return err
 	}
+	opt.ContextTimeoutEnabled = true
 
-	rdb = redis.NewClient(opt)
-
+	client := redis.NewClient(opt)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	return rdb.Ping(ctx).Err()
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
+		return err
+	}
+	rdb = client
+	return nil
 }
 
 func Redis() *redis.Client {
@@ -135,11 +140,64 @@ func GetOnlineUserCount(ctx context.Context, roomID string) (int64, error) {
 	return rdb.SCard(ctx, RoomOnlineKeyPrefix+roomID).Result()
 }
 
+// The shared Redis clock keeps lease deadlines consistent across replicas.
+const refreshDocumentPresenceScript = `
+local clock = redis.call('TIME')
+local now = clock[1] * 1000 + math.floor(clock[2] / 1000)
+local ttl = tonumber(ARGV[1])
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+for i = 2, #ARGV do
+  redis.call('ZADD', KEYS[1], now + ttl, ARGV[i])
+end
+if #ARGV > 1 then
+  redis.call('PEXPIRE', KEYS[1], ttl * 2)
+end
+return redis.call('ZRANGE', KEYS[1], 0, -1)
+`
+
+// RefreshDocumentPresence renews this replica's connection leases and lists
+// the live leases on each requested board in a single round trip.
+func RefreshDocumentPresence(ctx context.Context, rooms map[string][]string, ttl time.Duration) (map[string][]string, error) {
+	if rdb == nil || len(rooms) == 0 {
+		return nil, nil
+	}
+	pipe := rdb.Pipeline()
+	commands := make(map[string]*redis.Cmd, len(rooms))
+	for roomID, leases := range rooms {
+		args := make([]interface{}, 1, 1+len(leases))
+		args[0] = ttl.Milliseconds()
+		for _, lease := range leases {
+			args = append(args, lease)
+		}
+		commands[roomID] = pipe.Eval(ctx, refreshDocumentPresenceScript, []string{documentPresenceKey + roomID}, args...)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, err
+	}
+	result := make(map[string][]string, len(commands))
+	for roomID, cmd := range commands {
+		members, err := cmd.StringSlice()
+		if err != nil {
+			return nil, err
+		}
+		result[roomID] = members
+	}
+	return result, nil
+}
+
+func RemoveDocumentPresence(ctx context.Context, roomID, lease string) error {
+	if rdb == nil {
+		return nil
+	}
+	return rdb.ZRem(ctx, documentPresenceKey+roomID, lease).Err()
+}
+
 type PubSubMessage struct {
-	RoomID   string `json:"roomId"`
-	SenderID string `json:"senderId"`
-	Type     string `json:"type"`
-	Payload  []byte `json:"payload"`
+	InstanceID string `json:"instanceId,omitempty"`
+	RoomID     string `json:"roomId"`
+	SenderID   string `json:"senderId"`
+	Type       string `json:"type"`
+	Payload    []byte `json:"payload"`
 }
 
 func Publish(ctx context.Context, msg *PubSubMessage) error {

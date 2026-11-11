@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -13,23 +15,29 @@ func init() {
 
 type Config struct {
 	Port        string
+	BindHost    string
 	Environment string
+	AutoMigrate bool
 
 	DatabaseURL string
 	RedisURL    string
 
-	CorsOrigins []string
+	CorsOrigins    []string
+	TrustedProxies []string
 
 	MinioEndpoint  string
 	MinioAccessKey string
 	MinioSecretKey string
 	MinioUseSSL    bool
-
-	SessionSecret string
-	SessionMaxAge int
+	MinioBucket    string
 }
 
-func Load() *Config {
+func Load() (*Config, error) {
+	autoMigrate, err := strconv.ParseBool(getEnv("OPENJAM_AUTO_MIGRATE", "true"))
+	if err != nil {
+		return nil, fmt.Errorf("OPENJAM_AUTO_MIGRATE must be true or false")
+	}
+
 	// Accept both CORS_ORIGIN and CORS_ORIGINS for compatibility
 	corsOrigins := getEnvList("CORS_ORIGINS", nil)
 	if corsOrigins == nil {
@@ -38,21 +46,22 @@ func Load() *Config {
 
 	return &Config{
 		Port:        getEnv("PORT", "8080"),
+		BindHost:    getEnv("OPENJAM_BIND_HOST", ""),
 		Environment: getEnv("ENVIRONMENT", "development"),
+		AutoMigrate: autoMigrate,
 
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/openjam?sslmode=disable"),
 		RedisURL:    getEnv("REDIS_URL", ""),
 
-		CorsOrigins: corsOrigins,
+		CorsOrigins:    corsOrigins,
+		TrustedProxies: getEnvList("OPENJAM_TRUSTED_PROXIES", nil),
 
-		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:8333"),
 		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
-
-		SessionSecret: getEnv("SESSION_SECRET", "your-secret-key-change-in-production"),
-		SessionMaxAge: 86400 * 7,
-	}
+		MinioBucket:    getEnv("MINIO_BUCKET", "openjam"),
+	}, nil
 }
 
 func getEnv(key, fallback string) string {

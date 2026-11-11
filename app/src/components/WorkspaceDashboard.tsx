@@ -1,477 +1,627 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import type { Room, User } from '../lib/api';
-import { createRoom, deleteRoom, listRooms, updateRoom } from '../lib/api';
-import { ConfirmDialog, TextInputDialog } from './AppDialog';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { updateRoom, type User } from '../lib/api';
+import {
+  createOrganization, createProject, createProjectBoard, createWorkspace, getDirectory,
+  moveBoard, setBoardArchive, setBoardFavorite,
+  type Directory, type DirectoryBoard, type Organization, type Project, type Workspace,
+} from '../lib/directory';
+import { useTheme } from '../lib/useTheme';
+import { useI18n } from '../i18n';
+import AccountPopover from './workbench/AccountPopover';
+import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workbench/BoardCollection';
+import BoardFilesPanel from './BoardFilesPanel';
+import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
+import WorkbenchIcon, { type WorkbenchIconName } from './workbench/WorkbenchIcon';
+import './workbench/workbench.css';
 
 interface WorkspaceDashboardProps {
   user: User;
   onLogout: () => void | Promise<void>;
 }
 
-interface Workspace {
-  id: string;
-  name: string;
-  color: string;
-  collapsed: boolean;
-}
+type View = 'recent' | 'favorites' | 'shared' | 'archive';
+type Sort = 'updated' | 'name';
 
-interface WorkspaceState {
-  workspaces: Workspace[];
-  assignments: Record<string, string>;
-}
-
-const defaultWorkspaces: Workspace[] = [
-  { id: 'active', name: 'Active work', color: '#F59E0B', collapsed: false },
-  { id: 'team', name: 'Team spaces', color: '#3B82F6', collapsed: false },
-  { id: 'drafts', name: 'Drafts', color: '#10B981', collapsed: false },
-  { id: 'archive', name: 'Archive', color: '#6B7280', collapsed: true },
+const views: Array<{ id: View; icon: WorkbenchIconName }> = [
+  { id: 'recent', icon: 'recent' },
+  { id: 'favorites', icon: 'star' },
+  { id: 'shared', icon: 'shared' },
+  { id: 'archive', icon: 'archive' },
 ];
 
-const roomAccents = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#14B8A6'];
-
-function storageKey(userId: string): string {
-  return `openjam-workspace-state-${userId}`;
+interface DirectoryLoad {
+  key: string;
+  directory?: Directory;
+  error?: string;
 }
 
-function createEmptyState(): WorkspaceState {
-  return {
-    workspaces: defaultWorkspaces,
-    assignments: {},
-  };
+interface ModalSettings {
+  title: string;
+  submitLabel: string;
+  field?: DialogField;
+  selection?: DialogSelection;
+  save: (name: string, selectionId: string) => Promise<void>;
 }
 
-function loadWorkspaceState(userId: string): WorkspaceState {
+interface ActiveModal extends ModalSettings {
+  returnFocus: HTMLElement | null;
+}
+
+interface ProjectLocation {
+  project: Project;
+  workspace: Workspace;
+  organization: Organization;
+}
+
+const noProjects: Project[] = [];
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function organizationPreferenceKey(userId: string): string {
+  return `openjam-workbench-organization-v1:${userId}`;
+}
+
+function getOrganizationPreference(userId: string): string | null {
   try {
-    const stored = localStorage.getItem(storageKey(userId));
-    if (!stored) {
-      return createEmptyState();
-    }
-
-    const parsed = JSON.parse(stored) as Partial<WorkspaceState>;
-    const workspaces = Array.isArray(parsed.workspaces) && parsed.workspaces.length > 0
-      ? parsed.workspaces
-      : defaultWorkspaces;
-
-    return {
-      workspaces,
-      assignments: parsed.assignments || {},
-    };
+    return sessionStorage.getItem(organizationPreferenceKey(userId));
   } catch {
-    return createEmptyState();
+    return null;
   }
-}
-
-function saveWorkspaceState(userId: string, state: WorkspaceState) {
-  localStorage.setItem(storageKey(userId), JSON.stringify(state));
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Recently';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
-}
-
-function roomAccent(roomId: string): string {
-  const total = roomId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return roomAccents[total % roomAccents.length];
 }
 
 export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboardProps) {
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState>(() => loadWorkspaceState(user.id));
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [renameRoom, setRenameRoom] = useState<Room | null>(null);
-  const [deleteRoomTarget, setDeleteRoomTarget] = useState<Room | null>(null);
-  const [isWorkspaceDialogOpen, setIsWorkspaceDialogOpen] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [attempt, setAttempt] = useState(0);
+  const [load, setLoad] = useState<DirectoryLoad | null>(null);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<Sort>('updated');
+  const [layout, setLayout] = useState<BoardLayout>('grid');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [modal, setModal] = useState<ActiveModal | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
+  const [busyBoards, setBusyBoards] = useState<ReadonlySet<string>>(() => new Set());
+  const mobileMenuButton = useRef<HTMLButtonElement>(null);
+  const mobileCloseButton = useRef<HTMLButtonElement>(null);
+  const { theme, setTheme, isDark } = useTheme();
+  const { locale, formatNumber, messages: { workbench: { directory: text } } } = useI18n();
+  const collator = useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }), [locale]);
+
+  const key = `${user.id}:${attempt}`;
+  const currentLoad = load?.key === key ? load : null;
+  const directory = currentLoad?.directory;
+  const loadError = currentLoad?.error;
+  const loading = currentLoad === null;
 
   useEffect(() => {
-    saveWorkspaceState(user.id, workspaceState);
-  }, [user.id, workspaceState]);
+    const controller = new AbortController();
+    void getDirectory(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setLoad({ key, directory: data });
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setLoad({ key, error: errorMessage(error, text.loadBoardsError) });
+      });
+    return () => controller.abort();
+  }, [key, text.loadBoardsError]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!menuId) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest('[data-wb-board-menu]')) setMenuId(null);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [menuId]);
 
-    const loadRooms = async () => {
-      setLoading(true);
-      setError(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(''), 5500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
-      try {
-        const { rooms } = await listRooms();
-        if (!cancelled) {
-          setRooms(rooms);
+  useEffect(() => {
+    if (mobileNavOpen) mobileCloseButton.current?.focus();
+  }, [mobileNavOpen]);
+
+  const preferredOrganization = useMemo(() => getOrganizationPreference(user.id), [user.id]);
+  const organizationId = params.get('organization') ?? preferredOrganization;
+  const organization = directory?.organizations.find((item) => item.id === organizationId)
+    ?? directory?.organizations.find((item) => item.kind === 'personal')
+    ?? directory?.organizations[0];
+  const activeOrganizationId = organization?.id;
+  const view = views.find((item) => item.id === params.get('view')) ?? views[0];
+  const projectId = params.get('project');
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    try {
+      sessionStorage.setItem(organizationPreferenceKey(user.id), activeOrganizationId);
+    } catch {
+      // Navigation still works when browser storage is unavailable.
+    }
+  }, [activeOrganizationId, user.id]);
+
+  const locations = useMemo(() => {
+    const workspaces = new Map(directory?.workspaces.map((item) => [item.id, item]));
+    const organizations = new Map(directory?.organizations.map((item) => [item.id, item]));
+    const projects = new Map<string, ProjectLocation>();
+    for (const project of directory?.projects ?? noProjects) {
+      const workspace = workspaces.get(project.workspaceId);
+      const owner = workspace && organizations.get(workspace.organizationId);
+      if (workspace && owner) projects.set(project.id, { project, workspace, organization: owner });
+    }
+    return projects;
+  }, [directory?.organizations, directory?.projects, directory?.workspaces]);
+
+  const organizationWorkspaces = directory?.workspaces.filter((item) => item.organizationId === organization?.id) ?? [];
+  const selectedLocation = projectId ? locations.get(projectId) : undefined;
+  const activeProject = selectedLocation?.organization.id === organization?.id ? selectedLocation?.project : undefined;
+  const organizationProjects = directory?.projects.filter((item) => locations.get(item.id)?.organization.id === organization?.id) ?? noProjects;
+  const defaultProject = activeProject ?? organizationProjects.find((item) => item.name === 'Drafts') ?? organizationProjects[0];
+  const search = query.trim().toLocaleLowerCase(locale);
+
+  const entries = useMemo(() => {
+    const projectCounts = new Map<string, number>();
+    for (const { organization: owner } of locations.values()) {
+      projectCounts.set(owner.id, (projectCounts.get(owner.id) ?? 0) + 1);
+    }
+
+    const visible: BoardEntry[] = [];
+    for (const board of directory?.boards ?? []) {
+      const location = board.projectId ? locations.get(board.projectId) : undefined;
+      const ownOrganization = location !== undefined && location.organization.id === organization?.id;
+      const legacyPersonalBoard = !location && board.ownerId === user.id && organization?.kind === 'personal';
+      const archived = board.permission === 'owner' && board.archivedAt !== null;
+      const boardLocation = location ? `${location.workspace.name} / ${location.project.name}` : text.sharedBoard;
+
+      if (search) {
+        if (view.id === 'archive' && !activeProject) {
+          if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
+        } else if (archived) {
+          continue;
         }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load projects');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
+        const haystack = `${board.name} ${boardLocation} ${location?.organization.name ?? ''}`;
+        if (!haystack.toLocaleLowerCase(locale).includes(search)) continue;
+      } else if (activeProject) {
+        if (archived || board.projectId !== activeProject.id) continue;
+      } else {
+        if (view.id === 'archive') {
+          if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
+        } else {
+          if (archived) continue;
+          if (view.id === 'favorites' && !board.favorite) continue;
+          if (view.id === 'shared' && board.ownerId === user.id) continue;
+          if (view.id === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
         }
       }
-    };
 
-    loadRooms();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const workspaceIds = new Set(workspaceState.workspaces.map((workspace) => workspace.id));
-
-  const assignedWorkspace = (roomId: string) => {
-    const assignment = workspaceState.assignments[roomId];
-    return assignment && workspaceIds.has(assignment) ? assignment : 'active';
-  };
-
-  const groupedWorkspaces = workspaceState.workspaces.map((workspace) => ({
-    ...workspace,
-    rooms: rooms.filter((room) => assignedWorkspace(room.id) === workspace.id),
-  }));
-
-  const handleNewBoard = async () => {
-    setCreating(true);
-    setError(null);
-
-    try {
-      const room = await createRoom('Untitled Board');
-      setRooms((current) => [room, ...current]);
-      setWorkspaceState((current) => ({
-        ...current,
-        assignments: {
-          ...current.assignments,
-          [room.id]: 'drafts',
-        },
-      }));
-      navigate(`/board/${room.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create board');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const submitRename = async (nextName: string) => {
-    if (!renameRoom) {
-      return;
-    }
-    if (!nextName || nextName === renameRoom.name) {
-      return;
-    }
-
-    setDialogBusy(true);
-    try {
-      const updated = await updateRoom(renameRoom.id, nextName);
-      setRooms((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      setRenameRoom(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename project');
-    } finally {
-      setDialogBusy(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteRoomTarget) {
-      return;
-    }
-
-    setDialogBusy(true);
-    try {
-      await deleteRoom(deleteRoomTarget.id);
-      setRooms((current) => current.filter((item) => item.id !== deleteRoomTarget.id));
-      setWorkspaceState((current) => {
-        const assignments = { ...current.assignments };
-        delete assignments[deleteRoomTarget.id];
-        return { ...current, assignments };
+      visible.push({
+        board,
+        location: location
+          ? (ownOrganization ? boardLocation : `${location.organization.name} / ${location.project.name}`)
+          : (legacyPersonalBoard ? text.personalDrafts : boardLocation),
+        canMove: board.permission === 'owner' && location !== undefined
+          && (projectCounts.get(location.organization.id) ?? 0) > 1,
       });
-      setDeleteRoomTarget(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete project');
+    }
+
+    return visible.sort((a, b) => sort === 'name'
+      ? collator.compare(a.board.name, b.board.name)
+      : Date.parse(b.board.updatedAt) - Date.parse(a.board.updatedAt));
+  }, [activeProject, collator, directory?.boards, locale, locations, organization?.id, organization?.kind, search, sort, text.personalDrafts, text.sharedBoard, user.id, view.id]);
+
+  function closeMobileNav() {
+    setMobileNavOpen(false);
+    mobileMenuButton.current?.focus();
+  }
+
+  function selectDestination(destinationOrganization: string, destination: View = 'recent', destinationProject?: string) {
+    const next = new URLSearchParams();
+    if (destinationOrganization) next.set('organization', destinationOrganization);
+    if (destinationProject) next.set('project', destinationProject);
+    else if (destination !== 'recent') next.set('view', destination);
+    setParams(next);
+    setQuery('');
+    setMenuId(null);
+    if (mobileNavOpen) closeMobileNav();
+  }
+
+  function updateDirectory(update: (data: Directory) => Directory) {
+    setLoad((previous) => previous?.key === key && previous.directory
+      ? { key, directory: update(previous.directory) }
+      : previous);
+  }
+
+  function patchBoard(id: string, changes: Partial<DirectoryBoard>) {
+    updateDirectory((data) => ({
+      ...data,
+      boards: data.boards.map((board) => board.id === id ? { ...board, ...changes } : board),
+    }));
+  }
+
+  function openModal(settings: ModalSettings) {
+    const focused = document.activeElement;
+    const trigger = focused?.closest('[data-wb-board-menu]')?.querySelector<HTMLElement>('[data-wb-menu-trigger]');
+    setMenuId(null);
+    setDialogError(null);
+    setModal({ ...settings, returnFocus: trigger ?? (focused instanceof HTMLElement ? focused : null) });
+  }
+
+  async function submitModal(name: string, selectionId: string) {
+    if (!modal || dialogBusy) return;
+    setDialogBusy(true);
+    setDialogError(null);
+    try {
+      await modal.save(name, selectionId);
+      setModal(null);
+    } catch (error) {
+      setDialogError(errorMessage(error, text.saveError));
     } finally {
       setDialogBusy(false);
     }
-  };
+  }
 
-  const handleMove = (roomId: string, workspaceId: string) => {
-    setWorkspaceState((current) => ({
-      ...current,
-      assignments: {
-        ...current.assignments,
-        [roomId]: workspaceId,
+  function addOrganization() {
+    openModal({
+      title: text.newOrganization,
+      submitLabel: text.createOrganization,
+      field: { label: text.organizationName, placeholder: text.teamExample },
+      save: async (name) => {
+        const result = await createOrganization(name);
+        selectDestination(result.id);
+        setAttempt((current) => current + 1);
       },
-    }));
-  };
+    });
+  }
 
-  const handleToggleWorkspace = (workspaceId: string) => {
-    setWorkspaceState((current) => ({
-      ...current,
-      workspaces: current.workspaces.map((workspace) => (
-        workspace.id === workspaceId ? { ...workspace, collapsed: !workspace.collapsed } : workspace
-      )),
-    }));
-  };
+  function addWorkspace() {
+    if (!organization) return;
+    openModal({
+      title: text.newWorkspace,
+      submitLabel: text.createWorkspace,
+      field: { label: text.workspaceName, placeholder: text.workspaceExample },
+      save: async (name) => {
+        const result = await createWorkspace(organization.id, name);
+        updateDirectory((data) => ({ ...data, workspaces: [...data.workspaces, result] }));
+      },
+    });
+  }
 
-  const submitWorkspace = (name: string) => {
-    if (!name) {
+  function addProject(workspace: Workspace) {
+    openModal({
+      title: text.newProjectIn(workspace.name),
+      submitLabel: text.createProject,
+      field: { label: text.projectName, placeholder: text.projectExample },
+      save: async (name) => {
+        const result = await createProject(workspace.id, name);
+        updateDirectory((data) => ({ ...data, projects: [...data.projects, result] }));
+        selectDestination(workspace.organizationId, 'recent', result.id);
+      },
+    });
+  }
+
+  function addBoard() {
+    if (!defaultProject) return;
+    openModal({
+      title: text.newBoard,
+      submitLabel: text.createBoard,
+      field: { label: text.boardName, value: text.untitled },
+      selection: activeProject ? undefined : {
+        label: text.project,
+        value: defaultProject.id,
+        options: organizationProjects.map((item) => ({
+          id: item.id,
+          label: `${locations.get(item.id)?.workspace.name} / ${item.name}`,
+        })),
+      },
+      save: async (name, selectionId) => {
+        const board = await createProjectBoard(selectionId || defaultProject.id, name);
+        navigate(`/board/${encodeURIComponent(board.id)}`);
+      },
+    });
+  }
+
+  function handleBoardAction(action: BoardAction, board: DirectoryBoard) {
+    if (action === 'rename') {
+      openModal({
+        title: text.renameBoard,
+        submitLabel: text.saveName,
+        field: { label: text.boardName, value: board.name, maxLength: 255 },
+        save: async (name) => {
+          if (name === board.name) return;
+          const result = await updateRoom(board.id, name);
+          patchBoard(board.id, { name: result.name, updatedAt: result.updatedAt });
+        },
+      });
       return;
     }
 
-    const id = `workspace-${Date.now().toString(36)}`;
-    const color = roomAccents[workspaceState.workspaces.length % roomAccents.length];
-    setWorkspaceState((current) => ({
-      ...current,
-      workspaces: [...current.workspaces, { id, name, color, collapsed: false }],
-    }));
-    setIsWorkspaceDialogOpen(false);
-  };
+    if (action === 'move') {
+      const origin = board.projectId ? locations.get(board.projectId) : undefined;
+      if (!origin) return;
+      const options = Array.from(locations.values())
+        .filter((item) => item.organization.id === origin.organization.id && item.project.id !== board.projectId)
+        .map((item) => ({ id: item.project.id, label: `${item.workspace.name} / ${item.project.name}` }));
+      if (options.length === 0) return;
+      openModal({
+        title: text.moveNamedBoard(board.name),
+        submitLabel: text.moveBoard,
+        selection: { label: text.destinationProject, options },
+        save: async (_name, selectionId) => {
+          const result = await moveBoard(board.id, selectionId);
+          patchBoard(board.id, { projectId: result.projectId });
+          setNotice(text.moved(board.name));
+        },
+      });
+      return;
+    }
+
+    if (busyBoards.has(board.id)) return;
+    setMenuId(null);
+    setActionError(null);
+    setBusyBoards((previous) => new Set([...previous, board.id]));
+    void (async () => {
+      try {
+        if (action === 'favorite') {
+          const result = await setBoardFavorite(board.id, !board.favorite);
+          patchBoard(board.id, { favorite: result.favorite });
+        } else {
+          const result = await setBoardArchive(board.id, board.archivedAt === null);
+          patchBoard(board.id, { archivedAt: result.archivedAt });
+          setNotice(result.archivedAt ? text.archived(board.name) : text.restored(board.name));
+        }
+      } catch (error) {
+        setActionError(errorMessage(error, text.updateError));
+      } finally {
+        setBusyBoards((previous) => {
+          const next = new Set(previous);
+          next.delete(board.id);
+          return next;
+        });
+      }
+    })();
+  }
+
+  const title = search ? text.searchResults : (activeProject?.name ?? text[view.id]);
+  const empty = search
+    ? text.empty.search
+    : text.empty[activeProject ? 'recent' : view.id];
+  const firstWorkspace = organizationWorkspaces[0];
+  const primaryAction = defaultProject ? { label: text.newBoard, run: addBoard }
+    : firstWorkspace ? { label: text.newProject, run: () => addProject(firstWorkspace) }
+    : organization ? { label: text.newWorkspace, run: addWorkspace }
+    : { label: text.newOrganization, run: addOrganization };
+  const globalScope = view.id === 'shared' || view.id === 'favorites' || (search && (view.id !== 'archive' || activeProject));
+  const scope = globalScope
+    ? text.allOrganizations
+    : selectedLocation && activeProject
+      ? `${selectedLocation.organization.name} / ${selectedLocation.workspace.name}`
+      : organization?.name;
 
   return (
-    <main className="min-h-screen overflow-auto" style={{ background: 'var(--surface-canvas)', color: 'var(--text-primary)' }}>
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="flex flex-col border-b border-black/5 bg-white/55 p-5 backdrop-blur-xl lg:min-h-screen lg:border-b-0 lg:border-r">
-          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
-            <img src="/icons/openjam.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
-            <p className="font-semibold leading-tight">OpenJam</p>
-          </Link>
-
-          <button
-            type="button"
-            onClick={handleNewBoard}
-            disabled={creating}
-            className="mt-8 flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-            style={{ background: 'var(--accent-gradient)' }}
+    <main className="openjam-workbench">
+      <aside
+        className="wb-sidebar"
+        id="wb-sidebar"
+        data-open={mobileNavOpen}
+        aria-label={text.sidebar}
+        onKeyDown={(event) => {
+          if (mobileNavOpen && event.key === 'Escape') closeMobileNav();
+        }}
+      >
+        <div className="wb-sidebar-top">
+          <Link
+            to={activeOrganizationId ? `/workplace?organization=${encodeURIComponent(activeOrganizationId)}` : '/workplace'}
+            className="shell-island wb-brand"
+            onClick={() => { setQuery(''); setMobileNavOpen(false); }}
           >
-            {creating ? 'Creating...' : 'New'}
+            <img src="/icons/openjam.png" alt="" width="28" height="28" />
+            <span>OpenJam</span>
+          </Link>
+          <button type="button" ref={mobileCloseButton} className="wb-icon-button wb-mobile-close" aria-label={text.closeNavigation} onClick={closeMobileNav}>
+            <WorkbenchIcon name="close" />
           </button>
+        </div>
 
-          <section className="mt-8">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>
-                Categories
-              </h2>
+        <div className="wb-organization-row">
+          <label className="shell-island wb-organization-select">
+            <span className="wb-organization-mark"><WorkbenchIcon name="organization" /></span>
+            <select
+              aria-label={text.organization}
+              value={organization?.id ?? ''}
+              onChange={(event) => selectDestination(event.target.value)}
+              disabled={!organization}
+            >
+              {!organization && <option value="">{text.organizations}</option>}
+              {directory?.organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <WorkbenchIcon name="chevron" />
+          </label>
+          <button type="button" className="shell-island wb-organization-add" aria-label={text.newOrganization} title={text.newOrganization} onClick={addOrganization} disabled={!directory}>
+            <WorkbenchIcon name="plus" />
+          </button>
+        </div>
+
+        <div className="wb-sidebar-scroll">
+          <nav className="wb-quick-nav" aria-label={text.views}>
+            {views.map((item) => (
               <button
                 type="button"
-                onClick={() => setIsWorkspaceDialogOpen(true)}
-                className="min-h-11 rounded-xl px-3 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                style={{ color: 'var(--text-primary)' }}
+                key={item.id}
+                className="wb-nav-button"
+                aria-current={!activeProject && view.id === item.id && !search ? 'page' : undefined}
+                onClick={() => selectDestination(organization?.id ?? '', item.id)}
               >
-                Add
+                <WorkbenchIcon name={item.icon} /> <span>{text[item.id]}</span>
+              </button>
+            ))}
+          </nav>
+          <section className="wb-workspaces" aria-labelledby="wb-workspaces-title">
+            <div className="wb-sidebar-heading">
+              <h2 id="wb-workspaces-title">{text.workspaces}</h2>
+              <button type="button" className="wb-icon-button" aria-label={text.newWorkspace} title={text.newWorkspace} onClick={addWorkspace} disabled={!organization}>
+                <WorkbenchIcon name="plus" />
               </button>
             </div>
-
-            <div className="mt-3 space-y-2">
-              {groupedWorkspaces.map((workspace) => (
-                <button
-                  key={workspace.id}
-                  type="button"
-                  onClick={() => handleToggleWorkspace(workspace.id)}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  aria-expanded={!workspace.collapsed}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <span className="h-3 w-3 rounded-full" style={{ background: workspace.color }} />
-                    <span className="truncate text-sm font-semibold">{workspace.name}</span>
-                  </span>
-                  <span className="rounded-full px-2 py-1 text-xs" style={{ background: 'var(--badge-bg)', color: 'var(--text-secondary)' }}>
-                    {workspace.rooms.length}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {organizationWorkspaces.map((workspace) => {
+              const workspaceProjects = organizationProjects.filter((item) => item.workspaceId === workspace.id);
+              return (
+                <section className="wb-workspace" key={workspace.id} aria-label={workspace.name}>
+                  <div className="wb-workspace-heading">
+                    <span title={workspace.name}><WorkbenchIcon name="folder" /> {workspace.name}</span>
+                    <button
+                      type="button"
+                      className="wb-icon-button"
+                      aria-label={text.newProjectIn(workspace.name)}
+                      title={text.newProjectIn(workspace.name)}
+                      onClick={() => addProject(workspace)}
+                    >
+                      <WorkbenchIcon name="plus" />
+                    </button>
+                  </div>
+                  {workspaceProjects.map((project) => (
+                    <button
+                      type="button"
+                      key={project.id}
+                      className="wb-nav-button wb-project"
+                      aria-current={activeProject?.id === project.id && !search ? 'page' : undefined}
+                      onClick={() => selectDestination(workspace.organizationId, 'recent', project.id)}
+                    >
+                      <WorkbenchIcon name="board" /> <span>{project.name}</span>
+                    </button>
+                  ))}
+                </section>
+              );
+            })}
           </section>
+        </div>
 
-          <div className="mt-8 border-t border-black/5 pt-5 lg:mt-auto">
-            <p className="truncate text-sm font-semibold">{user.displayName}</p>
-            <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="mt-4 min-h-11 w-full rounded-xl px-4 text-left text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Sign out
-            </button>
-          </div>
-        </aside>
+        <div className="wb-profile">
+          <AccountPopover user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} side="above" expanded />
+        </div>
+      </aside>
+      {mobileNavOpen && <button type="button" tabIndex={-1} className="wb-navigation-scrim" onClick={closeMobileNav} aria-label={text.closeNavigation} />}
 
-        <section className="min-w-0 px-5 py-6 sm:px-8">
-          <header className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
-                Workplace
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold">Good to see you, {user.displayName}.</h1>
+      <section className="wb-main" aria-label={text.name}>
+        <header className="wb-toolbar">
+          <button
+            type="button"
+            ref={mobileMenuButton}
+            className="shell-island wb-mobile-menu"
+            aria-label={mobileNavOpen ? text.closeNavigation : text.showNavigation}
+            aria-expanded={mobileNavOpen}
+            aria-controls="wb-sidebar"
+            onClick={() => setMobileNavOpen((open) => !open)}
+          >
+            <WorkbenchIcon name="menu" />
+          </button>
+          <label className="shell-island wb-search">
+            <WorkbenchIcon name="search" />
+            <input type="search" aria-label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
+          </label>
+          {directory && (
+            <div className="shell-island wb-toolbar-actions">
+              <button type="button" className="shell-icon-button" aria-label={text.importBoard} title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}>
+                <WorkbenchIcon name="import" />
+              </button>
+              <button type="button" className="wb-create-button" onClick={primaryAction.run} aria-label={primaryAction.label} title={primaryAction.label}>
+                <WorkbenchIcon name="plus" /> <span>{primaryAction.label}</span>
+              </button>
             </div>
-            <div className="rounded-2xl border bg-white/60 px-4 py-3 text-right" style={{ borderColor: 'var(--glass-border-strong)' }}>
-              <p className="text-2xl font-semibold">{rooms.length}</p>
-              <p className="text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--text-secondary)' }}>Projects</p>
-            </div>
+          )}
+        </header>
+
+        <div className="wb-content">
+          <header className="wb-page-heading">
+            {scope && <p>{scope}</p>}
+            <h1>{title}</h1>
           </header>
 
-          {error && (
-            <div role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+          {actionError && (
+            <div className="wb-message wb-message-error" role="alert">
+              <p>{actionError}</p>
+              <button type="button" className="wb-icon-button" aria-label={text.dismissError} onClick={() => setActionError(null)}>
+                <WorkbenchIcon name="close" />
+              </button>
             </div>
           )}
 
-          <div className="mt-8 space-y-5">
-            {loading ? (
-              <div className="glass-subtle rounded-2xl p-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Loading projects...
+          {loading ? (
+            <div className="wb-loading" role="status">
+              <p>{text.loading}</p>
+              <div className="wb-skeletons" aria-hidden="true"><span /><span /><span /></div>
+            </div>
+          ) : loadError ? (
+            <div className="wb-message wb-message-error" role="alert">
+              <div><strong>{text.loadError}</strong><p>{loadError}</p></div>
+              <button type="button" className="wb-button wb-button-secondary" onClick={() => setAttempt((current) => current + 1)}>{text.retry}</button>
+            </div>
+          ) : (
+            <>
+              <div className="wb-collection-bar">
+                <p role="status">{text.boardCount(entries.length, formatNumber(entries.length))}</p>
+                <div className="wb-collection-controls">
+                  <label className="wb-sort">
+                    <select aria-label={text.sort} value={sort} onChange={(event) => setSort(event.target.value === 'name' ? 'name' : 'updated')}>
+                      <option value="updated">{text.updated}</option>
+                      <option value="name">{text.nameSort}</option>
+                    </select>
+                  </label>
+                  <div className="shell-island wb-layout-toggle" role="group" aria-label={text.layout}>
+                    <button type="button" className="wb-icon-button" aria-label={text.grid} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>
+                      <WorkbenchIcon name="grid" />
+                    </button>
+                    <button type="button" className="wb-icon-button" aria-label={text.list} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>
+                      <WorkbenchIcon name="list" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            ) : rooms.length === 0 ? (
-              <div className="glass-subtle rounded-2xl p-8 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No saved projects yet.
-              </div>
-            ) : (
-              groupedWorkspaces.map((workspace) => (
-                <section key={workspace.id} className="glass-elevated rounded-3xl p-4">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleWorkspace(workspace.id)}
-                    className="flex min-h-11 w-full items-center justify-between gap-4 rounded-2xl px-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                    aria-expanded={!workspace.collapsed}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className="h-3 w-3 rounded-full" style={{ background: workspace.color }} />
-                      <span className="truncate text-lg font-semibold">{workspace.name}</span>
-                    </span>
-                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      {workspace.collapsed ? '+' : '-'} {workspace.rooms.length}
-                    </span>
-                  </button>
-
-                  {!workspace.collapsed && (
-                    <div className="mt-4 grid gap-3 xl:grid-cols-2">
-                      {workspace.rooms.length === 0 ? (
-                        <div className="rounded-2xl bg-white/55 px-4 py-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          Empty workspace
-                        </div>
-                      ) : (
-                        workspace.rooms.map((room) => {
-                          const canManageRoom = room.permission === 'owner' || room.ownerId === user.id || !room.permission;
-
-                          return (
-                            <article key={room.id} className="rounded-2xl border bg-white/78 p-4 shadow-sm" style={{ borderColor: 'var(--glass-border-strong)' }}>
-                              <div className="grid gap-4 sm:grid-cols-[68px_minmax(0,1fr)]">
-                                <div className="aspect-square rounded-2xl" style={{ background: roomAccent(room.id) }}>
-                                  <div className="h-full w-full rounded-2xl bg-white/20" />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="min-w-0">
-                                    <h3 className="truncate text-base font-semibold">{room.name}</h3>
-                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                      Updated {formatDate(room.updatedAt)}
-                                    </p>
-                                  </div>
-                                  <div className="mt-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${room.name} actions`}>
-                                    <Link
-                                      to={`/board/${room.id}`}
-                                      className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-white transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                      style={{ background: roomAccent(room.id) }}
-                                    >
-                                      Open
-                                    </Link>
-                                    {canManageRoom ? (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => setRenameRoom(room)}
-                                          className="min-h-11 rounded-lg px-3 text-xs font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                        >
-                                          Rename
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setDeleteRoomTarget(room)}
-                                          className="min-h-11 rounded-lg px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                                        >
-                                          Delete
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <span className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold" style={{ background: 'var(--badge-bg)', color: 'var(--text-secondary)' }}>
-                                        Shared
-                                      </span>
-                                    )}
-                                    <label className="sr-only" htmlFor={`move-${room.id}`}>Move {room.name}</label>
-                                    <select
-                                      id={`move-${room.id}`}
-                                      value={assignedWorkspace(room.id)}
-                                      onChange={(event) => handleMove(room.id, event.target.value)}
-                                      className="min-h-11 rounded-lg border border-black/10 bg-white px-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                    >
-                                      {workspaceState.workspaces.map((option) => (
-                                        <option key={option.id} value={option.id}>{option.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                </div>
-                              </div>
-                            </article>
-                          );
-                        })
-                      )}
-                    </div>
+              {entries.length > 0 ? (
+                <BoardCollection entries={entries} theme={isDark ? 'dark' : 'light'} layout={layout} busyBoards={busyBoards} menuId={menuId} onMenuChange={setMenuId} onAction={handleBoardAction} />
+              ) : (
+                <div className="wb-empty">
+                  <span className="wb-empty-icon" aria-hidden="true"><WorkbenchIcon name={search ? 'search' : activeProject ? 'board' : view.icon} /></span>
+                  <h2>{empty.title}</h2>
+                  <p>{empty.description}</p>
+                  {search ? (
+                    <button type="button" className="wb-button wb-button-secondary" onClick={() => setQuery('')}>{text.clearSearch}</button>
+                  ) : (activeProject || view.id === 'recent') && (
+                    <button type="button" className="wb-button wb-button-secondary" onClick={primaryAction.run}>
+                      <WorkbenchIcon name="plus" /> {primaryAction.label}
+                    </button>
                   )}
-                </section>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
-      <TextInputDialog
-        isOpen={renameRoom !== null}
-        title="Rename Project"
-        label="Project name"
-        initialValue={renameRoom?.name || ''}
-        submitLabel="Rename"
-        isBusy={dialogBusy}
-        onSubmit={submitRename}
-        onClose={() => setRenameRoom(null)}
-      />
-
-      <TextInputDialog
-        isOpen={isWorkspaceDialogOpen}
-        title="New Workspace"
-        label="Workspace name"
-        placeholder="Design reviews"
-        submitLabel="Create"
-        isBusy={dialogBusy}
-        onSubmit={submitWorkspace}
-        onClose={() => setIsWorkspaceDialogOpen(false)}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteRoomTarget !== null}
-        title="Delete Project"
-        message={(
-          <span>
-            Delete <strong style={{ color: 'var(--text-primary)' }}>{deleteRoomTarget?.name}</strong>? This cannot be undone.
-          </span>
-        )}
-        confirmLabel="Delete"
-        tone="danger"
-        isBusy={dialogBusy}
-        onConfirm={confirmDelete}
-        onClose={() => setDeleteRoomTarget(null)}
-      />
+      {notice && <div className="wb-toast" role="status"><WorkbenchIcon name="check" /> {notice}</div>}
+      {showImport && <BoardFilesPanel onClose={() => setShowImport(false)} onOpenBoard={id => navigate(`/board/${encodeURIComponent(id)}`)} />}
+      {modal && (
+        <WorkbenchDialog
+          title={modal.title}
+          submitLabel={modal.submitLabel}
+          field={modal.field}
+          selection={modal.selection}
+          busy={dialogBusy}
+          error={dialogError}
+          returnFocus={modal.returnFocus}
+          onClose={() => setModal(null)}
+          onSubmit={(name, selectionId) => void submitModal(name, selectionId)}
+        />
+      )}
     </main>
   );
 }

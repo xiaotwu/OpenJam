@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/project-wb/server/internal/document"
 	"github.com/project-wb/server/internal/middleware"
 	"github.com/project-wb/server/internal/model"
 )
@@ -104,7 +105,7 @@ func GetRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, room)
 }
 
-func UpdateRoom(c *gin.Context) {
+func UpdateRoom(c *gin.Context, notify func(string, int64, int64)) {
 	user := middleware.GetUser(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
@@ -129,8 +130,25 @@ func UpdateRoom(c *gin.Context) {
 		return
 	}
 
-	room, err := model.UpdateRoom(c.Request.Context(), roomID, name, user.ID)
+	ctx := c.Request.Context()
+	ack, err := document.RenameOwned(ctx, roomID, user.ID, name)
+	var room *model.Room
+	if errors.Is(err, document.ErrLegacyMode) {
+		room, err = model.UpdateRoom(ctx, roomID, name, user.ID)
+		if document.LegacyWriteFenced(err) {
+			// A V2 editor may have activated the board while we took the
+			// legacy branch. Retry through the authoritative command path.
+			ack, err = document.RenameOwned(ctx, roomID, user.ID, name)
+		}
+	}
+	if err == nil && room == nil {
+		notify(ack.BoardID, ack.Epoch, ack.Seq)
+		room, err = model.GetRoom(ctx, roomID)
+	}
 	if err != nil {
+		if rejectLegacyWrite(c, err) {
+			return
+		}
 		if errors.Is(err, model.ErrRoomNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
 			return
@@ -139,7 +157,7 @@ func UpdateRoom(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Not room owner"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update room"})
+		writeDocumentError(c, err)
 		return
 	}
 
@@ -177,11 +195,12 @@ func DeleteRoom(c *gin.Context) {
 }
 
 type SaveBoardRequest struct {
-	Name          string      `json:"name"`
-	Elements      interface{} `json:"elements"`
-	Stamps        interface{} `json:"stamps,omitempty"`
-	Pages         interface{} `json:"pages,omitempty"`
-	CurrentPageId string      `json:"currentPageId,omitempty"`
+	Name              string      `json:"name"`
+	Elements          interface{} `json:"elements"`
+	Stamps            interface{} `json:"stamps,omitempty"`
+	Pages             interface{} `json:"pages,omitempty"`
+	CurrentPageId     string      `json:"currentPageId,omitempty"`
+	ExpectedUpdatedAt *time.Time  `json:"expectedUpdatedAt,omitempty"`
 }
 
 const maxBoardPayloadBytes = 25 * 1024 * 1024
@@ -217,19 +236,44 @@ func SaveBoard(c *gin.Context) {
 		name = "Untitled Board"
 	}
 
-	_, err := model.EnsureRoomEditable(c.Request.Context(), roomID, name, user.ID)
-	if err != nil {
-		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) {
+	// A room must already exist before a board can be saved into it. Auto-creating
+	// a room on first save would let any authenticated user claim an arbitrary room
+	// UUID (including one that collides with a room another user is about to make),
+	// silently becoming its owner. Rooms are created via POST /api/rooms.
+	if _, err := model.GetRoom(c.Request.Context(), roomID); err != nil {
+		if errors.Is(err, model.ErrRoomNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load room"})
+		return
+	}
+	if err := model.UserCanEditRoom(c.Request.Context(), roomID, user.ID); err != nil {
+		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) || errors.Is(err, model.ErrRoomNotFound) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Room edit access denied"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure room exists"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify room access"})
 		return
 	}
 
 	elements := req.Elements
 	if elements == nil {
 		elements = []interface{}{}
+	}
+
+	// Validate structural integrity before persisting.
+	if _, err := model.ValidateElements(elements); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board elements: " + err.Error()})
+		return
+	}
+	if err := model.ValidateStamps(req.Stamps); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid stamps: " + err.Error()})
+		return
+	}
+	if err := model.ValidatePages(req.Pages); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pages: " + err.Error()})
+		return
 	}
 
 	boardData := &model.BoardData{
@@ -240,9 +284,35 @@ func SaveBoard(c *gin.Context) {
 		CurrentPageId: req.CurrentPageId,
 	}
 
-	if err := model.SaveBoardDataForEditor(c.Request.Context(), roomID, user.ID, boardData); err != nil {
+	expected := time.Time{}
+	if req.ExpectedUpdatedAt != nil {
+		expected = *req.ExpectedUpdatedAt
+	}
+
+	newUpdatedAt, err := model.SaveBoardDataForEditorWithVersion(c.Request.Context(), roomID, user.ID, boardData, expected)
+	if err != nil {
+		if rejectLegacyWrite(c, err) {
+			return
+		}
 		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Room edit access denied"})
+			return
+		}
+		if errors.Is(err, model.ErrBoardConflict) {
+			if active, _ := document.IsActive(c.Request.Context(), roomID); active {
+				writeLegacyUpgrade(c)
+				return
+			}
+			current, lerr := model.LoadBoardDataForUser(c.Request.Context(), roomID, user.ID)
+			if lerr != nil {
+				c.JSON(http.StatusConflict, gin.H{"error": "Board was modified by someone else; reload to merge"})
+				return
+			}
+			c.JSON(http.StatusConflict, gin.H{
+				"error":    "Board was modified by someone else; reload to merge",
+				"conflict": true,
+				"board":    current,
+			})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save board"})
@@ -250,8 +320,9 @@ func SaveBoard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"savedAt": time.Now().Format(time.RFC3339),
+		"success":   true,
+		"savedAt":   newUpdatedAt.Format(time.RFC3339Nano),
+		"updatedAt": newUpdatedAt.Format(time.RFC3339Nano),
 	})
 }
 
@@ -268,13 +339,27 @@ func LoadBoard(c *gin.Context) {
 		return
 	}
 
-	data, err := model.LoadBoardDataForUser(c.Request.Context(), roomID, user.ID)
+	ctx := c.Request.Context()
+	snapshot, err := document.Open(ctx, roomID, user.ID, false)
+	if err == nil {
+		c.JSON(http.StatusOK, model.BoardData{
+			Name:          snapshot.Document.Name,
+			Elements:      snapshot.Document.Elements,
+			Stamps:        snapshot.Document.Stamps,
+			Pages:         snapshot.Document.Pages,
+			CurrentPageId: snapshot.Document.DefaultPageID,
+			UpdatedAt:     snapshot.UpdatedAt,
+		})
+		return
+	}
+	if !errors.Is(err, document.ErrLegacyMode) {
+		writeDocumentError(c, err)
+		return
+	}
+	data, err := model.LoadBoardDataForUser(ctx, roomID, user.ID)
 	if err != nil {
 		if errors.Is(err, model.ErrRoomNotFound) {
-			c.JSON(http.StatusOK, gin.H{
-				"name":     "Untitled Board",
-				"elements": []interface{}{},
-			})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
 			return
 		}
 		if errors.Is(err, model.ErrRoomAccessDenied) || errors.Is(err, model.ErrNotRoomOwner) {

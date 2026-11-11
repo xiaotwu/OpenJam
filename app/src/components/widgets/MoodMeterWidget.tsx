@@ -1,5 +1,6 @@
 // Mood Meter Widget - Team sentiment measurement
 import { useState } from 'react';
+import { newWidgetPartId } from '../../lib/workshopWidgets';
 
 interface MoodEntry {
   id: string;
@@ -22,6 +23,7 @@ interface MoodMeterWidgetProps {
   onUpdate: (data: { entries: MoodEntry[] }) => void;
   onDelete: () => void;
   isSelected: boolean;
+  editable?: boolean;
   onSelect: () => void;
 }
 
@@ -32,13 +34,13 @@ const QUADRANTS = [
   { id: 'low-pleasant', label: '😌 Low Energy\nPleasant', color: '#FEF3C7', x: 1, y: 1 },
 ];
 
-export default function MoodMeterWidget({ x, y, entries, userId, userName, userColor, onUpdate, onDelete, isSelected, onSelect }: MoodMeterWidgetProps) {
+export default function MoodMeterWidget({ x, y, entries, userId, userName, userColor, onUpdate, onDelete, isSelected, onSelect, editable = true }: MoodMeterWidgetProps) {
   const [hoveredQuadrant, setHoveredQuadrant] = useState<string | null>(null);
 
   const handleClick = (quadrantId: string, clickX: number, clickY: number) => {
     const existingEntry = entries.find((e) => e.userId === userId);
     const newEntry: MoodEntry = {
-      id: existingEntry?.id || `mood-${Date.now()}`,
+      id: existingEntry?.id || newWidgetPartId('mood'),
       userId, userName, color: userColor,
       quadrant: quadrantId as MoodEntry['quadrant'],
       x: clickX, y: clickY,
@@ -51,7 +53,7 @@ export default function MoodMeterWidget({ x, y, entries, userId, userName, userC
 
   return (
     <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="mood-meter">
-      <div className={`bg-white rounded-xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'} overflow-hidden`}>
+      <div className={`canvas-widget-surface rounded-xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'} overflow-hidden`}>
         <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
           <h3 className="font-semibold text-gray-800">Mood Meter</h3>
           <p className="text-xs text-gray-500">{entries.length} response{entries.length !== 1 ? 's' : ''}</p>
@@ -62,10 +64,10 @@ export default function MoodMeterWidget({ x, y, entries, userId, userName, userC
               style={{ backgroundColor: hoveredQuadrant === q.id ? q.color : `${q.color}80`, gridColumn: q.x + 1, gridRow: q.y + 1 }}
               onMouseEnter={() => setHoveredQuadrant(q.id)}
               onMouseLeave={() => setHoveredQuadrant(null)}
-              onClick={(e) => {
+              onClick={editable ? (e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 handleClick(q.id, (e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
-              }}>
+              } : undefined}>
               <div className="absolute inset-0 flex items-center justify-center text-center text-sm text-gray-600 whitespace-pre-line p-2">
                 {q.label}
               </div>

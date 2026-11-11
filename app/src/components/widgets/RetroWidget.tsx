@@ -1,5 +1,6 @@
 // Retrospective Widget - Team retrospective boards
 import { useState, useCallback } from 'react';
+import { newWidgetPartId } from '../../lib/workshopWidgets';
 
 interface RetroNote {
   id: string;
@@ -26,17 +27,18 @@ interface RetroWidgetProps {
   onUpdate: (data: { columns: RetroColumn[] }) => void;
   onDelete: () => void;
   isSelected: boolean;
+  editable?: boolean;
   onSelect: () => void;
 }
 
-export default function RetroWidget({ x, y, columns, userId, onUpdate, onDelete, isSelected, onSelect }: RetroWidgetProps) {
+export default function RetroWidget({ x, y, columns, userId, onUpdate, onDelete, isSelected, onSelect, editable = true }: RetroWidgetProps) {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [newNoteColumn, setNewNoteColumn] = useState<string | null>(null);
   const [newNoteText, setNewNoteText] = useState('');
 
   const handleAddNote = useCallback((columnId: string) => {
     if (!newNoteText.trim()) return;
-    const newNote: RetroNote = { id: `note-${Date.now()}`, text: newNoteText.trim(), votes: 0, author: userId };
+    const newNote: RetroNote = { id: newWidgetPartId('note'), text: newNoteText.trim(), votes: 0, author: userId };
     const newColumns = columns.map((col) => col.id === columnId ? { ...col, notes: [...col.notes, newNote] } : col);
     onUpdate({ columns: newColumns });
     setNewNoteText('');
@@ -70,7 +72,7 @@ export default function RetroWidget({ x, y, columns, userId, onUpdate, onDelete,
 
   return (
     <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="retro">
-      <div className={`bg-white rounded-xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'} overflow-hidden`}>
+      <div className={`canvas-widget-surface rounded-xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'} overflow-hidden`}>
         <div className="flex">
           {columns.map((column) => (
             <div key={column.id} className="w-64 border-r border-gray-200 last:border-r-0" style={{ backgroundColor: column.color }}>
@@ -84,29 +86,29 @@ export default function RetroWidget({ x, y, columns, userId, onUpdate, onDelete,
 
               {/* Notes */}
               <div className="p-2 space-y-2 min-h-[120px] max-h-[300px] overflow-y-auto">
-                {column.notes.sort((a, b) => b.votes - a.votes).map((note) => (
+                {[...column.notes].sort((a, b) => b.votes - a.votes).map((note) => (
                   <div key={note.id} className="bg-white rounded-lg p-2 shadow-sm group">
-                    {editingNote === note.id ? (
+                    {editable && editingNote === note.id ? (
                       <textarea defaultValue={note.text} autoFocus rows={2}
                         onBlur={(e) => handleUpdateNote(column.id, note.id, e.target.value)}
                         className="w-full text-sm resize-none outline-none" />
                     ) : (
                       <>
-                        <p className="text-sm text-gray-800 cursor-pointer" onClick={() => setEditingNote(note.id)}>{note.text}</p>
+                        <p className="text-sm text-gray-800" onClick={editable ? () => setEditingNote(note.id) : undefined}>{note.text}</p>
                         <div className="flex justify-between items-center mt-2">
-                          <button onClick={() => handleVote(column.id, note.id)}
+                          <button type="button" disabled={!editable} onClick={() => handleVote(column.id, note.id)}
                             className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600">
                             👍 {note.votes > 0 && note.votes}
                           </button>
-                          <button onClick={() => handleDeleteNote(column.id, note.id)}
-                            className="opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-red-500">✕</button>
+                          {editable && <button type="button" aria-label="Delete retrospective note" onClick={() => handleDeleteNote(column.id, note.id)}
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-xs text-gray-400 hover:text-red-500">✕</button>}
                         </div>
                       </>
                     )}
                   </div>
                 ))}
                 {/* Add note input */}
-                {newNoteColumn === column.id ? (
+                {editable && (newNoteColumn === column.id ? (
                   <div className="bg-white rounded-lg p-2 shadow-sm">
                     <textarea value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} autoFocus
                       placeholder="Add a note..." rows={2} className="w-full text-sm resize-none outline-none" />
@@ -118,7 +120,7 @@ export default function RetroWidget({ x, y, columns, userId, onUpdate, onDelete,
                 ) : (
                   <button onClick={() => setNewNoteColumn(column.id)}
                     className="w-full py-2 text-sm text-gray-500 hover:bg-white/50 rounded transition-colors">+ Add note</button>
-                )}
+                ))}
               </div>
             </div>
           ))}

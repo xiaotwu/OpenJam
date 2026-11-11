@@ -53,6 +53,8 @@ export type ArrowHead =
 
 export interface BaseElement {
   id: string;
+  pageId?: string;
+  groupId?: string;
   type: ElementType;
   x: number;
   y: number;
@@ -71,6 +73,7 @@ export interface StickyElement extends BaseElement {
   type: 'sticky';
   text: string;
   color: StickyColor;
+  stickyShape?: 'square' | 'rounded' | 'circle';
   fontSize: number;
   textAlign: 'left' | 'center' | 'right';
 }
@@ -123,6 +126,7 @@ export interface DrawingElement extends BaseElement {
 
 export interface ImageElement extends BaseElement {
   type: 'image';
+  assetId?: string;
   src: string;
   originalWidth: number;
   originalHeight: number;
