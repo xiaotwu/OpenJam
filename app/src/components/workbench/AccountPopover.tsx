@@ -3,6 +3,7 @@ import type { User } from '../../lib/api';
 import type { useTheme } from '../../lib/useTheme';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../AuthContext';
+import { useAppearance, type InboxBadgeStyle } from '../../lib/useAppearance';
 import WorkbenchIcon, { type WorkbenchIconName } from './WorkbenchIcon';
 
 type ThemeControls = Pick<ReturnType<typeof useTheme>, 'theme' | 'setTheme'>;
@@ -25,6 +26,7 @@ export default function AccountPopover({
 }: AccountPopoverProps) {
   const { messages: { workbench: { account: text, auth, dialog } } } = useI18n();
   const { saveProfile } = useAuth();
+  const { appearance, updateAppearance } = useAppearance(user?.id);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -153,6 +155,21 @@ export default function AccountPopover({
                   {text.themes[option.value]}
                 </button>
               ))}
+            </div>
+            <div className="shell-appearance-options">
+              <label>{text.textSize}
+                <select value={appearance.textSize} onChange={event => updateAppearance({ textSize: Number(event.target.value) })}>
+                  {[13, 14, 15, 16, 17].map(size => <option key={size} value={size}>{size} px</option>)}
+                </select>
+              </label>
+              {user && <label>{text.inboxBadge}
+                <select value={appearance.inboxBadge}
+                  onChange={event => updateAppearance({ inboxBadge: event.target.value as InboxBadgeStyle })}>
+                  <option value="count">{text.badgeCount}</option>
+                  <option value="dot">{text.badgeDot}</option>
+                  <option value="hidden">{text.badgeHidden}</option>
+                </select>
+              </label>}
             </div>
           </div>}
           {user && !editing && (

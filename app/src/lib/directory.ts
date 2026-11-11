@@ -33,12 +33,21 @@ export interface Workspace {
   isDefault: boolean;
 }
 
+export interface ProjectPerson {
+  userId: string;
+  displayName: string;
+  avatarColor: string;
+  isOwner: boolean;
+}
+
 export interface Project {
   id: string;
   workspaceId: string;
   name: string;
   role: ProjectRole;
   isDefault: boolean;
+  people?: ProjectPerson[];
+  peopleCount?: number;
 }
 
 export interface DirectoryBoard extends Room {

@@ -1,3 +1,4 @@
+import { useBoardFont } from '../../lib/boardFonts';
 // Sticky Note Component
 import { useState, useRef, useEffect } from 'react';
 import type { StickyElement, StickyColor } from '../../lib/elements';
@@ -31,6 +32,7 @@ export default function StickyNote({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onResize: _onResize,
 }: StickyNoteProps) {
+  const fontFamily = useBoardFont(element.fontFamily);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const originalText = useRef<string | null>(null);
   const [localText, setLocalText] = useState(element.text);
@@ -109,8 +111,8 @@ export default function StickyNote({
           borderRadius,
           overflow: 'hidden',
           backgroundColor: colors.bg,
-          boxShadow: isSelected 
-            ? '0 0 0 2px #3B82F6, 0 4px 12px rgba(0,0,0,0.15)' 
+          boxShadow: isSelected
+            ? '0 0 0 2px #3B82F6, 0 4px 12px rgba(0,0,0,0.15)'
             : '0 2px 8px rgba(0,0,0,0.1)',
         }}
       >
@@ -134,9 +136,10 @@ export default function StickyNote({
             className="w-full h-full p-3 bg-transparent border-none outline-none resize-none"
             style={{
               color: colors.text,
+              fontFamily,
               fontSize: element.fontSize,
               textAlign: element.textAlign,
-              fontFamily: 'inherit',
+
             }}
             placeholder="Type here..."
           />
@@ -145,6 +148,7 @@ export default function StickyNote({
             className="w-full h-full p-3 overflow-hidden"
             style={{
               color: colors.text,
+              fontFamily,
               fontSize: element.fontSize,
               textAlign: element.textAlign,
               wordBreak: 'break-word',

@@ -146,6 +146,25 @@ Export board as JSON.
 ### GET `/exports/:key`
 Download an exported file.
 
+## Workshop
+
+Workshop endpoints use `/api/v2/workshop` and require authentication. Reads apply the account’s current Team, Project, and board access.
+
+| Method and path | Behavior |
+|:---|:---|
+| `GET /search?q=…&team=…` | Finds projects, members, files, and content. The Team filter is optional. Each result has a source `url`. |
+| `GET /teams/:teamId/graph` | Returns visible members, projects, boards, and edges. `truncated` indicates that the graph reached a size limit. |
+| `GET /inbox` | Returns recent threads, visible board mentions, and the total unread count. |
+| `POST /threads` | Starts a conversation with a client-generated UUID `id`, `teamId`, `subject`, and `body`. Provide `recipientId` for a direct conversation. |
+| `GET /threads/:id?before=…` | Returns messages in sequence order. Pass the response’s `nextBefore` value for earlier messages. |
+| `POST /threads/:id/replies` | Appends a reply with a client-generated UUID `id` and a `body`. |
+| `PUT /threads/:id/state` | Updates the caller’s `pinned` flag, `readThrough` sequence, or both. |
+| `GET /agenda?from=…&to=…` | Returns visible events and tasks in the RFC 3339 time range. |
+| `PUT /agenda/:id` | Creates or edits an event or task. Include the current `revision` when editing. Optional `teamId` or `projectId` selects a shared scope. |
+| `DELETE /agenda/:id?revision=…` | Deletes the matching editable revision. |
+| `GET /recents` | Returns the caller’s recently opened accessible boards. |
+| `PUT /recents/:id` | Records a board open for the caller. |
+
 ## Health
 
 ### GET `/health`

@@ -157,7 +157,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 4px 8px;
   background: #1f2937;
   color: white;
-  font-size: 12px;
+  font-size: 0.857rem;
   font-weight: 500;
   border-radius: 4px;
   white-space: nowrap;
@@ -172,8 +172,8 @@ input[type="color"]::-webkit-color-swatch {
 
 :root {
   --shell-control-size: 44px;
-  --shell-outline: color-mix(in srgb, var(--text-primary) 12%, transparent);
-  --shell-hover: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --shell-outline: color-mix(in srgb, var(--text-primary) 15%, transparent);
+  --shell-hover: color-mix(in srgb, var(--text-primary) 7%, transparent);
 }
 
 .shell-island,
@@ -188,7 +188,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 999px;
   background: var(--surface-float);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 550;
   transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
 }
@@ -321,7 +321,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 50%;
   background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-panel));
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 650;
 }
 
@@ -369,14 +369,14 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .shell-account-identity strong {
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 650;
 }
 
 .shell-account-identity div span,
 .shell-theme-section > p {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 0.857rem;
 }
 
 .shell-theme-section {
@@ -409,7 +409,7 @@ input[type="color"]::-webkit-color-swatch {
   gap: 5px;
   border-radius: 999px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 0.857rem;
   font-weight: 550;
 }
 
@@ -425,6 +425,38 @@ input[type="color"]::-webkit-color-swatch {
   box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
 }
 
+.shell-appearance-options {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 3px;
+}
+
+.shell-appearance-options label {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.shell-appearance-options select {
+  min-width: 90px;
+  min-height: 31px;
+  padding: 3px 6px;
+  border: 1px solid var(--shell-outline);
+  border-radius: 7px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+.shell-appearance-options select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .shell-account-signout {
   display: flex;
   width: 100%;
@@ -434,7 +466,7 @@ input[type="color"]::-webkit-color-swatch {
   padding-inline: 9px;
   border-radius: 999px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 0.929rem;
   text-align: left;
 }
 
@@ -448,7 +480,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 9px;
   background: color-mix(in srgb, #dc4b45 15%, var(--surface-panel));
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 0.929rem;
   overflow-wrap: anywhere;
 }
 
@@ -456,7 +488,7 @@ input[type="color"]::-webkit-color-swatch {
   display: grid;
   gap: 7px;
   padding: 10px 6px 5px;
-  font-size: 13px;
+  font-size: 0.929rem;
 }
 
 .shell-profile-form > input,
@@ -491,7 +523,7 @@ input[type="color"]::-webkit-color-swatch {
 .shell-profile-actions .shell-pill {
   min-height: 36px;
   padding-inline: 10px;
-  font-size: 12px;
+  font-size: 0.857rem;
 }
 
 .openjam-home {
@@ -523,7 +555,7 @@ input[type="color"]::-webkit-color-swatch {
   align-items: center;
   gap: 8px;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 1.071rem;
   font-weight: 650;
   text-decoration: none;
 }
@@ -559,7 +591,7 @@ input[type="color"]::-webkit-color-swatch {
   max-width: 39ch;
   margin: 15px 0 0;
   color: var(--text-secondary);
-  font-size: clamp(15px, 1.5vw, 18px);
+  font-size: clamp(1.07rem, 1.5vw, 1.29rem);
   line-height: 1.55;
 }
 
@@ -591,7 +623,7 @@ input[type="color"]::-webkit-color-swatch {
 .home-preview-title {
   min-width: 0;
   padding: 0 11px;
-  font-size: 13px;
+  font-size: 0.929rem;
 }
 
 .home-preview-people {
@@ -608,7 +640,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 50%;
   background: color-mix(in srgb, var(--text-primary) 14%, var(--surface-panel));
   color: var(--text-primary);
-  font-size: 9px;
+  font-size: 0.643rem;
 }
 
 .home-preview-people span + span {
@@ -647,13 +679,13 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .home-preview-note strong {
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 650;
 }
 
 .home-preview-note p {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: 0.857rem;
   line-height: 1.45;
 }
 
@@ -695,7 +727,7 @@ input[type="color"]::-webkit-color-swatch {
   align-items: center;
   gap: 9px;
   margin: 0 0 15px;
-  font-size: 18px;
+  font-size: 1.286rem;
 }
 
 .shell-auth-form form {
@@ -708,7 +740,7 @@ input[type="color"]::-webkit-color-swatch {
   display: grid;
   gap: 5px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 500;
 }
 

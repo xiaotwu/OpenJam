@@ -6,7 +6,7 @@ import { useI18n } from '../../i18n';
 import WorkbenchIcon from './WorkbenchIcon';
 
 export type BoardLayout = 'grid' | 'list';
-export type BoardAction = 'favorite' | 'rename' | 'move' | 'archive';
+export type BoardAction = 'favorite' | 'reference' | 'rename' | 'move' | 'archive';
 
 export interface BoardEntry {
   board: DirectoryBoard;
@@ -138,22 +138,20 @@ function BoardTile({ board, theme, location, canMove, isBusy, menuOpen, onMenuCh
         >
           <WorkbenchIcon name="star" filled={board.favorite} />
         </button>
-        {owned && (
-          <button
-            type="button"
-            ref={menuTrigger}
-            data-wb-menu-trigger
-            className="wb-icon-button"
-            aria-label={text.actions(board.name)}
-            aria-expanded={menuOpen}
-            aria-controls={menuOpen ? menuId : undefined}
-            disabled={isBusy}
-            onClick={() => onMenuChange(menuOpen ? null : board.id)}
-          >
-            <WorkbenchIcon name="more" />
-          </button>
-        )}
-        {owned && menuOpen && (
+        <button
+          type="button"
+          ref={menuTrigger}
+          data-wb-menu-trigger
+          className="wb-icon-button"
+          aria-label={text.actions(board.name)}
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
+          disabled={isBusy}
+          onClick={() => onMenuChange(menuOpen ? null : board.id)}
+        >
+          <WorkbenchIcon name="more" />
+        </button>
+        {menuOpen && (
           <div
             id={menuId}
             className="wb-board-menu"
@@ -167,17 +165,20 @@ function BoardTile({ board, theme, location, canMove, isBusy, menuOpen, onMenuCh
               }
             }}
           >
-            <button type="button" onClick={() => onAction('rename', board)}>
-              <WorkbenchIcon name="pencil" /> {text.rename}
+            <button type="button" onClick={() => { onAction('reference', board); menuTrigger.current?.focus(); }}>
+              <WorkbenchIcon name="link" /> Copy Reference
             </button>
+            {owned && <button type="button" onClick={() => onAction('rename', board)}>
+              <WorkbenchIcon name="pencil" /> {text.rename}
+            </button>}
             {canMove && (
               <button type="button" onClick={() => onAction('move', board)}>
                 <WorkbenchIcon name="move" /> {directory.moveToProject}
               </button>
             )}
-            <button type="button" onClick={() => onAction('archive', board)}>
+            {owned && <button type="button" onClick={() => onAction('archive', board)}>
               <WorkbenchIcon name={board.archivedAt ? 'restore' : 'archive'} /> {archiveLabel}
-            </button>
+            </button>}
           </div>
         )}
       </div>

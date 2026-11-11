@@ -189,7 +189,7 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={Boolean(task)}
-              className={buttonClass + ' bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)]'}
+              className={buttonClass + ' bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]'}
               autoFocus
             >
               {text.browse}
@@ -204,7 +204,7 @@ function ImageUploadForm({ boardId, onClose, onUpload }: Omit<ImageUploadDialogP
             <input id={urlId} type="url" value={urlInput} onChange={event => setUrlInput(event.target.value)} disabled={Boolean(task)}
               placeholder="https://example.com/image.png"
               className="min-h-10 w-full rounded-xl border border-[var(--glass-border-strong)] bg-[var(--badge-bg)] px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]" />
-            <button type="submit" disabled={Boolean(task) || !urlInput.trim()} className={buttonClass + ' bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)]'}>{text.add}</button>
+            <button type="submit" disabled={Boolean(task) || !urlInput.trim()} className={buttonClass + ' bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]'}>{text.add}</button>
           </form>
         )}
 

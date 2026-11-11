@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { boardCredentialFragment } from '../../lib/boardSharing';
 import {
@@ -38,7 +38,19 @@ export function ProjectList({ projects, onOpen }: { projects: Project[]; onOpen:
           <button type="button" className="wb-team-link" onClick={() => onOpen(project.id)}>
             <WorkbenchIcon name="folder" /> <span>{project.name}</span>
           </button>
-          <span className="wb-role-label">{text.projectRoles[project.role]}</span>
+          {!!project.people?.length && <div className="wb-project-avatars" aria-label="Project People">
+            {project.people.map(person => {
+              const label = person.displayName + ' · ' + (person.isOwner ? 'Owner' : 'Participant');
+              return <span className="wb-team-avatar" key={person.userId} data-owner={person.isOwner}
+                aria-label={label} role="img" title={label} style={{ backgroundColor: person.avatarColor }}>
+                {Array.from(person.displayName)[0]?.toUpperCase()}
+              </span>;
+            })}
+            {(project.peopleCount ?? 0) > project.people.length && <span className="wb-avatar-overflow"
+              aria-label={String(project.peopleCount! - project.people.length) + ' more participants'}>
+              +{project.peopleCount! - project.people.length}
+            </span>}
+          </div>}
         </li>)}
       </ul> : <p>{text.noProjects}</p>}
     </section>
@@ -48,10 +60,11 @@ export function ProjectList({ projects, onOpen }: { projects: Project[]; onOpen:
 interface TeamMembersProps {
   team: Organization;
   currentUserId: string;
+  focusedMember?: string | null;
   onLeave: () => void;
 }
 
-export function TeamMembers({ team, currentUserId, onLeave }: TeamMembersProps) {
+export function TeamMembers({ team, currentUserId, focusedMember, onLeave }: TeamMembersProps) {
   const { formatDate, messages: { workbench: { teams: text } } } = useI18n();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -60,6 +73,7 @@ export function TeamMembers({ team, currentUserId, onLeave }: TeamMembersProps) 
   const [role, setRole] = useState<AssignableTeamRole>('member');
   const [invitation, setInvitation] = useState<{ url: string; expiresAt: string }>();
   const [copied, setCopied] = useState(false);
+  const focusRow = useRef<HTMLLIElement>(null);
   const { busy, error, run } = usePanelAction(text.actionError);
 
   useEffect(() => {
@@ -71,6 +85,12 @@ export function TeamMembers({ team, currentUserId, onLeave }: TeamMembersProps) 
     });
     return () => controller.abort();
   }, [team.id, text.loadError]);
+
+  useEffect(() => {
+    if (!loaded || !focusedMember) return;
+    focusRow.current?.scrollIntoView({ block: 'nearest' });
+    focusRow.current?.focus({ preventScroll: true });
+  }, [loaded, focusedMember]);
 
   const isOwner = team.role === 'owner';
   const canInvite = isOwner || team.role === 'admin';
@@ -84,7 +104,8 @@ export function TeamMembers({ team, currentUserId, onLeave }: TeamMembersProps) 
         {members.map(member => {
           const self = member.userId === currentUserId;
           const canRemove = member.role !== 'owner' && (self || isOwner || (team.role === 'admin' && member.role === 'member'));
-          return <li key={member.userId}>
+          return <li key={member.userId} tabIndex={-1} ref={focusedMember === member.userId ? focusRow : undefined}
+            data-focused={focusedMember === member.userId}>
             <div className="wb-team-person">
               <span className="wb-team-avatar" aria-hidden="true" style={{ backgroundColor: member.avatarColor }}>
                 {Array.from(member.displayName)[0]?.toUpperCase()}
@@ -135,7 +156,7 @@ export function TeamMembers({ team, currentUserId, onLeave }: TeamMembersProps) 
             <option value="admin">{text.teamRoles.admin}</option>
           </select>
         </label>}
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !email.trim()}>{text.invite}</button>
+        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !email.trim()}><WorkbenchIcon name="plus" />{text.invite}</button>
       </form>}
       {invitation && <div className="wb-team-invitation">
         <label className="wb-field">{text.invitationURL}

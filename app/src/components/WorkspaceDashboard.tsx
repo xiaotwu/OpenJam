@@ -7,29 +7,33 @@ import {
   type Directory, type DirectoryBoard, type Organization, type Project, type Workspace,
 } from '../lib/directory';
 import { useTheme } from '../lib/useTheme';
+import { useAppearance } from '../lib/useAppearance';
+import { useWorkshopResource, workshopPath, type Inbox } from '../lib/workshop';
 import { useI18n } from '../i18n';
 import AccountPopover from './workbench/AccountPopover';
 import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workbench/BoardCollection';
 import BoardFilesPanel from './BoardFilesPanel';
 import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
 import { ProjectAccess, ProjectList, TeamMembers } from './workbench/TeamDirectoryPanels';
+import { TeamRelationships, WorkshopRecents, WorkshopSearch } from './workbench/DiscoveryPanels';
+import { WorkshopCalendar } from './workbench/WorkshopCalendar';
+import WorkshopInbox from './workbench/WorkshopInbox';
+import WorkshopNavigation, { type WorkshopView } from './workbench/WorkshopNavigation';
 import WorkbenchIcon, { type WorkbenchIconName } from './workbench/WorkbenchIcon';
 import './workbench/workbench.css';
+import './workbench/workshop.css';
 
 interface WorkspaceDashboardProps {
   user: User;
   onLogout: () => void | Promise<void>;
 }
 
-type View = 'recent' | 'favorites' | 'shared' | 'archive';
+type CollectionView = 'recent' | 'favorites' | 'shared' | 'archive';
 type Sort = 'updated' | 'name';
 
-const views: Array<{ id: View; icon: WorkbenchIconName }> = [
-  { id: 'recent', icon: 'recent' },
-  { id: 'favorites', icon: 'star' },
-  { id: 'shared', icon: 'shared' },
-  { id: 'archive', icon: 'archive' },
-];
+const collectionIcons: Record<CollectionView, WorkbenchIconName> = {
+  recent: 'board', favorites: 'star', shared: 'shared', archive: 'archive',
+};
 
 interface DirectoryLoad {
   key: string;
@@ -93,6 +97,8 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const mobileMenuButton = useRef<HTMLButtonElement>(null);
   const mobileCloseButton = useRef<HTMLButtonElement>(null);
   const { theme, setTheme, isDark } = useTheme();
+  const { appearance } = useAppearance(user.id);
+  const inbox = useWorkshopResource<Inbox>(workshopPath + '/inbox', 8_000);
   const { locale, formatNumber, messages: { workbench: { directory: text, teams: teamText } } } = useI18n();
   const collator = useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }), [locale]);
 
@@ -104,14 +110,29 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
 
   useEffect(() => {
     const controller = new AbortController();
-    void getDirectory(controller.signal)
-      .then((data) => {
-        if (!controller.signal.aborted) setLoad({ key, directory: data });
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) setLoad({ key, error: errorMessage(error, text.loadBoardsError) });
-      });
-    return () => controller.abort();
+    let pending = false;
+    function refreshDirectory() {
+      if (pending || document.visibilityState === 'hidden') return;
+      pending = true;
+      void getDirectory(controller.signal)
+        .then((data) => {
+          if (!controller.signal.aborted) setLoad({ key, directory: data });
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) setLoad({ key, error: errorMessage(error, text.loadBoardsError) });
+        })
+        .finally(() => { pending = false; });
+    }
+    refreshDirectory();
+    window.addEventListener('focus', refreshDirectory);
+    document.addEventListener('visibilitychange', refreshDirectory);
+    const timer = window.setInterval(refreshDirectory, 20_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDirectory);
+      document.removeEventListener('visibilitychange', refreshDirectory);
+    };
   }, [key, text.loadBoardsError]);
 
   useEffect(() => {
@@ -134,26 +155,33 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   }, [mobileNavOpen]);
 
   const preferredOrganization = useMemo(() => getOrganizationPreference(user.id), [user.id]);
-  const organizationId = params.get('organization') ?? preferredOrganization;
+  const organizationId = params.get('organization');
   const personal = directory?.organizations.find(item => item.kind === 'personal');
   const teams = directory?.organizations.filter(item => item.kind === 'team') ?? [];
   const requestedTeam = teams.find(item => item.id === organizationId);
   const section = params.get('section');
   const teamMode = section === 'teams' || (section !== 'projects' && requestedTeam !== undefined);
-  const organization = teamMode ? requestedTeam ?? teams[0] : personal;
+  const organization = teamMode
+    ? organizationId ? requestedTeam : teams.find(item => item.id === preferredOrganization) ?? teams[0]
+    : personal;
   const canAddWorkspace = organization?.role === 'owner' || organization?.role === 'admin';
   const activeOrganizationId = organization?.id;
-  const view = views.find((item) => item.id === params.get('view')) ?? views[0];
   const projectId = params.get('project');
+  const requestedView = params.get('view');
+  const view: WorkshopView = requestedView === 'inbox' || requestedView === 'calendar' || requestedView === 'recents'
+    || requestedView === 'favorites' || requestedView === 'shared' || requestedView === 'archive' ? requestedView
+    : section || organizationId || projectId || requestedView === 'recent' ? 'recent' : 'inbox';
+  const collectionView: CollectionView = view === 'favorites' || view === 'shared' || view === 'archive' ? view : 'recent';
+  const workshopHome = view === 'inbox' || view === 'calendar' || view === 'recents';
 
   useEffect(() => {
-    if (!activeOrganizationId) return;
+    if (!activeOrganizationId || !teamMode || view !== 'recent') return;
     try {
       sessionStorage.setItem(organizationPreferenceKey(user.id), activeOrganizationId);
     } catch {
       // Navigation still works when browser storage is unavailable.
     }
-  }, [activeOrganizationId, user.id]);
+  }, [activeOrganizationId, teamMode, user.id, view]);
 
   const locations = useMemo(() => {
     const workspaces = new Map(directory?.workspaces.map((item) => [item.id, item]));
@@ -175,8 +203,19 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const defaultProject = activeProject
     ? editableProjects.find(item => item.id === activeProject.id)
     : editableProjects.find(item => item.isDefault) ?? editableProjects[0];
-  const search = query.trim().toLocaleLowerCase(locale);
-  const showAreaHome = !activeProject && view.id === 'recent' && !search;
+  const search = query.trim();
+  const showAreaHome = !activeProject && view === 'recent' && !search;
+  const showGraph = showAreaHome && teamMode && params.get('panel') === 'graph';
+  const showBoardTools = !workshopHome && !search && !showGraph;
+  const projectsByTeam = new Map<string, Project[]>();
+  for (const { organization: owner, project } of locations.values()) {
+    if (owner.kind !== 'team') continue;
+    const projects = projectsByTeam.get(owner.id) ?? [];
+    projects.push(project);
+    projectsByTeam.set(owner.id, projects);
+  }
+  const personalProjects = (directory?.projects ?? noProjects)
+    .filter(project => locations.get(project.id)?.organization.id === personal?.id);
 
   const entries = useMemo(() => {
     const projectCounts = new Map<string, number>();
@@ -192,27 +231,15 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       const archived = board.permission === 'owner' && board.archivedAt !== null;
       const boardLocation = location ? `${location.workspace.name} / ${location.project.name}` : text.sharedBoard;
 
-      if (search) {
-        if (activeProject && board.projectId !== activeProject.id) continue;
-        if (!activeProject && view.id === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
-        if (view.id === 'archive' && !activeProject) {
-          if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
-        } else if (archived) {
-          continue;
-        }
-        const haystack = `${board.name} ${boardLocation} ${location?.organization.name ?? ''}`;
-        if (!haystack.toLocaleLowerCase(locale).includes(search)) continue;
-      } else if (activeProject) {
+      if (activeProject) {
         if (archived || board.projectId !== activeProject.id) continue;
+      } else if (collectionView === 'archive') {
+        if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
       } else {
-        if (view.id === 'archive') {
-          if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
-        } else {
-          if (archived) continue;
-          if (view.id === 'favorites' && !board.favorite) continue;
-          if (view.id === 'shared' && (board.permission === 'owner' || location)) continue;
-          if (view.id === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
-        }
+        if (archived) continue;
+        if (collectionView === 'favorites' && !board.favorite) continue;
+        if (collectionView === 'shared' && (board.permission === 'owner' || location)) continue;
+        if (collectionView === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
       }
 
       visible.push({
@@ -228,22 +255,46 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     return visible.sort((a, b) => sort === 'name'
       ? collator.compare(a.board.name, b.board.name)
       : Date.parse(b.board.updatedAt) - Date.parse(a.board.updatedAt));
-  }, [activeProject, collator, directory?.boards, locale, locations, organization?.id, organization?.kind, search, sort, text.personalDrafts, text.sharedBoard, user.id, view.id]);
+  }, [activeProject, collator, collectionView, directory?.boards, locations, organization?.id, organization?.kind, sort, text.personalDrafts, text.sharedBoard, user.id]);
 
   function closeMobileNav() {
     setMobileNavOpen(false);
     mobileMenuButton.current?.focus();
   }
 
-  function selectDestination(destinationOrganization: string, destination: View = 'recent', destinationProject?: string) {
-    const next = new URLSearchParams({ section: teamMode ? 'teams' : 'projects' });
-    if (destinationOrganization) next.set('organization', destinationOrganization);
-    if (destinationProject) next.set('project', destinationProject);
-    else if (destination !== 'recent') next.set('view', destination);
+  function changeDestination(next: URLSearchParams) {
     setParams(next);
     setQuery('');
     setMenuId(null);
+    setActionError(null);
     if (mobileNavOpen) closeMobileNav();
+  }
+
+  function selectDestination(destinationOrganization: string, destinationProject?: string) {
+    const next = new URLSearchParams({ section: teams.some(team => team.id === destinationOrganization) ? 'teams' : 'projects' });
+    if (destinationOrganization) next.set('organization', destinationOrganization);
+    if (destinationProject) next.set('project', destinationProject);
+    changeDestination(next);
+  }
+
+  function selectView(destination: WorkshopView) {
+    const next = new URLSearchParams({ view: destination });
+    if (destination === 'archive' && teamMode && activeOrganizationId) {
+      next.set('section', 'teams');
+      next.set('organization', activeOrganizationId);
+    }
+    changeDestination(next);
+  }
+
+  function selectProject(id: string) {
+    const location = locations.get(id);
+    if (location) selectDestination(location.organization.id, id);
+  }
+
+  function selectConversation(id?: string) {
+    const next = new URLSearchParams({ view: 'inbox' });
+    if (id) next.set('conversation', id);
+    setParams(next);
   }
 
   function updateDirectory(update: (data: Directory) => Directory) {
@@ -281,13 +332,6 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     }
   }
 
-  function selectArea(nextSection: 'teams' | 'projects') {
-    setParams({ section: nextSection });
-    setQuery('');
-    setMenuId(null);
-    if (mobileNavOpen) closeMobileNav();
-  }
-
   function addOrganization() {
     openModal({
       title: teamText.newTeam,
@@ -295,8 +339,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       field: { label: teamText.teamName, placeholder: text.teamExample },
       save: async (name) => {
         const result = await createOrganization(name);
-        setParams({ section: 'teams', organization: result.id });
-        setQuery('');
+        changeDestination(new URLSearchParams({ section: 'teams', organization: result.id }));
         setAttempt((current) => current + 1);
       },
     });
@@ -317,13 +360,18 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
 
   function addProject(workspace: Workspace) {
     openModal({
-      title: text.newProjectIn(workspace.name),
+      title: text.newProject,
       submitLabel: text.createProject,
       field: { label: text.projectName, placeholder: text.projectExample },
-      save: async (name) => {
-        const result = await createProject(workspace.id, name);
-        updateDirectory((data) => ({ ...data, projects: [...data.projects, result] }));
-        selectDestination(workspace.organizationId, 'recent', result.id);
+      selection: organizationWorkspaces.length > 1 ? {
+        label: 'Workspace',
+        value: workspace.id,
+        options: organizationWorkspaces.map(item => ({ id: item.id, label: item.name })),
+      } : undefined,
+      save: async (name, workspaceId) => {
+        const result = await createProject(workspaceId || workspace.id, name);
+        selectDestination(workspace.organizationId, result.id);
+        setAttempt(current => current + 1);
       },
     });
   }
@@ -350,6 +398,19 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   }
 
   function handleBoardAction(action: BoardAction, board: DirectoryBoard) {
+    if (action === 'reference') {
+      setMenuId(null);
+      setActionError(null);
+      const reference = '/board/' + encodeURIComponent(board.id);
+      if (!navigator.clipboard) {
+        setActionError('Select and copy ' + reference);
+        return;
+      }
+      void navigator.clipboard.writeText(reference)
+        .then(() => setNotice('Reference copied.'), () => setActionError('Select and copy ' + reference));
+      return;
+    }
+
     if (action === 'rename') {
       openModal({
         title: text.renameBoard,
@@ -411,20 +472,34 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   }
 
   const title = search ? text.searchResults
-    : activeProject?.name ?? (showAreaHome ? (teamMode ? organization?.name ?? teamText.noTeams : teamText.personal) : text[view.id]);
-  const empty = search ? text.empty.search : text.empty[activeProject ? 'recent' : view.id];
+    : view === 'inbox' ? 'Inbox'
+      : view === 'calendar' ? 'Calendar'
+        : view === 'recents' ? 'Recents'
+          : activeProject?.name ?? (showAreaHome ? (teamMode ? organization?.name ?? (organizationId ? 'Team Unavailable' : teamText.noTeams) : teamText.personal) : text[collectionView]);
+  const empty = text.empty[activeProject ? 'recent' : collectionView];
   const firstWorkspace = organizationWorkspaces.find(item => item.isDefault) ?? organizationWorkspaces[0];
   const primaryAction = activeProject
     ? (defaultProject ? { label: text.newBoard, run: addBoard } : null)
     : firstWorkspace ? { label: text.newProject, run: () => addProject(firstWorkspace) }
       : organization && canAddWorkspace ? { label: text.newWorkspace, run: addWorkspace }
         : teamMode && !organization ? { label: teamText.newTeam, run: addOrganization } : null;
-  const globalScope = view.id === 'shared' || view.id === 'favorites';
-  const scope = globalScope
-    ? text.allOrganizations
-    : selectedLocation && activeProject
-      ? `${selectedLocation.organization.name} / ${selectedLocation.workspace.name}`
-      : showAreaHome ? undefined : organization?.name;
+  const scope = !showBoardTools ? undefined : view === 'shared' || view === 'favorites' ? text.allOrganizations
+    : selectedLocation && activeProject ? selectedLocation.organization.name
+      : view === 'archive' ? organization?.name : undefined;
+  const scheduleScope = activeProject ? 'project:' + activeProject.id
+    : teamMode && activeOrganizationId ? 'team:' + activeOrganizationId : undefined;
+  const showTeamWorkspaceAction = showAreaHome && teamMode && canAddWorkspace && firstWorkspace;
+  const calendarDate = params.get('date') ?? undefined;
+  const calendarItem = params.get('item') ?? undefined;
+  const calendarScope = params.get('scope') ?? undefined;
+
+  function selectTeamPanel(relationships: boolean) {
+    const next = new URLSearchParams(params);
+    if (relationships) next.set('panel', 'graph');
+    else next.delete('panel');
+    next.delete('member');
+    setParams(next);
+  }
 
   return (
     <main className="openjam-workbench">
@@ -439,8 +514,8 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       >
         <div className="wb-sidebar-top">
           <Link
-            to={`/workplace?${new URLSearchParams({ section: teamMode ? 'teams' : 'projects', ...(activeOrganizationId ? { organization: activeOrganizationId } : {}) })}`}
-            className="shell-island wb-brand"
+            to="/workplace"
+            className="wb-brand"
             onClick={() => { setQuery(''); setMobileNavOpen(false); }}
           >
             <img src="/icons/openjam.png" alt="" width="28" height="28" />
@@ -451,85 +526,13 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
           </button>
         </div>
 
-        <nav className="wb-area-nav" aria-label={teamText.navigation}>
-          <button type="button" className="wb-nav-button" aria-current={!teamMode ? 'page' : undefined}
-            onClick={() => selectArea('projects')}>
-            <WorkbenchIcon name="folder" /> <span>{teamText.personal}</span>
-          </button>
-          <button type="button" className="wb-nav-button" aria-current={teamMode ? 'page' : undefined}
-            onClick={() => selectArea('teams')}>
-            <WorkbenchIcon name="organization" /> <span>{teamText.teams}</span>
-          </button>
-        </nav>
-
-        {teamMode && <div className="wb-organization-row">
-          <label className="shell-island wb-organization-select">
-            <span className="wb-organization-mark"><WorkbenchIcon name="organization" /></span>
-            <select aria-label={teamText.team} value={organization?.id ?? ''}
-              onChange={event => selectDestination(event.target.value)} disabled={!organization}>
-              {!organization && <option value="">{teamText.noTeams}</option>}
-              {teams.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-            <WorkbenchIcon name="chevron" />
-          </label>
-          <button type="button" className="shell-island wb-organization-add" aria-label={teamText.newTeam} title={teamText.newTeam}
-            onClick={addOrganization} disabled={!directory}>
-            <WorkbenchIcon name="plus" />
-          </button>
-        </div>}
-
         <div className="wb-sidebar-scroll">
-          <nav className="wb-quick-nav" aria-label={text.views}>
-            {views.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                className="wb-nav-button"
-                aria-current={!activeProject && view.id === item.id && !search ? 'page' : undefined}
-                onClick={() => selectDestination(organization?.id ?? '', item.id)}
-              >
-                <WorkbenchIcon name={item.icon} /> <span>{text[item.id]}</span>
-              </button>
-            ))}
-          </nav>
-          <section className="wb-workspaces" aria-labelledby="wb-workspaces-title">
-            <div className="wb-sidebar-heading">
-              <h2 id="wb-workspaces-title">{text.workspaces}</h2>
-              <button type="button" className="wb-icon-button" aria-label={text.newWorkspace} title={text.newWorkspace} onClick={addWorkspace} disabled={!canAddWorkspace}>
-                <WorkbenchIcon name="plus" />
-              </button>
-            </div>
-            {organizationWorkspaces.map((workspace) => {
-              const workspaceProjects = organizationProjects.filter((item) => item.workspaceId === workspace.id);
-              return (
-                <section className="wb-workspace" key={workspace.id} aria-label={workspace.name}>
-                  <div className="wb-workspace-heading">
-                    <span title={workspace.name}><WorkbenchIcon name="folder" /> {workspace.name}</span>
-                    <button
-                      type="button"
-                      className="wb-icon-button"
-                      aria-label={text.newProjectIn(workspace.name)}
-                      title={text.newProjectIn(workspace.name)}
-                      onClick={() => addProject(workspace)}
-                    >
-                      <WorkbenchIcon name="plus" />
-                    </button>
-                  </div>
-                  {workspaceProjects.map((project) => (
-                    <button
-                      type="button"
-                      key={project.id}
-                      className="wb-nav-button wb-project"
-                      aria-current={activeProject?.id === project.id && !search ? 'page' : undefined}
-                      onClick={() => selectDestination(workspace.organizationId, 'recent', project.id)}
-                    >
-                      <WorkbenchIcon name="board" /> <span>{project.name}</span>
-                    </button>
-                  ))}
-                </section>
-              );
-            })}
-          </section>
+          <WorkshopNavigation activeView={search ? undefined : view} personalProjects={personalProjects} teams={teams}
+            projectsByTeam={projectsByTeam} activeTeam={teamMode && view === 'recent' ? activeOrganizationId : undefined}
+            activeProject={!search ? activeProject?.id : undefined} personalOpen={!teamMode && view === 'recent' && !search}
+            badge={appearance.inboxBadge} unread={inbox.data?.unread ?? 0}
+            onView={selectView} onProjects={() => selectDestination(personal?.id ?? '')}
+            onTeam={selectDestination} onProject={selectProject} onNewTeam={addOrganization} />
         </div>
 
         <div className="wb-profile">
@@ -551,18 +554,25 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
           >
             <WorkbenchIcon name="menu" />
           </button>
-          <label className="shell-island wb-search">
+          <div className="wb-search" role="search">
             <WorkbenchIcon name="search" />
-            <input type="search" aria-label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
-          </label>
-          {directory && (
-            <div className="shell-island wb-toolbar-actions">
-              <button type="button" className="shell-icon-button" aria-label={text.importBoard} title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}>
-                <WorkbenchIcon name="import" />
-              </button>
-              {primaryAction && <button type="button" className="wb-create-button" onClick={primaryAction.run} aria-label={primaryAction.label} title={primaryAction.label}>
-                <WorkbenchIcon name="plus" /> <span>{primaryAction.label}</span>
-              </button>}
+            <input type="search" aria-label={text.search} placeholder={text.searchPlaceholder} value={query} maxLength={120}
+              onChange={event => setQuery(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Escape') setQuery(''); }} />
+            {query && <button type="button" className="wb-icon-button" aria-label={text.clearSearch} onClick={() => setQuery('')}>
+              <WorkbenchIcon name="close" />
+            </button>}
+          </div>
+          {directory && showBoardTools && (
+            <div className="wb-toolbar-actions">
+              {scheduleScope && view === 'recent' && <Link className="wb-icon-button" aria-label="Open Calendar" title="Open Calendar"
+                to={'/workplace?' + new URLSearchParams({ view: 'calendar', scope: scheduleScope })}><WorkbenchIcon name="calendar" /></Link>}
+              {showTeamWorkspaceAction && <button type="button" className="wb-icon-button" aria-label={text.newWorkspace}
+                title={text.newWorkspace} onClick={addWorkspace}><WorkbenchIcon name="folder" /></button>}
+              {(!showAreaHome || !teamMode) && <button type="button" className="wb-icon-button" aria-label={text.importBoard}
+                title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}><WorkbenchIcon name="import" /></button>}
+              {primaryAction && view === 'recent' && <button type="button" className="wb-button wb-button-primary" onClick={primaryAction.run}
+                aria-label={primaryAction.label} title={primaryAction.label}><WorkbenchIcon name="plus" /><span>{primaryAction.label}</span></button>}
             </div>
           )}
         </header>
@@ -582,7 +592,16 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             </div>
           )}
 
-          {loading ? (
+          {search ? (
+            <WorkshopSearch query={search} teamId={teamMode && view === 'recent' ? organizationId ?? activeOrganizationId : undefined}
+              teamName={teamMode && view === 'recent' ? organization?.name : undefined} onOpen={() => setQuery('')} />
+          ) : view === 'inbox' ? (
+            <WorkshopInbox user={user} teams={teams} data={inbox.data} loading={inbox.loading} error={inbox.error}
+              selected={params.get('conversation') ?? undefined} onSelect={selectConversation} onChange={inbox.refresh} />
+          ) : view === 'calendar' ? (
+            <WorkshopCalendar key={[calendarDate, calendarItem, calendarScope].join(':')} teams={teams}
+              projects={directory?.projects ?? noProjects} initialDate={calendarDate} initialItem={calendarItem} initialScope={calendarScope} />
+          ) : view === 'recents' ? <WorkshopRecents /> : loading ? (
             <div className="wb-loading" role="status">
               <p>{text.loading}</p>
               <div className="wb-skeletons" aria-hidden="true"><span /><span /><span /></div>
@@ -593,15 +612,20 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
               <button type="button" className="wb-button wb-button-secondary" onClick={() => setAttempt((current) => current + 1)}>{text.retry}</button>
             </div>
           ) : showAreaHome && teamMode ? (
-            organization && <div className="wb-team-overview">
-              <ProjectList projects={organizationProjects} onOpen={id => selectDestination(organization.id, 'recent', id)} />
-              <TeamMembers key={organization.id} team={organization} currentUserId={user.id}
-                onLeave={() => setAttempt(current => current + 1)} />
-            </div>
+            organization ? <>
+              <div className="wb-segmented wb-team-tabs" role="group" aria-label="Team View">
+                <button type="button" aria-pressed={!showGraph} onClick={() => selectTeamPanel(false)}>Overview</button>
+                <button type="button" aria-pressed={showGraph} onClick={() => selectTeamPanel(true)}><WorkbenchIcon name="graph" />Relationships</button>
+              </div>
+              {showGraph ? <TeamRelationships key={organization.id} teamId={organization.id} /> : <div className="wb-team-overview">
+                <ProjectList projects={organizationProjects} onOpen={selectProject} />
+                <TeamMembers key={organization.id} team={organization} currentUserId={user.id} focusedMember={params.get('member')}
+                  onLeave={() => { selectView('inbox'); setAttempt(current => current + 1); }} />
+              </div>}
+            </> : <p className="wb-inline-empty">{organizationId ? 'This team is unavailable.' : 'Create a team or accept an invitation.'}</p>
           ) : (
             <>
-              {showAreaHome && organization && <ProjectList projects={organizationProjects}
-                onOpen={id => selectDestination(organization.id, 'recent', id)} />}
+              {showAreaHome && organization && <ProjectList projects={organizationProjects} onOpen={selectProject} />}
               {teamMode && organization && activeProject?.role === 'manager' && <ProjectAccess key={activeProject.id}
                 project={activeProject} teamId={organization.id} currentUserId={user.id}
                 onChange={() => setAttempt(current => current + 1)} />}
@@ -628,12 +652,10 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                 <BoardCollection entries={entries} theme={isDark ? 'dark' : 'light'} layout={layout} busyBoards={busyBoards} menuId={menuId} onMenuChange={setMenuId} onAction={handleBoardAction} />
               ) : (
                 <div className="wb-empty">
-                  <span className="wb-empty-icon" aria-hidden="true"><WorkbenchIcon name={search ? 'search' : activeProject ? 'board' : view.icon} /></span>
+                  <span className="wb-empty-icon" aria-hidden="true"><WorkbenchIcon name={activeProject ? 'board' : collectionIcons[collectionView]} /></span>
                   <h2>{empty.title}</h2>
                   <p>{empty.description}</p>
-                  {search ? (
-                    <button type="button" className="wb-button wb-button-secondary" onClick={() => setQuery('')}>{text.clearSearch}</button>
-                  ) : primaryAction && (activeProject || view.id === 'recent') && (
+                  {primaryAction && (activeProject || view === 'recent') && (
                     <button type="button" className="wb-button wb-button-secondary" onClick={primaryAction.run}>
                       <WorkbenchIcon name="plus" /> {primaryAction.label}
                     </button>

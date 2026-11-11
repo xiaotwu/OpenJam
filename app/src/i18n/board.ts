@@ -2,7 +2,7 @@ export const board = {
   navigation: 'Board navigation',
   mainMenu: 'Open main menu',
   home: 'Go to Home',
-  workspace: 'Open workspace',
+  workspace: 'Open Workshop',
   pages: 'Pages',
   commandPalette: 'Command palette',
   helpAndShortcuts: 'Help and shortcuts',

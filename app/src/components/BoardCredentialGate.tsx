@@ -68,7 +68,7 @@ export default function BoardCredentialGate({ boardId, credential, email, onRede
           <button type="button" disabled={busy} onClick={() => void switchAccount()} className="min-h-11 rounded-xl border px-4 text-sm font-medium hover:bg-black/5 disabled:opacity-45"
             style={{ borderColor: 'var(--glass-border-strong)' }}>Switch account</button>
         </div>
-        <Link to="/workplace" className="mt-4 inline-flex min-h-9 items-center text-sm font-medium text-blue-500 hover:underline">Back to workplace</Link>
+        <Link to="/workplace" className="mt-4 inline-flex min-h-9 items-center text-sm font-medium text-blue-500 hover:underline">Back to Workshop</Link>
       </section>
     </main>
   );

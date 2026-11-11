@@ -74,7 +74,7 @@ export default function BoardSyncNotice({ state, onRetry, onExportDraft, onDisca
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2" style={{ borderColor: 'var(--glass-border-strong)' }}>
         {revoked
-          ? <a className={`${actionClass} inline-flex items-center`} href="/workplace">Back to workplace</a>
+          ? <a className={`${actionClass} inline-flex items-center`} href="/workplace">Back to Workshop</a>
           : <button type="button" className={actionClass} onClick={onRetry}>Retry sync</button>}
         {hasDraft && !revoked && (
           <button type="button" className={actionClass} onClick={onExportDraft}>Download draft</button>

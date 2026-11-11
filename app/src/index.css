@@ -1,35 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  /* Glass design tokens — predominantly white glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-bg-elevated: rgba(255, 255, 255, 0.82);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-border-strong: rgba(0, 0, 0, 0.06);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
-  --glass-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.07), 0 8px 20px rgba(0, 0, 0, 0.03);
-  --glass-blur: 24px;
-  --glass-blur-heavy: 40px;
-  --text-primary: rgba(0, 0, 0, 0.87);
-  --text-secondary: rgba(0, 0, 0, 0.55);
-  --text-tertiary: rgba(0, 0, 0, 0.35);
-  --accent: #F59E0B;
-  --accent-hover: #D97706;
-  --accent-gradient: linear-gradient(135deg, #F59E0B, #F97316);
-  --focus-ring: #F59E0B;
-  --badge-bg: rgba(0, 0, 0, 0.06);
-  --toast-bg: rgba(255, 255, 255, 0.88);
-  --surface-canvas: #f5f5f5;
-  --surface-panel: #ffffff;
-  --surface-float: rgba(255, 255, 255, 0.86);
-  --widget-surface: rgba(250, 250, 252, 0.90);
-  --canvas-grid-dot: rgba(31, 41, 55, 0.18);
-  --surface-overlay: rgba(0, 0, 0, 0.2);
+  --glass-bg: rgb(251 254 253 / 74%);
+  --glass-bg-elevated: rgb(253 255 254 / 86%);
+  --glass-bg-subtle: rgb(242 248 246 / 58%);
+  --glass-border: rgb(253 255 254 / 76%);
+  --glass-border-strong: rgb(31 62 62 / 15%);
+  --glass-shadow: 0 8px 24px rgb(28 49 55 / 7%), 0 2px 6px rgb(28 49 55 / 4%);
+  --glass-shadow-lg: 0 24px 60px rgb(28 49 55 / 13%), 0 8px 20px rgb(28 49 55 / 6%);
+  --glass-blur: 20px;
+  --glass-blur-heavy: 32px;
+  --text-primary: #202f36;
+  --text-secondary: #52646b;
+  --text-tertiary: #687981;
+  --accent: #236b5e;
+  --accent-hover: #19594d;
+  --accent-contrast: #fbfffd;
+  --focus-ring: #237b6b;
+  --badge-bg: rgb(35 107 94 / 10%);
+  --toast-bg: rgb(251 254 253 / 94%);
+  --surface-canvas: #f3f7f7;
+  --surface-panel: #fcfefe;
+  --surface-float: rgb(252 255 254 / 80%);
+  --widget-surface: rgb(248 252 251 / 92%);
+  --canvas-grid-dot: rgb(36 62 70 / 22%);
+  --surface-overlay: rgb(22 43 48 / 28%);
 
   color: var(--text-primary);
   background-color: var(--surface-canvas);
-  font-family: var(--font-ui, 'Geist', system-ui, sans-serif);
+  font-family: var(--font-ui, system-ui, sans-serif);
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -39,27 +38,28 @@
 }
 
 .dark {
-  --glass-bg: rgba(42, 42, 42, 0.72);
-  --glass-bg-elevated: rgba(44, 44, 44, 0.82);
-  --glass-bg-subtle: rgba(18, 18, 18, 0.34);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-strong: rgba(255, 255, 255, 0.18);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.12);
-  --glass-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.15);
-  --text-primary: rgba(255, 255, 255, 0.92);
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --text-tertiary: rgba(255, 255, 255, 0.38);
-  --accent: #FBBF24;
-  --accent-hover: #F59E0B;
-  --accent-gradient: linear-gradient(135deg, #FBBF24, #F59E0B);
-  --focus-ring: #FBBF24;
-  --badge-bg: rgba(255, 255, 255, 0.12);
-  --toast-bg: rgba(39, 39, 39, 0.9);
-  --surface-canvas: #212121;
-  --surface-panel: #2c2c2c;
-  --surface-float: rgba(44, 44, 44, 0.86);
-  --canvas-grid-dot: rgba(255, 255, 255, 0.12);
-  --surface-overlay: rgba(0, 0, 0, 0.45);
+  --glass-bg: rgb(32 46 54 / 76%);
+  --glass-bg-elevated: rgb(34 49 57 / 86%);
+  --glass-bg-subtle: rgb(15 23 29 / 54%);
+  --glass-border: rgb(212 237 235 / 11%);
+  --glass-border-strong: rgb(211 234 232 / 18%);
+  --glass-shadow: 0 8px 24px rgb(0 0 0 / 21%), 0 2px 6px rgb(0 0 0 / 13%);
+  --glass-shadow-lg: 0 24px 60px rgb(0 0 0 / 35%), 0 8px 20px rgb(0 0 0 / 19%);
+  --text-primary: #e6efee;
+  --text-secondary: #a9babd;
+  --text-tertiary: #8c9fa6;
+  --accent: #8ed5bd;
+  --accent-hover: #a7e4ce;
+  --accent-contrast: #152924;
+  --focus-ring: #8ed5bd;
+  --badge-bg: rgb(142 213 189 / 13%);
+  --toast-bg: rgb(30 43 51 / 94%);
+  --surface-canvas: #151e25;
+  --surface-panel: #202d35;
+  --surface-float: rgb(33 47 55 / 83%);
+  --widget-surface: rgb(30 42 50 / 94%);
+  --canvas-grid-dot: rgb(222 244 243 / 18%);
+  --surface-overlay: rgb(5 10 14 / 62%);
 
   color: var(--text-primary);
   background-color: var(--surface-canvas);
@@ -69,19 +69,19 @@
   background: var(--surface-canvas);
 }
 
-/* Glass utility classes — white-dominant translucent surfaces */
+/* Translucent utility surfaces */
 .glass {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-border);
 }
 
 .glass-elevated {
   background: var(--glass-bg-elevated);
   backdrop-filter: blur(var(--glass-blur-heavy)) saturate(1.8);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: var(--glass-shadow-lg), inset 0 1px 0 var(--glass-border);
 }
 
 .board-topbar { --board-control-height: 44px; flex-wrap: nowrap; }
@@ -95,7 +95,7 @@
   border-radius: 999px;
   padding-inline: 12px;
   text-align: left;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 620;
 }
 
@@ -225,11 +225,11 @@ details[open] > .board-action-button {
   border: 0;
   background: #414141;
   color: #fff;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 620;
 }
 
-.dark .board-account-trigger { background: #e6e6e6; color: #292929; }
+.dark .board-account-trigger { background: var(--text-primary); color: var(--surface-canvas); }
 .board-account-trigger:hover { opacity: .87; }
 
 .board-compact-only,
@@ -248,7 +248,7 @@ details[open] > .board-action-button {
     padding-inline: 12px;
     border-radius: 999px;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 400;
   }
   .board-compact-presentation .board-presentation-menu-label { display: inline; }
@@ -297,7 +297,7 @@ details[open] > .board-action-button {
 }
 
 .selection-glow {
-  box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .badge {

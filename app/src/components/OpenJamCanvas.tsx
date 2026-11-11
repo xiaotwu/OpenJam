@@ -1,3 +1,4 @@
+import { recordRecentBoard } from '../lib/workshop';
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -259,6 +260,12 @@ export default function OpenJamCanvas({
   const isV2 = mode === 'active';
   const canEdit = isLegacy ? legacyReady && legacyEditable : isV2 && boardSync.canEdit && Boolean(currentPageId);
   const canUseBoard = isLegacy ? legacyReady : isV2 && pages.length > 0 && boardSync.status !== 'revoked';
+  const recordedRecent = useRef(false);
+  useEffect(() => {
+    if (!canUseBoard || recordedRecent.current) return;
+    recordedRecent.current = true;
+    void recordRecentBoard(boardId).catch(() => { recordedRecent.current = false; });
+  }, [boardId, canUseBoard]);
   const access = isLegacy ? (legacyEditable ? undefined : 'view') : boardSync.permission;
   const limitedAccess = canUseBoard && (access === 'view' || access === 'comment') ? access : undefined;
   const canPresent = isV2 && (boardSync.permission === 'owner' || boardSync.permission === 'edit');
@@ -1846,7 +1853,7 @@ export default function OpenJamCanvas({
                   href="/workplace"
                   className="inline-flex min-h-11 items-center rounded-xl bg-red-600 px-3 text-sm font-semibold text-white transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                 >
-                  Back to workplace
+                  Back to Workshop
                 </a>
               ) : (
                 <button

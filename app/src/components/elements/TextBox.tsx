@@ -1,3 +1,4 @@
+import { useBoardFont } from '../../lib/boardFonts';
 // Text Box Component
 import { useState, useRef, useEffect } from 'react';
 import type { TextElement } from '../../lib/elements';
@@ -24,6 +25,7 @@ export default function TextBox({
   onEndEdit,
   onUpdate,
 }: TextBoxProps) {
+  const fontFamily = useBoardFont(element.fontFamily);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const originalText = useRef<string | null>(null);
   const [localText, setLocalText] = useState(element.text);
@@ -125,7 +127,7 @@ export default function TextBox({
             height: element.height,
             minWidth: element.width,
             minHeight: element.height,
-            fontFamily: element.fontFamily,
+            fontFamily,
             fontSize: element.fontSize,
             fontWeight: element.fontWeight,
             fontStyle: element.fontStyle,
@@ -139,7 +141,7 @@ export default function TextBox({
         <div
           className="whitespace-pre-wrap"
           style={{
-            fontFamily: element.fontFamily,
+            fontFamily,
             fontSize: element.fontSize,
             fontWeight: element.fontWeight,
             fontStyle: element.fontStyle,

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth, AuthProvider } from './components/AuthContext';
 import Dashboard from './components/Dashboard';
@@ -8,6 +8,7 @@ import WorkspaceDashboard from './components/WorkspaceDashboard';
 import TeamInvitationGate from './components/TeamInvitationGate';
 import type { User } from './lib/api';
 import { useI18n } from './i18n';
+import { useAppearance } from './lib/useAppearance';
 import { boardCredentialFragment, readBoardCredential } from './lib/boardSharing';
 import './App.css';
 
@@ -34,6 +35,10 @@ function generateColor(): string {
 
 function AppContent() {
   const { user, isLoading, logout } = useAuth();
+  const { appearance } = useAppearance(user?.id);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-text-size', appearance.textSize + 'px');
+  }, [appearance.textSize]);
   const { messages: { workbench: { app: text } } } = useI18n();
   // Stabilize color so it doesn't change on every render
   const userColor = useMemo(() => generateColor(), []);
@@ -122,7 +127,7 @@ function WorkplaceRoute({ user, onLogout }: { user: User | null; onLogout: () =>
     return <Navigate to={`/auth?mode=login&next=${next}`} replace />;
   }
 
-  return <WorkspaceDashboard user={user} onLogout={onLogout} />;
+  return <WorkspaceDashboard key={user.id} user={user} onLogout={onLogout} />;
 }
 
 function TeamInvitationRoute({ user }: { user: User | null }) {

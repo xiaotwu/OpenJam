@@ -24,12 +24,21 @@ type Workspace struct {
 	IsDefault      bool      `json:"isDefault"`
 }
 
+type ProjectPerson struct {
+	UserID      uuid.UUID `json:"userId"`
+	DisplayName string    `json:"displayName"`
+	AvatarColor string    `json:"avatarColor"`
+	IsOwner     bool      `json:"isOwner"`
+}
+
 type Project struct {
-	ID          uuid.UUID `json:"id"`
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	Name        string    `json:"name"`
-	Role        string    `json:"role"`
-	IsDefault   bool      `json:"isDefault"`
+	ID          uuid.UUID       `json:"id"`
+	WorkspaceID uuid.UUID       `json:"workspaceId"`
+	Name        string          `json:"name"`
+	Role        string          `json:"role"`
+	IsDefault   bool            `json:"isDefault"`
+	People      []ProjectPerson `json:"people,omitempty"`
+	PeopleCount int             `json:"peopleCount,omitempty"`
 }
 
 type DirectoryBoard struct {
@@ -142,10 +151,19 @@ func ListDirectory(ctx context.Context, userID uuid.UUID) (Directory, error) {
 			FROM workspaces w JOIN visible_orgs o ON o.id = w.organization_id
 		), visible_projects AS (
 			SELECT p.id, p.name, p.workspace_id AS "workspaceId", p.is_default AS "isDefault",
-				CASE WHEN o.role = 'owner' THEN 'manager' ELSE pm.role END AS role
+				CASE WHEN o.role = 'owner' THEN 'manager' ELSE pm.role END AS role,
+				people.items AS people, people.total AS "peopleCount"
 			FROM projects p JOIN visible_workspaces w ON w.id = p.workspace_id
 			JOIN visible_orgs o ON o.id = w."organizationId"
 			LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = $1
+			CROSS JOIN LATERAL (
+				SELECT coalesce(jsonb_agg(jsonb_build_object('userId', person.user_id, 'displayName', person.display_name,
+					'avatarColor', person.avatar_color, 'isOwner', person.is_owner)
+					ORDER BY person.is_owner DESC, lower(person.display_name), person.user_id), '[]'::jsonb) AS items,
+					coalesce(max(person.total), 0) AS total
+				FROM (SELECT *, count(*) OVER () AS total FROM openjam_project_people(p.id, $1)
+					ORDER BY is_owner DESC, lower(display_name), user_id LIMIT 5) person
+			) people
 			WHERE o.role = 'owner' OR pm.role IS NOT NULL
 		), visible_boards AS (
 			SELECT r.id, r.name, r.owner_id AS "ownerId", r.created_at AS "createdAt", r.updated_at AS "updatedAt",
