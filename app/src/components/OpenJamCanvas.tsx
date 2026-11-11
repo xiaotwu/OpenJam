@@ -739,7 +739,7 @@ export default function OpenJamCanvas({
         const savedPages = Array.isArray(data.pages) && data.pages.length > 0
           ? data.pages as Page[]
           : [{ id: 'page-1', name: 'Page 1' }];
-        const owner = room.permission === 'owner' || room.ownerId === userId;
+        const owner = room.permission === 'owner' || (!room.permission && room.ownerId === userId);
         elementStoreRef.current.loadSavedElements(savedElements);
         setStamps(savedStamps);
         setPages(savedPages);

@@ -14,18 +14,22 @@ type Organization struct {
 	ID   uuid.UUID `json:"id"`
 	Name string    `json:"name"`
 	Kind string    `json:"kind"`
+	Role string    `json:"role"`
 }
 
 type Workspace struct {
 	ID             uuid.UUID `json:"id"`
 	OrganizationID uuid.UUID `json:"organizationId"`
 	Name           string    `json:"name"`
+	IsDefault      bool      `json:"isDefault"`
 }
 
 type Project struct {
 	ID          uuid.UUID `json:"id"`
 	WorkspaceID uuid.UUID `json:"workspaceId"`
 	Name        string    `json:"name"`
+	Role        string    `json:"role"`
+	IsDefault   bool      `json:"isDefault"`
 }
 
 type DirectoryBoard struct {
@@ -57,7 +61,7 @@ func CreateOrganization(ctx context.Context, ownerID uuid.UUID, name string) (Or
 }
 
 func createOrganization(ctx context.Context, query directoryQuerier, ownerID uuid.UUID, name, kind, workspaceName string) (Organization, uuid.UUID, error) {
-	var organization Organization
+	organization := Organization{Role: "owner"}
 	var draftsID uuid.UUID
 	err := query.QueryRow(ctx, `
 		WITH new_org AS (
@@ -127,32 +131,39 @@ func ListDirectory(ctx context.Context, userID uuid.UUID) (Directory, error) {
 	// Invited collaborators and accounts with redeemed links see the board.
 	var directory Directory
 	err = db.Pool().QueryRow(ctx, `
-		WITH own_orgs AS (
-			SELECT id, name, kind FROM organizations WHERE owner_id = $1
-		), own_workspaces AS (
-			SELECT w.id, w.name, w.organization_id AS "organizationId"
-			FROM workspaces w JOIN own_orgs o ON o.id = w.organization_id
-		), own_projects AS (
-			SELECT p.id, p.name, p.workspace_id AS "workspaceId"
-			FROM projects p JOIN own_workspaces w ON w.id = p.workspace_id
+		WITH visible_orgs AS (
+			SELECT id, name, kind, 'owner' AS role FROM organizations WHERE owner_id = $1
+			UNION ALL
+			SELECT o.id, o.name, o.kind, tm.role FROM team_members tm
+			JOIN organizations o ON o.id = tm.organization_id AND o.kind = 'team'
+			WHERE tm.user_id = $1 AND tm.revoked_at IS NULL AND o.owner_id <> $1
+		), visible_workspaces AS (
+			SELECT w.id, w.name, w.organization_id AS "organizationId", w.is_default AS "isDefault"
+			FROM workspaces w JOIN visible_orgs o ON o.id = w.organization_id
+		), visible_projects AS (
+			SELECT p.id, p.name, p.workspace_id AS "workspaceId", p.is_default AS "isDefault",
+				CASE WHEN o.role = 'owner' THEN 'manager' ELSE pm.role END AS role
+			FROM projects p JOIN visible_workspaces w ON w.id = p.workspace_id
+			JOIN visible_orgs o ON o.id = w."organizationId"
+			LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = $1
+			WHERE o.role = 'owner' OR pm.role IS NOT NULL
 		), visible_boards AS (
 			SELECT r.id, r.name, r.owner_id AS "ownerId", r.created_at AS "createdAt", r.updated_at AS "updatedAt",
-				CASE WHEN r.owner_id = $1 THEN 'owner' ELSE COALESCE(rm.permission, g.permission) END AS permission,
-				CASE WHEN r.owner_id = $1 THEN COALESCE(p.id, $2) END AS "projectId",
+				a.permission,
+				CASE WHEN p.id IS NOT NULL THEN p.id
+					WHEN d.room_id IS NULL AND r.owner_id = $1 THEN $2 END AS "projectId",
 				d.archived_at AS "archivedAt",
 				f.room_id IS NOT NULL AS favorite
-			FROM rooms r
-			LEFT JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $1
-			LEFT JOIN board_live_link_grants g ON g.room_id = r.id AND g.user_id = $1
+			FROM openjam_visible_boards($1) a
+			JOIN rooms r ON r.id = a.board_id
 			LEFT JOIN board_directory d ON d.room_id = r.id
-			LEFT JOIN own_projects p ON p.id = d.project_id
+			LEFT JOIN visible_projects p ON p.id = d.project_id
 			LEFT JOIN board_favorites f ON f.room_id = r.id AND f.user_id = $1
-			WHERE r.owner_id = $1 OR rm.user_id IS NOT NULL OR g.user_id IS NOT NULL
 		)
 		SELECT jsonb_build_object(
-			'organizations', COALESCE((SELECT jsonb_agg(o ORDER BY (o.kind <> 'personal'), LOWER(o.name), o.id) FROM own_orgs o), '[]'::jsonb),
-			'workspaces', COALESCE((SELECT jsonb_agg(w ORDER BY LOWER(w.name), w.id) FROM own_workspaces w), '[]'::jsonb),
-			'projects', COALESCE((SELECT jsonb_agg(p ORDER BY LOWER(p.name), p.id) FROM own_projects p), '[]'::jsonb),
+			'organizations', COALESCE((SELECT jsonb_agg(o ORDER BY (o.kind <> 'personal'), LOWER(o.name), o.id) FROM visible_orgs o), '[]'::jsonb),
+			'workspaces', COALESCE((SELECT jsonb_agg(w ORDER BY NOT w."isDefault", LOWER(w.name), w.id) FROM visible_workspaces w), '[]'::jsonb),
+			'projects', COALESCE((SELECT jsonb_agg(p ORDER BY LOWER(p.name), p.id) FROM visible_projects p), '[]'::jsonb),
 			'boards', COALESCE((SELECT jsonb_agg(b ORDER BY b."updatedAt" DESC, b.id) FROM visible_boards b), '[]'::jsonb)
 		)
 	`, userID, draftsID).Scan(&directory)
@@ -163,43 +174,62 @@ func CreateWorkspace(ctx context.Context, userID, organizationID uuid.UUID, name
 	var workspace Workspace
 	err := db.Pool().QueryRow(ctx, `
 		INSERT INTO workspaces (organization_id, name)
-		SELECT id, $3 FROM organizations WHERE id = $2 AND owner_id = $1
-		RETURNING id, organization_id, name
-	`, userID, organizationID, name).Scan(&workspace.ID, &workspace.OrganizationID, &workspace.Name)
+		SELECT id, $3 FROM organizations
+		WHERE id = $2 AND (owner_id = $1 OR openjam_team_role(id, $1) = 'admin')
+		RETURNING id, organization_id, name, is_default
+	`, userID, organizationID, name).Scan(&workspace.ID, &workspace.OrganizationID, &workspace.Name, &workspace.IsDefault)
 	return workspace, directoryLookupError(err)
 }
 
 func CreateProject(ctx context.Context, userID, workspaceID uuid.UUID, name string) (Project, error) {
-	var project Project
-	err := db.Pool().QueryRow(ctx, `
-		INSERT INTO projects (workspace_id, name)
-		SELECT w.id, $3
-		FROM workspaces w JOIN organizations o ON o.id = w.organization_id
-		WHERE w.id = $2 AND o.owner_id = $1
-		RETURNING id, workspace_id, name
-	`, userID, workspaceID, name).Scan(&project.ID, &project.WorkspaceID, &project.Name)
+	project := Project{Role: "manager"}
+	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		// Use the same organization lock as membership changes, so an offboarded
+		// member cannot leave a new grant behind while losing Team access.
+		var orgID uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			SELECT o.id FROM organizations o JOIN workspaces w ON w.organization_id = o.id
+			WHERE w.id = $1 FOR NO KEY UPDATE OF o
+		`, workspaceID).Scan(&orgID); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `
+			WITH authorized AS (
+				SELECT owner_id FROM organizations WHERE id = $4
+					AND (owner_id = $1 OR openjam_team_role(id, $1) IS NOT NULL)
+			), created AS (
+				INSERT INTO projects (workspace_id, name)
+				SELECT $2, $3 FROM authorized
+				RETURNING id, workspace_id, name, is_default
+			), creator AS (
+				INSERT INTO project_members (project_id, user_id, role)
+				SELECT c.id, $1, 'manager' FROM created c CROSS JOIN authorized a
+				WHERE a.owner_id <> $1
+			)
+			SELECT id, workspace_id, name, is_default FROM created
+		`, userID, workspaceID, name, orgID).Scan(&project.ID, &project.WorkspaceID, &project.Name, &project.IsDefault)
+	})
 	return project, directoryLookupError(err)
 }
 
 func CreateProjectBoard(ctx context.Context, userID, projectID uuid.UUID, name string) (DirectoryBoard, error) {
-	board := DirectoryBoard{Room: Room{Permission: "owner"}, ProjectID: &projectID}
+	board := DirectoryBoard{ProjectID: &projectID}
 	err := db.Pool().QueryRow(ctx, `
-		WITH new_board AS (
+		WITH authorized AS (
+			SELECT id, openjam_project_role(id, $1) AS role FROM projects WHERE id = $2
+		), new_board AS (
 			INSERT INTO rooms (id, name, owner_id)
-			SELECT $4, $3, o.owner_id
-			FROM projects p
-			JOIN workspaces w ON w.id = p.workspace_id
-			JOIN organizations o ON o.id = w.organization_id
-			WHERE p.id = $2 AND o.owner_id = $1
+			SELECT $4, $3, $1 FROM authorized WHERE role IN ('manager', 'edit')
 			RETURNING id, name, owner_id, created_at, updated_at
 		), location AS (
 			INSERT INTO board_directory (room_id, project_id)
 			SELECT id, $2 FROM new_board
 			RETURNING room_id
 		)
-		SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at
-		FROM new_board b JOIN location l ON l.room_id = b.id
-	`, userID, projectID, name, uuid.NewString()).Scan(&board.ID, &board.Name, &board.OwnerID, &board.CreatedAt, &board.UpdatedAt)
+		SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at,
+			CASE WHEN a.role = 'manager' THEN 'owner' ELSE 'edit' END
+		FROM new_board b JOIN location l ON l.room_id = b.id CROSS JOIN authorized a
+	`, userID, projectID, name, uuid.NewString()).Scan(&board.ID, &board.Name, &board.OwnerID, &board.CreatedAt, &board.UpdatedAt, &board.Permission)
 	return board, directoryLookupError(err)
 }
 
@@ -208,9 +238,8 @@ func SetBoardFavorite(ctx context.Context, userID uuid.UUID, boardID string, fav
 	err := db.Pool().QueryRow(ctx, `
 		WITH eligible_board AS (
 			SELECT r.id FROM rooms r
-			LEFT JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $1
-			LEFT JOIN board_live_link_grants g ON g.room_id = r.id AND g.user_id = $1
-			WHERE r.id = $2 AND (r.owner_id = $1 OR rm.user_id IS NOT NULL OR g.user_id IS NOT NULL)
+			CROSS JOIN LATERAL openjam_board_access(r.id, $1) a
+			WHERE r.id = $2 AND a.permission IS NOT NULL AND a.source <> 'legacy-link'
 			FOR KEY SHARE OF r
 		), favorited AS (
 			INSERT INTO board_favorites (room_id, user_id)
@@ -257,8 +286,7 @@ func MoveBoard(ctx context.Context, userID uuid.UUID, boardID string, projectID 
 			JOIN workspaces source_workspace ON source_workspace.id = source_project.workspace_id
 			JOIN projects target_project ON target_project.id = $2
 			JOIN workspaces target_workspace ON target_workspace.id = target_project.workspace_id
-			JOIN organizations target_org ON target_org.id = target_workspace.organization_id AND target_org.owner_id = $3
-			WHERE d.room_id = $1
+			WHERE d.room_id = $1 AND openjam_project_role(target_project.id, $3) = 'manager'
 		`, boardID, projectID, userID).Scan(&sourceOrgID, &targetOrgID)
 		if err != nil {
 			return directoryLookupError(err)
@@ -275,11 +303,18 @@ func ensureOwnedBoardLocation(ctx context.Context, tx pgx.Tx, userID uuid.UUID, 
 	var exists bool
 	err := tx.QueryRow(ctx, `
 		SELECT EXISTS(SELECT 1 FROM board_directory d WHERE d.room_id = r.id)
-		FROM rooms r WHERE r.id = $1 AND r.owner_id = $2
+		FROM rooms r WHERE r.id = $1
 		FOR NO KEY UPDATE OF r
-	`, boardID, userID).Scan(&exists)
-	if err != nil || exists {
+	`, boardID).Scan(&exists)
+	if err != nil {
 		return directoryLookupError(err)
+	}
+	access, err := QueryRoomAccess(ctx, tx, boardID, userID)
+	if errors.Is(err, ErrRoomAccessDenied) || (err == nil && !access.IsOwner) {
+		return ErrDirectoryNotFound
+	}
+	if err != nil || exists {
+		return err
 	}
 	draftsID, err := ensurePersonalDrafts(ctx, tx, userID)
 	if err != nil {

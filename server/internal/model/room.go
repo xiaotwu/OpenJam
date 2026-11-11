@@ -2,7 +2,6 @@ package model
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -170,12 +169,8 @@ func GetRoomsByOwner(ctx context.Context, ownerID uuid.UUID) ([]*Room, error) {
 
 func GetRoomsAccessibleByUser(ctx context.Context, userID uuid.UUID) ([]*Room, error) {
 	rows, err := db.Pool().Query(ctx, `
-		SELECT r.id, r.name, r.owner_id, r.created_at, r.updated_at,
-			CASE WHEN r.owner_id = $1 THEN 'owner' ELSE COALESCE(rm.permission, g.permission) END AS permission
-		FROM rooms r
-		LEFT JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $1
-		LEFT JOIN board_live_link_grants g ON g.room_id = r.id AND g.user_id = $1
-		WHERE r.owner_id = $1 OR rm.user_id = $1 OR g.user_id = $1
+		SELECT r.id, r.name, r.owner_id, r.created_at, r.updated_at, a.permission
+		FROM openjam_visible_boards($1) a JOIN rooms r ON r.id = a.board_id
 		ORDER BY r.updated_at DESC
 	`, userID)
 	if err != nil {
@@ -206,53 +201,22 @@ type roomAccessQuery interface {
 // QueryRoomAccess uses the supplied transaction when access must be checked
 // against the same database view as a document read or write.
 func QueryRoomAccess(ctx context.Context, query roomAccessQuery, roomID string, userID uuid.UUID) (*RoomAccess, error) {
-	var ownerID uuid.UUID
-	var memberPermission sql.NullString
-	var linkPermission sql.NullString
-	var legacyPermission sql.NullString
-
-	err := query.QueryRow(ctx, `
-		SELECT r.owner_id, rm.permission, g.permission, rss.link_permission
-		FROM rooms r
-		LEFT JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $2
-		LEFT JOIN board_live_link_grants g ON g.room_id = r.id AND g.user_id = $2
-		LEFT JOIN room_share_settings rss ON rss.room_id = r.id AND rss.legacy_access_expires_at > statement_timestamp()
-		WHERE r.id = $1
-	`, roomID, userID).Scan(&ownerID, &memberPermission, &linkPermission, &legacyPermission)
+	var permission, source *string
+	err := query.QueryRow(ctx, "SELECT permission, source FROM openjam_board_access($1, $2)", roomID, userID).
+		Scan(&permission, &source)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrRoomNotFound
-		}
 		return nil, err
 	}
-
-	if ownerID == userID {
-		return &RoomAccess{IsOwner: true, Permission: RoomPermissionEdit, Source: "owner"}, nil
+	if permission == nil || source == nil {
+		return nil, ErrRoomAccessDenied
 	}
-
-	if memberPermission.Valid {
-		permission, ok := NormalizeRoomPermission(memberPermission.String)
-		if ok {
-			return &RoomAccess{Permission: permission, Source: "member"}, nil
-		}
+	if *permission == "owner" {
+		return &RoomAccess{IsOwner: true, Permission: RoomPermissionEdit, Source: *source}, nil
 	}
-
-	if linkPermission.Valid {
-		if permission, ok := NormalizeRoomPermission(linkPermission.String); ok {
-			return &RoomAccess{Permission: permission, Source: "link"}, nil
-		}
-	}
-
-	if legacyPermission.Valid {
-		sharePermission, ok := NormalizeSharePermission(legacyPermission.String)
-		if ok {
-			if permission, allowed := SharePermissionToRoomPermission(sharePermission); allowed {
-				return &RoomAccess{Permission: permission, Source: "legacy-link"}, nil
-			}
-		}
-	}
-
-	return nil, ErrRoomAccessDenied
+	return &RoomAccess{Permission: RoomPermission(*permission), Source: *source}, nil
 }
 
 func UserCanAccessRoom(ctx context.Context, roomID string, userID uuid.UUID) error {
@@ -272,41 +236,29 @@ func UserCanEditRoom(ctx context.Context, roomID string, userID uuid.UUID) error
 }
 
 func DeleteRoom(ctx context.Context, id string, userID uuid.UUID) error {
-	room, err := GetRoom(ctx, id)
-	if err != nil {
+	return pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		if err := requireBoardOwner(ctx, tx, id, userID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, "DELETE FROM rooms WHERE id = $1", id)
 		return err
-	}
-	if room.OwnerID != userID {
-		return ErrNotRoomOwner
-	}
-
-	_, err = db.Pool().Exec(ctx, "DELETE FROM rooms WHERE id = $1", id)
-	return err
+	})
 }
 
 func UpdateRoom(ctx context.Context, id, name string, userID uuid.UUID) (*Room, error) {
-	room, err := GetRoom(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if room.OwnerID != userID {
-		return nil, ErrNotRoomOwner
-	}
-
 	updated := &Room{}
-	err = db.Pool().QueryRow(ctx, `
-		UPDATE rooms
-		SET name = $1, updated_at = NOW()
-		WHERE id = $2
-		RETURNING id, name, owner_id, created_at, updated_at
-	`, name, id).Scan(&updated.ID, &updated.Name, &updated.OwnerID, &updated.CreatedAt, &updated.UpdatedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrRoomNotFound
+	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		if err := requireBoardOwner(ctx, tx, id, userID); err != nil {
+			return err
 		}
+		return tx.QueryRow(ctx, `
+			UPDATE rooms SET name = $1, updated_at = NOW() WHERE id = $2
+			RETURNING id, name, owner_id, created_at, updated_at
+		`, name, id).Scan(&updated.ID, &updated.Name, &updated.OwnerID, &updated.CreatedAt, &updated.UpdatedAt)
+	})
+	if err != nil {
 		return nil, err
 	}
-
 	return updated, nil
 }
 
@@ -345,12 +297,12 @@ func EnsureRoomEditable(ctx context.Context, id, name string, userID uuid.UUID) 
 }
 
 func EnsureRoomOwned(ctx context.Context, id, name string, ownerID uuid.UUID) (*Room, error) {
-	room, err := GetRoom(ctx, id)
+	access, err := GetRoomAccess(ctx, id, ownerID)
+	if errors.Is(err, ErrRoomAccessDenied) || (err == nil && !access.IsOwner) {
+		return nil, ErrNotRoomOwner
+	}
 	if err == nil {
-		if room.OwnerID != ownerID {
-			return nil, ErrNotRoomOwner
-		}
-		return room, nil
+		return GetRoom(ctx, id)
 	}
 	if !errors.Is(err, ErrRoomNotFound) {
 		return nil, err

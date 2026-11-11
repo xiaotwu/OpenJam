@@ -4,7 +4,7 @@ export type BoardCredential = { kind: 'invite' | 'share'; token: string };
 export type ShareLinkPermission = Exclude<MemberPermission, 'edit'>;
 export type EffectiveBoardAccess = {
   permission: 'owner' | MemberPermission;
-  source: 'owner' | 'member' | 'link' | 'legacy-link';
+  source: 'owner' | 'member' | 'project' | 'link' | 'legacy-link';
   capabilities: { canRead: boolean; canComment: boolean; canEdit: boolean; canManage: boolean; canRestore: boolean };
 };
 

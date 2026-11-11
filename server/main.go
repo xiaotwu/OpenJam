@@ -206,8 +206,8 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 		api.POST("/rooms/:id/export/json", handler.ExportJSON)
 		api.GET("/exports/*key", handler.GetExport)
 	}
-	handler.RegisterDirectoryRoutes(api)
 	syncAPI := r.Group("/api", middleware.DocumentAuthRequired(), middleware.RateLimitUser(syncLimiter))
+	handler.RegisterDirectoryRoutes(syncAPI, hub.NotifyAccessChanged)
 	handler.RegisterDocumentRoutes(syncAPI, hub.NotifyDocument, hub.NotifyAccessChanged, agentConfig)
 	handler.RegisterAgentOrganizationRoutes(syncAPI, agentConfig)
 	handler.RegisterAgentProfileRoutes(syncAPI)

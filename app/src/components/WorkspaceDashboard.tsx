@@ -12,6 +12,7 @@ import AccountPopover from './workbench/AccountPopover';
 import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workbench/BoardCollection';
 import BoardFilesPanel from './BoardFilesPanel';
 import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
+import { ProjectAccess, ProjectList, TeamMembers } from './workbench/TeamDirectoryPanels';
 import WorkbenchIcon, { type WorkbenchIconName } from './workbench/WorkbenchIcon';
 import './workbench/workbench.css';
 
@@ -92,7 +93,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const mobileMenuButton = useRef<HTMLButtonElement>(null);
   const mobileCloseButton = useRef<HTMLButtonElement>(null);
   const { theme, setTheme, isDark } = useTheme();
-  const { locale, formatNumber, messages: { workbench: { directory: text } } } = useI18n();
+  const { locale, formatNumber, messages: { workbench: { directory: text, teams: teamText } } } = useI18n();
   const collator = useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }), [locale]);
 
   const key = `${user.id}:${attempt}`;
@@ -134,9 +135,13 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
 
   const preferredOrganization = useMemo(() => getOrganizationPreference(user.id), [user.id]);
   const organizationId = params.get('organization') ?? preferredOrganization;
-  const organization = directory?.organizations.find((item) => item.id === organizationId)
-    ?? directory?.organizations.find((item) => item.kind === 'personal')
-    ?? directory?.organizations[0];
+  const personal = directory?.organizations.find(item => item.kind === 'personal');
+  const teams = directory?.organizations.filter(item => item.kind === 'team') ?? [];
+  const requestedTeam = teams.find(item => item.id === organizationId);
+  const section = params.get('section');
+  const teamMode = section === 'teams' || (section !== 'projects' && requestedTeam !== undefined);
+  const organization = teamMode ? requestedTeam ?? teams[0] : personal;
+  const canAddWorkspace = organization?.role === 'owner' || organization?.role === 'admin';
   const activeOrganizationId = organization?.id;
   const view = views.find((item) => item.id === params.get('view')) ?? views[0];
   const projectId = params.get('project');
@@ -166,13 +171,17 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const selectedLocation = projectId ? locations.get(projectId) : undefined;
   const activeProject = selectedLocation?.organization.id === organization?.id ? selectedLocation?.project : undefined;
   const organizationProjects = directory?.projects.filter((item) => locations.get(item.id)?.organization.id === organization?.id) ?? noProjects;
-  const defaultProject = activeProject ?? organizationProjects.find((item) => item.name === 'Drafts') ?? organizationProjects[0];
+  const editableProjects = organizationProjects.filter(item => item.role === 'manager' || item.role === 'edit');
+  const defaultProject = activeProject
+    ? editableProjects.find(item => item.id === activeProject.id)
+    : editableProjects.find(item => item.isDefault) ?? editableProjects[0];
   const search = query.trim().toLocaleLowerCase(locale);
+  const showAreaHome = !activeProject && view.id === 'recent' && !search;
 
   const entries = useMemo(() => {
     const projectCounts = new Map<string, number>();
-    for (const { organization: owner } of locations.values()) {
-      projectCounts.set(owner.id, (projectCounts.get(owner.id) ?? 0) + 1);
+    for (const { organization: owner, project } of locations.values()) {
+      if (project.role === 'manager') projectCounts.set(owner.id, (projectCounts.get(owner.id) ?? 0) + 1);
     }
 
     const visible: BoardEntry[] = [];
@@ -184,6 +193,8 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       const boardLocation = location ? `${location.workspace.name} / ${location.project.name}` : text.sharedBoard;
 
       if (search) {
+        if (activeProject && board.projectId !== activeProject.id) continue;
+        if (!activeProject && view.id === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
         if (view.id === 'archive' && !activeProject) {
           if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
         } else if (archived) {
@@ -199,7 +210,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
         } else {
           if (archived) continue;
           if (view.id === 'favorites' && !board.favorite) continue;
-          if (view.id === 'shared' && board.ownerId === user.id) continue;
+          if (view.id === 'shared' && (board.permission === 'owner' || location)) continue;
           if (view.id === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
         }
       }
@@ -225,7 +236,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   }
 
   function selectDestination(destinationOrganization: string, destination: View = 'recent', destinationProject?: string) {
-    const next = new URLSearchParams();
+    const next = new URLSearchParams({ section: teamMode ? 'teams' : 'projects' });
     if (destinationOrganization) next.set('organization', destinationOrganization);
     if (destinationProject) next.set('project', destinationProject);
     else if (destination !== 'recent') next.set('view', destination);
@@ -270,14 +281,22 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     }
   }
 
+  function selectArea(nextSection: 'teams' | 'projects') {
+    setParams({ section: nextSection });
+    setQuery('');
+    setMenuId(null);
+    if (mobileNavOpen) closeMobileNav();
+  }
+
   function addOrganization() {
     openModal({
-      title: text.newOrganization,
-      submitLabel: text.createOrganization,
-      field: { label: text.organizationName, placeholder: text.teamExample },
+      title: teamText.newTeam,
+      submitLabel: teamText.createTeam,
+      field: { label: teamText.teamName, placeholder: text.teamExample },
       save: async (name) => {
         const result = await createOrganization(name);
-        selectDestination(result.id);
+        setParams({ section: 'teams', organization: result.id });
+        setQuery('');
         setAttempt((current) => current + 1);
       },
     });
@@ -318,7 +337,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       selection: activeProject ? undefined : {
         label: text.project,
         value: defaultProject.id,
-        options: organizationProjects.map((item) => ({
+        options: editableProjects.map((item) => ({
           id: item.id,
           label: `${locations.get(item.id)?.workspace.name} / ${item.name}`,
         })),
@@ -349,7 +368,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       const origin = board.projectId ? locations.get(board.projectId) : undefined;
       if (!origin) return;
       const options = Array.from(locations.values())
-        .filter((item) => item.organization.id === origin.organization.id && item.project.id !== board.projectId)
+        .filter((item) => item.organization.id === origin.organization.id && item.project.id !== board.projectId && item.project.role === 'manager')
         .map((item) => ({ id: item.project.id, label: `${item.workspace.name} / ${item.project.name}` }));
       if (options.length === 0) return;
       openModal({
@@ -391,21 +410,21 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     })();
   }
 
-  const title = search ? text.searchResults : (activeProject?.name ?? text[view.id]);
-  const empty = search
-    ? text.empty.search
-    : text.empty[activeProject ? 'recent' : view.id];
-  const firstWorkspace = organizationWorkspaces[0];
-  const primaryAction = defaultProject ? { label: text.newBoard, run: addBoard }
+  const title = search ? text.searchResults
+    : activeProject?.name ?? (showAreaHome ? (teamMode ? organization?.name ?? teamText.noTeams : teamText.personal) : text[view.id]);
+  const empty = search ? text.empty.search : text.empty[activeProject ? 'recent' : view.id];
+  const firstWorkspace = organizationWorkspaces.find(item => item.isDefault) ?? organizationWorkspaces[0];
+  const primaryAction = activeProject
+    ? (defaultProject ? { label: text.newBoard, run: addBoard } : null)
     : firstWorkspace ? { label: text.newProject, run: () => addProject(firstWorkspace) }
-    : organization ? { label: text.newWorkspace, run: addWorkspace }
-    : { label: text.newOrganization, run: addOrganization };
-  const globalScope = view.id === 'shared' || view.id === 'favorites' || (search && (view.id !== 'archive' || activeProject));
+      : organization && canAddWorkspace ? { label: text.newWorkspace, run: addWorkspace }
+        : teamMode && !organization ? { label: teamText.newTeam, run: addOrganization } : null;
+  const globalScope = view.id === 'shared' || view.id === 'favorites';
   const scope = globalScope
     ? text.allOrganizations
     : selectedLocation && activeProject
       ? `${selectedLocation.organization.name} / ${selectedLocation.workspace.name}`
-      : organization?.name;
+      : showAreaHome ? undefined : organization?.name;
 
   return (
     <main className="openjam-workbench">
@@ -420,7 +439,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       >
         <div className="wb-sidebar-top">
           <Link
-            to={activeOrganizationId ? `/workplace?organization=${encodeURIComponent(activeOrganizationId)}` : '/workplace'}
+            to={`/workplace?${new URLSearchParams({ section: teamMode ? 'teams' : 'projects', ...(activeOrganizationId ? { organization: activeOrganizationId } : {}) })}`}
             className="shell-island wb-brand"
             onClick={() => { setQuery(''); setMobileNavOpen(false); }}
           >
@@ -432,24 +451,32 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
           </button>
         </div>
 
-        <div className="wb-organization-row">
+        <nav className="wb-area-nav" aria-label={teamText.navigation}>
+          <button type="button" className="wb-nav-button" aria-current={!teamMode ? 'page' : undefined}
+            onClick={() => selectArea('projects')}>
+            <WorkbenchIcon name="folder" /> <span>{teamText.personal}</span>
+          </button>
+          <button type="button" className="wb-nav-button" aria-current={teamMode ? 'page' : undefined}
+            onClick={() => selectArea('teams')}>
+            <WorkbenchIcon name="organization" /> <span>{teamText.teams}</span>
+          </button>
+        </nav>
+
+        {teamMode && <div className="wb-organization-row">
           <label className="shell-island wb-organization-select">
             <span className="wb-organization-mark"><WorkbenchIcon name="organization" /></span>
-            <select
-              aria-label={text.organization}
-              value={organization?.id ?? ''}
-              onChange={(event) => selectDestination(event.target.value)}
-              disabled={!organization}
-            >
-              {!organization && <option value="">{text.organizations}</option>}
-              {directory?.organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            <select aria-label={teamText.team} value={organization?.id ?? ''}
+              onChange={event => selectDestination(event.target.value)} disabled={!organization}>
+              {!organization && <option value="">{teamText.noTeams}</option>}
+              {teams.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
             <WorkbenchIcon name="chevron" />
           </label>
-          <button type="button" className="shell-island wb-organization-add" aria-label={text.newOrganization} title={text.newOrganization} onClick={addOrganization} disabled={!directory}>
+          <button type="button" className="shell-island wb-organization-add" aria-label={teamText.newTeam} title={teamText.newTeam}
+            onClick={addOrganization} disabled={!directory}>
             <WorkbenchIcon name="plus" />
           </button>
-        </div>
+        </div>}
 
         <div className="wb-sidebar-scroll">
           <nav className="wb-quick-nav" aria-label={text.views}>
@@ -468,7 +495,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
           <section className="wb-workspaces" aria-labelledby="wb-workspaces-title">
             <div className="wb-sidebar-heading">
               <h2 id="wb-workspaces-title">{text.workspaces}</h2>
-              <button type="button" className="wb-icon-button" aria-label={text.newWorkspace} title={text.newWorkspace} onClick={addWorkspace} disabled={!organization}>
+              <button type="button" className="wb-icon-button" aria-label={text.newWorkspace} title={text.newWorkspace} onClick={addWorkspace} disabled={!canAddWorkspace}>
                 <WorkbenchIcon name="plus" />
               </button>
             </div>
@@ -533,9 +560,9 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
               <button type="button" className="shell-icon-button" aria-label={text.importBoard} title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}>
                 <WorkbenchIcon name="import" />
               </button>
-              <button type="button" className="wb-create-button" onClick={primaryAction.run} aria-label={primaryAction.label} title={primaryAction.label}>
+              {primaryAction && <button type="button" className="wb-create-button" onClick={primaryAction.run} aria-label={primaryAction.label} title={primaryAction.label}>
                 <WorkbenchIcon name="plus" /> <span>{primaryAction.label}</span>
-              </button>
+              </button>}
             </div>
           )}
         </header>
@@ -565,8 +592,19 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
               <div><strong>{text.loadError}</strong><p>{loadError}</p></div>
               <button type="button" className="wb-button wb-button-secondary" onClick={() => setAttempt((current) => current + 1)}>{text.retry}</button>
             </div>
+          ) : showAreaHome && teamMode ? (
+            organization && <div className="wb-team-overview">
+              <ProjectList projects={organizationProjects} onOpen={id => selectDestination(organization.id, 'recent', id)} />
+              <TeamMembers key={organization.id} team={organization} currentUserId={user.id}
+                onLeave={() => setAttempt(current => current + 1)} />
+            </div>
           ) : (
             <>
+              {showAreaHome && organization && <ProjectList projects={organizationProjects}
+                onOpen={id => selectDestination(organization.id, 'recent', id)} />}
+              {teamMode && organization && activeProject?.role === 'manager' && <ProjectAccess key={activeProject.id}
+                project={activeProject} teamId={organization.id} currentUserId={user.id}
+                onChange={() => setAttempt(current => current + 1)} />}
               <div className="wb-collection-bar">
                 <p role="status">{text.boardCount(entries.length, formatNumber(entries.length))}</p>
                 <div className="wb-collection-controls">
@@ -595,7 +633,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                   <p>{empty.description}</p>
                   {search ? (
                     <button type="button" className="wb-button wb-button-secondary" onClick={() => setQuery('')}>{text.clearSearch}</button>
-                  ) : (activeProject || view.id === 'recent') && (
+                  ) : primaryAction && (activeProject || view.id === 'recent') && (
                     <button type="button" className="wb-button wb-button-secondary" onClick={primaryAction.run}>
                       <WorkbenchIcon name="plus" /> {primaryAction.label}
                     </button>

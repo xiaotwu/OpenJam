@@ -164,7 +164,7 @@ func GetShared(ctx context.Context, boardID string, actor, id uuid.UUID) (Shared
 		if err != nil {
 			return err
 		}
-		if !access.IsOwner && access.Source != "member" {
+		if !access.IsOwner && access.Source != "member" && access.Source != "project" {
 			return model.ErrRoomAccessDenied
 		}
 		var snapshot []byte

@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import BoardCredentialGate from './components/BoardCredentialGate';
 import ErrorBoundary from './components/ErrorBoundary';
 import WorkspaceDashboard from './components/WorkspaceDashboard';
+import TeamInvitationGate from './components/TeamInvitationGate';
 import type { User } from './lib/api';
 import { useI18n } from './i18n';
 import { boardCredentialFragment, readBoardCredential } from './lib/boardSharing';
@@ -52,6 +53,7 @@ function AppContent() {
       <Route path="/login" element={<Navigate to="/auth?mode=login" replace />} />
       <Route path="/register" element={<Navigate to="/auth?mode=register" replace />} />
       <Route path="/workplace" element={<WorkplaceRoute user={user} onLogout={handleLogout} />} />
+      <Route path="/teams/:teamId/invite" element={<TeamInvitationRoute user={user} />} />
       <Route
         path="/board/:boardId"
         element={<BoardRoute user={user} fallbackColor={userColor} />}
@@ -89,7 +91,9 @@ function AuthRoute({ user }: { user: User | null }) {
   const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
   const next = getSafeNextPath(searchParams.get('next'));
   const credential = readBoardCredential(location.hash);
-  const destination = next && credential && /^\/board\/[^/?#]+(?:\?[^#]*)?$/.test(next)
+  const acceptsCredential = next && (/^\/board\/[^/?#]+(?:\?[^#]*)?$/.test(next)
+    || (credential?.kind === 'invite' && /^\/teams\/[^/?#]+\/invite$/.test(next)));
+  const destination = next && credential && acceptsCredential
     ? `${next}${boardCredentialFragment(credential)}` : next || '/workplace';
 
   if (user) {
@@ -119,6 +123,23 @@ function WorkplaceRoute({ user, onLogout }: { user: User | null; onLogout: () =>
   }
 
   return <WorkspaceDashboard user={user} onLogout={onLogout} />;
+}
+
+function TeamInvitationRoute({ user }: { user: User | null }) {
+  const { teamId = '' } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const credential = readBoardCredential(location.hash);
+  const token = credential?.kind === 'invite' ? credential.token : '';
+
+  if (!user) {
+    const next = encodeURIComponent(location.pathname);
+    const fragment = token ? boardCredentialFragment({ kind: 'invite', token }) : '';
+    return <Navigate to={`/auth?mode=login&next=${next}${fragment}`} replace />;
+  }
+
+  return <TeamInvitationGate key={`${teamId}:${user.id}:${location.hash}`} teamId={teamId} token={token}
+    email={user.email} onAccepted={() => navigate(`/workplace?section=teams&organization=${encodeURIComponent(teamId)}`, { replace: true })} />;
 }
 
 function LegacyRoomRoute() {

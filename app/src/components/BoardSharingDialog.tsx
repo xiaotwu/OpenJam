@@ -17,7 +17,7 @@ const permissionLabels: Record<EffectiveBoardAccess['permission'], string> = {
   owner: 'Owner', edit: 'Can edit', comment: 'Can comment', view: 'Can view',
 };
 const sources: Record<EffectiveBoardAccess['source'], string> = {
-  owner: 'Board ownership', member: 'Direct access', link: 'Redeemed sharing link', 'legacy-link': 'Legacy board link',
+  owner: 'Board ownership', member: 'Direct access', project: 'Project access', link: 'Redeemed sharing link', 'legacy-link': 'Legacy board link',
 };
 const field = 'min-h-10 min-w-0 rounded-lg border border-[var(--glass-border-strong)] bg-[var(--surface-panel)] px-2.5 text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';
 const secondary = 'min-h-10 rounded-lg border border-[var(--glass-border-strong)] px-3 text-sm font-semibold hover:bg-[var(--glass-bg-subtle)] focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-45';

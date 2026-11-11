@@ -62,9 +62,16 @@ npm run dev
 - Backend API: [http://localhost:8080](http://localhost:8080)
 - MinIO Console: [http://localhost:9001](http://localhost:9001)
 
-## Creating a Board
+## Projects and Teams
 
-1. Register a new account or sign in
-2. You'll be placed on the default board
-3. Use `?room=my-board` in the URL to create named boards
-4. Share the URL with collaborators to work together
+Open Workplace after signing in. **My Projects** contains your personal projects and Drafts. Open a project and choose **New board**. **Shared with me** contains boards shared directly with you outside a project you can browse.
+
+Choose **Teams** to create a Team or open one you joined. The Team page lists your visible projects and the Team roster. Owners and admins can create a named invitation in **Members**. Send the link privately to the invited address. It expires after seven days. The recipient signs in with that address and accepts the link.
+
+In a Team project, open **Project access** to grant roles to current Team members. A Manager can manage project access and boards. Editors can create and edit boards. Commenters can leave feedback, and Viewers can read. The Team owner can manage its projects. Team admins manage the roster, and their content access follows their project or board grants.
+
+## Upgrading an existing directory
+
+Back up PostgreSQL and referenced attachments before upgrading. Restore the v14 backup if you need to run the older application. Migration 015 adds Team membership and Project access to the existing directory. Existing team organizations appear under **Teams** with the same IDs and projects. Legacy boards without a project appear in their owner's personal Drafts. Existing board links, assets, direct grants, comments and versions stay available under their original permissions.
+
+Removing a Project role removes access inherited from the project. An independent board share can still give access to that board. Removing a Team member or leaving a Team ends access to its content, including direct grants held by that member. The Team keeps the boards and their version history. A new Team invitation restores Team membership with fresh Project grants.

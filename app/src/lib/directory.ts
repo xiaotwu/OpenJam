@@ -1,21 +1,44 @@
-import { request, type Room } from './api';
+import { request, type MemberPermission, type Room } from './api';
+
+export type TeamRole = 'owner' | 'admin' | 'member';
+export type AssignableTeamRole = Exclude<TeamRole, 'owner'>;
+export type ProjectRole = 'manager' | MemberPermission;
+
+export interface TeamMember {
+  userId: string;
+  displayName: string;
+  avatarColor: string;
+  email?: string;
+  role: TeamRole;
+}
+
+export interface ProjectMember {
+  userId: string;
+  displayName: string;
+  role: ProjectRole;
+  inherited: boolean;
+}
 
 export interface Organization {
   id: string;
   name: string;
   kind: 'personal' | 'team';
+  role: TeamRole;
 }
 
 export interface Workspace {
   id: string;
   organizationId: string;
   name: string;
+  isDefault: boolean;
 }
 
 export interface Project {
   id: string;
   workspaceId: string;
   name: string;
+  role: ProjectRole;
+  isDefault: boolean;
 }
 
 export interface DirectoryBoard extends Room {
@@ -80,4 +103,42 @@ export function moveBoard(id: string, projectId: string): Promise<{ projectId: s
     method: 'PUT',
     body: JSON.stringify({ projectId }),
   });
+}
+
+function directoryRequest<T>(path: string, method: string, body?: unknown, signal?: AbortSignal) {
+  return request<T>(`${directoryAPI}${path}`, {
+    method, cache: 'no-store', signal, body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+export function getTeamMembers(teamId: string, signal?: AbortSignal) {
+  return directoryRequest<TeamMember[]>(`/teams/${encodeURIComponent(teamId)}/members`, 'GET', undefined, signal);
+}
+
+export function inviteTeamMember(teamId: string, email: string, role: AssignableTeamRole) {
+  return directoryRequest<{ token: string; expiresAt: string }>(
+    `/teams/${encodeURIComponent(teamId)}/invitations`, 'POST', { email, role },
+  );
+}
+
+export function acceptTeamInvitation(teamId: string, token: string, signal?: AbortSignal) {
+  return directoryRequest<{ teamId: string }>(`/teams/${encodeURIComponent(teamId)}/invitations/accept`, 'POST', { token }, signal);
+}
+
+export function changeTeamMember(teamId: string, memberId: string, role?: AssignableTeamRole) {
+  return directoryRequest<{ ok: boolean }>(
+    `/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberId)}`,
+    role === undefined ? 'DELETE' : 'PUT', role === undefined ? undefined : { role },
+  );
+}
+
+export function getProjectMembers(projectId: string, signal?: AbortSignal) {
+  return directoryRequest<ProjectMember[]>(`/projects/${encodeURIComponent(projectId)}/members`, 'GET', undefined, signal);
+}
+
+export function changeProjectMember(projectId: string, memberId: string, role?: ProjectRole) {
+  return directoryRequest<{ ok: boolean }>(
+    `/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(memberId)}`,
+    role === undefined ? 'DELETE' : 'PUT', role === undefined ? undefined : { role },
+  );
 }

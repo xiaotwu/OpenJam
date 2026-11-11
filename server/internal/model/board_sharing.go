@@ -70,12 +70,15 @@ func lockBoardSharing(ctx context.Context, tx pgx.Tx, boardID string) (uuid.UUID
 }
 
 func requireBoardOwner(ctx context.Context, tx pgx.Tx, boardID string, actor uuid.UUID) error {
-	owner, err := lockBoardSharing(ctx, tx, boardID)
-	if err != nil {
+	if _, err := lockBoardSharing(ctx, tx, boardID); err != nil {
 		return err
 	}
-	if owner != actor {
+	access, err := QueryRoomAccess(ctx, tx, boardID, actor)
+	if errors.Is(err, ErrRoomAccessDenied) || (err == nil && !access.IsOwner) {
 		return ErrNotRoomOwner
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }

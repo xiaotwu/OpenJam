@@ -62,7 +62,7 @@ func TestDirectoryWithPostgres(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterDirectoryRoutes(router.Group("/api", middleware.AuthRequired()))
+	RegisterDirectoryRoutes(router.Group("/api", middleware.AuthRequired()), nil)
 	const directoryPath = "/api/v2/directory"
 	directoryRequest[struct{}](t, router, "", "GET", directoryPath, nil, http.StatusUnauthorized)
 

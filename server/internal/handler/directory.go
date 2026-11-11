@@ -14,7 +14,7 @@ import (
 	"github.com/project-wb/server/internal/model"
 )
 
-func RegisterDirectoryRoutes(api *gin.RouterGroup) {
+func RegisterDirectoryRoutes(api *gin.RouterGroup, notify func(string)) {
 	directory := api.Group("/v2")
 	directory.Use(func(c *gin.Context) {
 		c.Header("Cache-Control", "private, no-store")
@@ -31,7 +31,8 @@ func RegisterDirectoryRoutes(api *gin.RouterGroup) {
 	directory.POST("/projects/:projectId/boards", createDirectoryBoard)
 	directory.PUT("/boards/:id/favorite", setDirectoryBoardFavorite)
 	directory.PUT("/boards/:id/archive", setDirectoryBoardArchived)
-	directory.PUT("/boards/:id/location", moveDirectoryBoard)
+	directory.PUT("/boards/:id/location", func(c *gin.Context) { moveDirectoryBoard(c, notify) })
+	registerTeamRoutes(directory, notify)
 }
 
 func getDirectory(c *gin.Context) {
@@ -125,7 +126,7 @@ func setDirectoryBoardArchived(c *gin.Context) {
 	writeDirectoryResult(c, http.StatusOK, gin.H{"archivedAt": archivedAt}, err)
 }
 
-func moveDirectoryBoard(c *gin.Context) {
+func moveDirectoryBoard(c *gin.Context, notify func(string)) {
 	boardID, ok := readDirectoryBoardID(c)
 	if !ok {
 		return
@@ -141,6 +142,9 @@ func moveDirectoryBoard(c *gin.Context) {
 		return
 	}
 	err := model.MoveBoard(c.Request.Context(), middleware.GetUser(c).ID, boardID, projectID)
+	if err == nil && notify != nil {
+		notify(boardID)
+	}
 	writeDirectoryResult(c, http.StatusOK, gin.H{"projectId": projectID}, err)
 }
 
@@ -205,6 +209,14 @@ func writeDirectoryResult(c *gin.Context, status int, result any, err error) {
 		c.JSON(status, result)
 	case errors.Is(err, model.ErrDirectoryNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "Directory resource not found"})
+	case errors.Is(err, model.ErrDirectoryForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permission"})
+	case errors.Is(err, model.ErrInvalidTeamInvite):
+		c.JSON(http.StatusNotFound, gin.H{"error": "This invitation is unavailable for your account"})
+	case errors.Is(err, model.ErrInvalidTeamRole), errors.Is(err, model.ErrInvalidProjectRole), errors.Is(err, model.ErrInvalidInviteEmail):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case errors.Is(err, model.ErrAlreadyTeamMember), errors.Is(err, model.ErrTooManyTeamInvites):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, model.ErrCrossOrganization):
 		c.JSON(http.StatusConflict, gin.H{"error": "Boards can only move within their organization"})
 	default:

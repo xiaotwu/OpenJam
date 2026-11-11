@@ -26,6 +26,7 @@ var migrations = [...]string{
 	"migrations/012_job_abandonment.sql",
 	"migrations/013_agent_conversations.sql",
 	"migrations/014_agent_identity.sql",
+	"migrations/015_team_access.sql",
 }
 
 // Every OpenJam migrator for the same database uses this transaction lock.

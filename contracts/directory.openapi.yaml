@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenJam directory API
-  version: 0.1.0
+  version: 0.2.0
 servers:
   - url: /api/v2
 security:
@@ -11,7 +11,7 @@ paths:
   /directory:
     get:
       operationId: getDirectory
-      summary: List the caller's organizations, projects, and visible boards
+      summary: List personal and Team workspaces, authorized Projects, and visible boards
       responses:
         "200":
           description: Directory for the authenticated caller
@@ -166,11 +166,159 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /teams/{teamId}/members:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+    get:
+      operationId: listTeamMembers
+      summary: List active Team members
+      responses:
+        "200":
+          description: Team roster with email visible to Team administrators and the account itself
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/TeamMember"}}
+        default:
+          $ref: "#/components/responses/Error"
+  /teams/{teamId}/invitations:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+    post:
+      operationId: createTeamInvitation
+      summary: Issue a seven-day named invitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, role]
+              properties:
+                email: {type: string, format: email, maxLength: 254}
+                role: {type: string, enum: [admin, member]}
+      responses:
+        "201":
+          description: Invitation credential, returned only when issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, expiresAt]
+                properties:
+                  token: {type: string, pattern: "^[A-Za-z0-9_-]{43}$"}
+                  expiresAt: {type: string, format: date-time}
+        default:
+          $ref: "#/components/responses/Error"
+  /teams/{teamId}/invitations/accept:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+    post:
+      operationId: acceptTeamInvitation
+      summary: Accept a named invitation with the invited account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                token: {type: string, pattern: "^[A-Za-z0-9_-]{43}$"}
+      responses:
+        "200":
+          description: Accepted Team ID
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [teamId]
+                properties:
+                  teamId: {type: string, format: uuid}
+        default:
+          $ref: "#/components/responses/Error"
+  /teams/{teamId}/members/{memberId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+      - $ref: "#/components/parameters/MemberId"
+    put:
+      operationId: changeTeamMemberRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role]
+              properties:
+                role: {type: string, enum: [admin, member]}
+      responses:
+        "200":
+          $ref: "#/components/responses/AccessChanged"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: removeTeamMember
+      summary: Offboard a member or leave the Team
+      responses:
+        "200":
+          $ref: "#/components/responses/AccessChanged"
+        default:
+          $ref: "#/components/responses/Error"
+  /projects/{projectId}/members:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listProjectMembers
+      summary: List Project roles as a Manager
+      responses:
+        "200":
+          description: Effective Project Managers and direct grants
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/ProjectMember"}}
+        default:
+          $ref: "#/components/responses/Error"
+  /projects/{projectId}/members/{memberId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/MemberId"
+    put:
+      operationId: changeProjectMemberRole
+      summary: Grant or change access for an active Team member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role]
+              properties:
+                role: {$ref: "#/components/schemas/ProjectRole"}
+      responses:
+        "200":
+          $ref: "#/components/responses/AccessChanged"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: removeProjectMember
+      summary: Remove an inherited Project grant
+      responses:
+        "200":
+          $ref: "#/components/responses/AccessChanged"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     sessionCookie: {type: apiKey, in: cookie, name: wb_session}
     bearerSession: {type: http, scheme: bearer}
   parameters:
+    TeamId: {name: teamId, in: path, required: true, schema: {type: string, format: uuid}}
+    ProjectId: {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+    MemberId: {name: memberId, in: path, required: true, schema: {type: string, format: uuid}}
     BoardId:
       name: id
       in: path
@@ -188,6 +336,11 @@ components:
             properties:
               name: {type: string, minLength: 1, maxLength: 120}
   responses:
+    AccessChanged:
+      description: Updated access
+      content:
+        application/json:
+          schema: {type: object, required: [ok], properties: {ok: {const: true}}}
     Error:
       description: Request failed
       content:
@@ -216,32 +369,58 @@ components:
           items: {$ref: "#/components/schemas/Board"}
     Organization:
       type: object
-      required: [id, name, kind]
+      required: [id, name, kind, role]
       properties:
         id: {type: string, format: uuid}
         name: {type: string}
         kind: {type: string, enum: [personal, team]}
+        role: {$ref: "#/components/schemas/TeamRole"}
     Workspace:
       type: object
-      required: [id, organizationId, name]
+      required: [id, organizationId, name, isDefault]
       properties:
         id: {type: string, format: uuid}
         organizationId: {type: string, format: uuid}
         name: {type: string}
+        isDefault: {type: boolean}
     Project:
       type: object
-      required: [id, workspaceId, name]
+      required: [id, workspaceId, name, isDefault, role]
       properties:
         id: {type: string, format: uuid}
         workspaceId: {type: string, format: uuid}
         name: {type: string}
+        isDefault: {type: boolean}
+        role: {$ref: "#/components/schemas/ProjectRole"}
+    TeamRole: {type: string, enum: [owner, admin, member]}
+    ProjectRole: {type: string, enum: [manager, edit, comment, view]}
+    TeamMember:
+      type: object
+      required: [userId, displayName, avatarColor, role]
+      properties:
+        userId: {type: string, format: uuid}
+        displayName: {type: string}
+        avatarColor: {type: string}
+        email: {type: string, format: email}
+        role: {$ref: "#/components/schemas/TeamRole"}
+    ProjectMember:
+      type: object
+      required: [userId, displayName, role, inherited]
+      properties:
+        userId: {type: string, format: uuid}
+        displayName: {type: string}
+        role: {$ref: "#/components/schemas/ProjectRole"}
+        inherited: {type: boolean}
     Board:
       type: object
       required: [id, name, ownerId, permission, createdAt, updatedAt, projectId, archivedAt, favorite]
       properties:
         id: {type: string, minLength: 1, maxLength: 36}
         name: {type: string}
-        ownerId: {type: string, format: uuid}
+        ownerId:
+          type: string
+          format: uuid
+          description: Original owner or creator. The permission field represents the caller's effective role.
         permission: {type: string, enum: [owner, view, comment, edit]}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}

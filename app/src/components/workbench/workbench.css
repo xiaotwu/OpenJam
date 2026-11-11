@@ -958,3 +958,149 @@
     transition: none !important;
   }
 }
+
+.wb-area-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.wb-area-nav .wb-nav-button {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+}
+
+.wb-team-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.wb-team-panel {
+  padding: 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 20px;
+  background: var(--surface-panel);
+}
+
+.wb-team-panel h2,
+.wb-project-access summary {
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.wb-team-panel > p {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.wb-team-list {
+  display: grid;
+  margin-top: 8px;
+}
+
+.wb-team-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.wb-team-list strong,
+.wb-team-person p {
+  overflow-wrap: anywhere;
+}
+
+.wb-team-person p {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.wb-team-person,
+.wb-team-link,
+.wb-team-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wb-team-link {
+  text-align: left;
+  color: var(--text-primary);
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.wb-team-link:hover {
+  text-decoration: underline;
+}
+
+.wb-team-actions,
+.wb-team-form {
+  flex-wrap: wrap;
+}
+
+.wb-team-avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #101114;
+  font-weight: 700;
+}
+
+.wb-role-label,
+.wb-team-invitation .wb-team-actions > span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.wb-team-actions select,
+.wb-team-form select {
+  padding: 4px 9px;
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 999px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.wb-team-form {
+  display: flex;
+  align-items: end;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.wb-team-form .wb-field {
+  flex: 1 1 135px;
+  min-width: 0;
+}
+
+.wb-team-invitation {
+  margin-top: 14px;
+}
+
+.wb-team-invitation .wb-team-actions {
+  margin-top: 8px;
+}
+
+.wb-project-access summary {
+  cursor: pointer;
+}
+
+.wb-team-panel > .wb-team-actions,
+.wb-team-panel > .wb-team-link {
+  margin-top: 12px;
+}
