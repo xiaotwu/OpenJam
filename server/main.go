@@ -216,6 +216,7 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 	}
 	syncAPI := r.Group("/api", middleware.DocumentAuthRequired(), middleware.RateLimitUser(syncLimiter))
 	handler.RegisterDirectoryRoutes(syncAPI, hub.NotifyAccessChanged)
+	handler.RegisterProjectSyncRoutes(syncAPI, hub.NotifyDocument)
 	handler.RegisterWorkshopRoutes(syncAPI, media)
 	handler.RegisterDocsRoutes(syncAPI)
 	handler.RegisterSheetsRoutes(syncAPI)

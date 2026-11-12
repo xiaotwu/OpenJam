@@ -29,6 +29,8 @@ const paths = {
   task: 'M4 4h16v16H4z m4 8 3 3 5-6',
   trash: 'M4 6h16 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',
   archive: 'M4 7h16v13H4z M3 3h18v4H3z M10 11h4',
+  branch: 'M6 9v7 M8 15c6 0 10-2 10-7 M6 5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M6 16a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M18 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+  sync: 'M3 9a9 9 0 0 1 15.5-3.5L21 8 M21 3v5h-5 M21 15A9 9 0 0 1 5.5 18.5L3 16 M3 21v-5h5',
   arrow: 'M7 17 17 7M7 7h10v10',
   board: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M7 8h5v5H7z M15 8h2 M15 12h2 M7 17h10',
   check: 'm5 12 4 4L19 6',

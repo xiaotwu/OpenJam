@@ -33,6 +33,7 @@ var migrations = [...]string{
 	"migrations/019_sheets.sql",
 	"migrations/020_slides.sql",
 	"migrations/021_meetings.sql",
+	"migrations/022_project_sync.sql",
 }
 
 // Every OpenJam migrator for the same database uses this transaction lock.

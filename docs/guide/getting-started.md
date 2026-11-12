@@ -78,6 +78,8 @@ Expand **Teams** to create a Team or open one you joined. **Overview** lists the
 
 In a Team project, open **Project Access** to grant roles to current Team members. A Manager can manage project access and boards. Editors can create and edit boards. Commenters can leave feedback, and Viewers can read. The Team owner can manage its projects. Team admins manage the roster, and their content access follows their project or board grants.
 
+Use **Import to Team** in a personal Project to create a linked Team copy or an independent branch. [Project Branches and Sync](./project-sync.md) explains transfers, conflict resolution, and snapshots.
+
 ## Docs
 
 Create a document in a personal or Team project with **New → New Document**. The editor saves blocks as you type. Select a block to edit its text, choose its style, or set its font. Enter splits a block and Shift+Enter inserts a line break inside it. Use **Preview** to read the rendered Markdown.

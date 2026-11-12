@@ -15,6 +15,7 @@ import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } 
 import BoardFilesPanel from './BoardFilesPanel';
 import ProjectImportDialog from './workbench/ProjectImportDialog';
 import ProjectFilesActions from './workbench/ProjectFilesActions';
+import { ImportProjectDialog, ProjectBranchDialog } from './workbench/ProjectBranchDialogs';
 import MeetingEditor from './workbench/MeetingEditor';
 import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
 import { ProjectAccess, ProjectList, TeamMembers } from './workbench/TeamDirectoryPanels';
@@ -94,6 +95,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const [showImport, setShowImport] = useState(false);
   const [importTarget, setImportTarget] = useState<{ kind: 'doc' | 'sheet' | 'slides'; project: Project }>();
   const [meetingScope, setMeetingScope] = useState<{ value: string; label: string }>();
+  const [projectDialog, setProjectDialog] = useState<{ id: string; mode: 'import' | 'sync' }>();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [modal, setModal] = useState<ActiveModal | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
@@ -234,11 +236,11 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       const location = board.projectId ? locations.get(board.projectId) : undefined;
       const ownOrganization = location !== undefined && location.organization.id === organization?.id;
       const legacyPersonalBoard = !location && board.ownerId === user.id && organization?.kind === 'personal';
-      const archived = board.permission === 'owner' && board.archivedAt !== null;
+      const archived = board.archivedAt !== null && (board.permission === 'owner' || location?.organization.kind === 'team');
       const boardLocation = location ? `${location.workspace.name} / ${location.project.name}` : text.sharedBoard;
 
       if (activeProject) {
-        if (archived || board.projectId !== activeProject.id) continue;
+        if (archived !== (collectionView === 'archive') || board.projectId !== activeProject.id) continue;
       } else if (collectionView === 'archive') {
         if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
       } else {
@@ -504,6 +506,11 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const scheduleScope = activeProject ? 'project:' + activeProject.id
     : teamMode && activeOrganizationId ? 'team:' + activeOrganizationId : undefined;
   const canCreateMeeting = activeProject ? Boolean(defaultProject) : organization?.kind === 'team';
+  const teamWorkspaces = teams.flatMap(team => (directory?.workspaces ?? [])
+    .filter(workspace => workspace.organizationId === team.id).map(workspace => ({
+      id: workspace.id, label: team.name + ' / ' + workspace.name,
+    })));
+  const dialogProject = projectDialog?.id === activeProject?.id ? defaultProject : undefined;
   const showTeamWorkspaceAction = showAreaHome && teamMode && canAddWorkspace && firstWorkspace;
   const calendarDate = params.get('date') ?? undefined;
   const calendarItem = params.get('item') ?? undefined;
@@ -599,6 +606,15 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
           <header className="wb-page-heading">
             {scope && <p>{scope}</p>}
             <h1>{title}</h1>
+            {activeProject && defaultProject && !search && view === 'recent' && <div className="shell-island wb-project-branch-actions"
+              role="group" aria-label="Project Branches">
+              {organization?.kind === 'personal' && teamWorkspaces.length > 0 && <button type="button" className="wb-icon-button wb-glass-control"
+                aria-label="Import to Team" title="Import to Team" onClick={() => setProjectDialog({ id: activeProject.id, mode: 'import' })}>
+                <WorkbenchIcon name="branch" />
+              </button>}
+              <button type="button" className="wb-icon-button wb-glass-control" aria-label="Project Sync & Versions" title="Project Sync & Versions"
+                onClick={() => setProjectDialog({ id: activeProject.id, mode: 'sync' })}><WorkbenchIcon name="sync" /></button>
+            </div>}
           </header>
 
           {actionError && (
@@ -685,6 +701,16 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
       </section>
 
       {notice && <div className="wb-toast" role="status"><WorkbenchIcon name="check" /> {notice}</div>}
+      {dialogProject && projectDialog?.mode === 'import' && <ImportProjectDialog key={dialogProject.id} project={dialogProject} workspaces={teamWorkspaces}
+        onClose={() => setProjectDialog(undefined)} onImported={(id, organizationId) => {
+          setProjectDialog(undefined);
+          selectDestination(organizationId, id);
+          setAttempt(current => current + 1);
+        }} />}
+      {dialogProject && projectDialog?.mode === 'sync' && <ProjectBranchDialog key={dialogProject.id} project={dialogProject}
+        onClose={() => setProjectDialog(undefined)} onChange={() => {
+          void getDirectory().then(data => setLoad({ key, directory: data })).catch(() => undefined);
+        }} />}
       {meetingScope && <MeetingEditor scopes={[meetingScope]} onClose={() => setMeetingScope(undefined)} onCreated={id => {
         setMeetingScope(undefined);
         navigate(meetingPath(id), { state: { workshop: location.pathname + location.search } });

@@ -245,7 +245,13 @@ func CreateProject(ctx context.Context, userID, workspaceID uuid.UUID, name stri
 }
 
 func CreateProjectBoard(ctx context.Context, userID, projectID uuid.UUID, name string) (DirectoryBoard, error) {
-	return insertProjectResource(ctx, db.Pool(), userID, projectID, name, ResourceBoard)
+	var board DirectoryBoard
+	err := pgx.BeginFunc(ctx, db.Pool(), func(tx pgx.Tx) error {
+		var err error
+		board, err = CreateProjectCollaborativeResource(ctx, tx, userID, projectID, name, ResourceBoard)
+		return err
+	})
+	return board, err
 }
 
 func CreateProjectCollaborativeResource(ctx context.Context, tx pgx.Tx, userID, projectID uuid.UUID, name, kind string) (DirectoryBoard, error) {
@@ -332,26 +338,35 @@ func SetBoardArchived(ctx context.Context, userID uuid.UUID, boardID string, arc
 
 func MoveBoard(ctx context.Context, userID uuid.UUID, boardID string, projectID uuid.UUID) error {
 	return pgx.BeginTxFunc(ctx, db.Pool(), pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+		var targetOrgID uuid.UUID
+		err := tx.QueryRow(ctx, `
+			SELECT o.id FROM projects p JOIN workspaces w ON w.id = p.workspace_id
+			JOIN organizations o ON o.id = w.organization_id WHERE p.id = $1 FOR SHARE OF o
+		`, projectID).Scan(&targetOrgID)
+		if err != nil {
+			return directoryLookupError(err)
+		}
 		if err := ensureOwnedBoardLocation(ctx, tx, userID, boardID); err != nil {
 			return err
 		}
-		var sourceOrgID, targetOrgID uuid.UUID
-		err := tx.QueryRow(ctx, `
-			SELECT source_workspace.organization_id, target_workspace.organization_id
+		var sourceOrgID uuid.UUID
+		err = tx.QueryRow(ctx, `
+			SELECT source_workspace.organization_id
 			FROM board_directory d
 			JOIN projects source_project ON source_project.id = d.project_id
 			JOIN workspaces source_workspace ON source_workspace.id = source_project.workspace_id
-			JOIN projects target_project ON target_project.id = $2
-			JOIN workspaces target_workspace ON target_workspace.id = target_project.workspace_id
-			WHERE d.room_id = $1 AND openjam_project_role(target_project.id, $3) = 'manager'
-		`, boardID, projectID, userID).Scan(&sourceOrgID, &targetOrgID)
+			WHERE d.room_id = $1 AND openjam_project_role($2, $3) = 'manager'
+		`, boardID, projectID, userID).Scan(&sourceOrgID)
 		if err != nil {
 			return directoryLookupError(err)
 		}
 		if sourceOrgID != targetOrgID {
 			return ErrCrossOrganization
 		}
-		_, err = tx.Exec(ctx, "UPDATE board_directory SET project_id = $2 WHERE room_id = $1", boardID, projectID)
+		_, err = tx.Exec(ctx, `
+			UPDATE board_directory SET project_id = $2, file_key = gen_random_uuid()
+			WHERE room_id = $1 AND project_id <> $2
+		`, boardID, projectID)
 		return err
 	})
 }
@@ -378,7 +393,8 @@ func ensureOwnedBoardLocation(ctx context.Context, tx pgx.Tx, userID uuid.UUID, 
 		return err
 	}
 	_, err = tx.Exec(ctx, `
-		INSERT INTO board_directory (room_id, project_id) VALUES ($1, $2)
+		INSERT INTO board_directory (room_id, project_id, file_key)
+		VALUES ($1, $2, md5('openjam-draft:' || $1)::uuid)
 		ON CONFLICT (room_id) DO NOTHING
 	`, boardID, draftsID)
 	return err

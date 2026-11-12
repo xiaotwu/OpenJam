@@ -182,6 +182,23 @@ The directory returns presentations in `slides`. The browser route is `/slides/:
 
 Snapshots use `resourceKind: "slides"`. The ordered `pages` contain slide metadata and dimensions. `elements` contains editable text and image objects with a `pageId`. Images use existing private asset routes and are linked to the presentation. Object edits compare the previous values of changed fields. Reordering compares the previous slide order. The existing V2 access, review, and history endpoints apply to Slides.
 
+## Project Branches and Versions
+
+These endpoints use `/api/v2/projects/:projectId`. Write requests use a client-generated UUID `requestId` so a retry on another API replica can return the same result.
+
+| Method and path | Behavior |
+|:---|:---|
+| `POST /import` | Copies a personal Project into a Team `workspaceId` with a `name` and a `mode` of `linked` or `independent`. |
+| `GET /sync` | Lists linked projects the caller can manage on both sides. |
+| `GET /sync/:peerId` | Returns a preview `token` and changes marked `incoming`, `outgoing`, or `conflict`. |
+| `POST /sync/:peerId` | Applies the requested `direction` of `pull` or `push` using the preview `token`. Optional `resolve` lists conflicting file keys to apply in that direction. Optional `name` labels a push. |
+| `GET /versions?before=…` | Lists snapshots, with a `next` cursor for older versions. |
+| `POST /versions` | Saves a snapshot with a `name`. |
+| `GET /versions/:versionId/restore` | Previews the files a restore would change and returns a `token`. |
+| `POST /versions/:versionId/restore` | Restores the selected snapshot with its preview `token`. |
+
+An outdated preview returns HTTP 409 with `STALE_PROJECT`.
+
 ## Workshop
 
 Workshop endpoints use `/api/v2/workshop` and require authentication. Reads apply the account’s current Team, Project, and board access.

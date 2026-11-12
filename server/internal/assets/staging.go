@@ -88,6 +88,7 @@ func reserve(ctx context.Context, meta Metadata) error {
 		if err := tx.QueryRow(ctx, `
 			SELECT COALESCE(sum(b.size_bytes), 0), count(*) FROM asset_blobs b
 			WHERE NOT EXISTS (SELECT 1 FROM board_assets a WHERE a.asset_id = b.id)
+				AND NOT EXISTS (SELECT 1 FROM project_version_assets a WHERE a.asset_id = b.id)
 		`).Scan(&size, &count); err != nil {
 			return err
 		}
@@ -158,6 +159,7 @@ func sweepOne(ctx context.Context) (deleted, found bool, err error) {
 			SELECT b.id FROM asset_blobs b
 			WHERE b.staged_at < clock_timestamp() - interval '24 hours'
 			AND NOT EXISTS (SELECT 1 FROM board_assets a WHERE a.asset_id = b.id)
+			AND NOT EXISTS (SELECT 1 FROM project_version_assets a WHERE a.asset_id = b.id)
 			ORDER BY b.staged_at, b.id LIMIT 1 FOR UPDATE SKIP LOCKED
 		`).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -170,7 +172,10 @@ func sweepOne(ctx context.Context) (deleted, found bool, err error) {
 		// Recheck after locking, since a link may have committed while the
 		// previous SELECT was finding this candidate.
 		var linked bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM board_assets WHERE asset_id = $1)`, id).Scan(&linked); err != nil {
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (SELECT 1 FROM board_assets WHERE asset_id = $1)
+				OR EXISTS (SELECT 1 FROM project_version_assets WHERE asset_id = $1)
+		`, id).Scan(&linked); err != nil {
 			return err
 		}
 		if linked {
