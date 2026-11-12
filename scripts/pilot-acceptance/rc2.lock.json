@@ -1,0 +1,112 @@
+{
+  "id": "openjam-pilot-20261112-rc2",
+  "state": "local-frozen-pilot-on-hold",
+  "frozenAtUtc": "2026-11-12T22:18:40+00:00",
+  "sourceCommit": "ae5686a76ab05c41fdc692e6bb2d346b50684211",
+  "localGitTag": "openjam-pilot-20261112-rc2",
+  "tagObject": "78715a73f1283d075dbf752d548018d4bab1e7c9",
+  "runtimeTemplatesRevision": "ae5686a76ab05c41fdc692e6bb2d346b50684211",
+  "platform": "linux/arm64",
+  "requiredSchema": 23,
+  "application": {
+    "composeImage": "openjam-pilot@sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+    "localDockerTag": "openjam-pilot:20261112-rc2-arm64",
+    "importTag": "openjam-pilot:20261112-xw154-arm64",
+    "loadedImageId": "sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+    "archive": {
+      "filename": "openjam-xw154-linux-arm64.oci.tar",
+      "bytes": 91048448,
+      "sha256": "46a9e00f50d489cc17e0cee00aa73db32b388940e8a2318d566dfd2f2d3e8180",
+      "indexDigest": "sha256:7bf121de824240dcb0a6c4c942cf82b9b87276c3bdff8a1ceb92e8fa96889011",
+      "manifestDigest": "sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+      "configDigest": "sha256:d3e4c4297c6b010faa08ff11c339d107cf6994c258dfa230bccd628af01b36a1",
+      "verifiedLayers": 5
+    }
+  },
+  "defaultStoreImages": {
+    "postgres": "postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139",
+    "redis": "redis:7.4.12-alpine@sha256:7b1753b4c5ad8458906c272a8132b8c15f5557b000379eb115fb239706a384b7",
+    "seaweedfs": "chrislusf/seaweedfs:4.19@sha256:90e181977effc58a303a1b21a0d581314e142b09543a712ff739c79ed78f42cf"
+  },
+  "sourceFileSha256": {
+    "Dockerfile": "ac5529f0c1d039ce22b7e8d6db953fa70f5f0dfd1f0097bf3338fa2d5a37ba7f",
+    "app/bun.lock": "32c13ca17b5a656f45aca707704ad73293376f437a4da3afc0588003939510a0",
+    "server/go.mod": "0fdc590b13c29efbac9aa143743dda23e4e56374ad7fc9c9e849f3462ad86a70",
+    "server/go.sum": "3ea65e50c2924977c6be0da9bf273b44f22ecf402b9eb0f6d5c23b54aadad8a7",
+    "docker-compose.yml": "20241660490ae30b9c71dab44cd4ec159085c1ba860cb29dc03aaf2fb4407a08",
+    "scripts/pilot-acceptance/compose.env.example": "c310998ebda300ebfc7bbca1a5e8adf94d2a9aafe410abf78e23740b58ea03bb",
+    "scripts/pilot-acceptance/Caddyfile.example": "36e506d1898b19c76fc88a1df4e910fd95b0cdbc94a17c4e53c82647afdc4998",
+    "scripts/pilot-acceptance/Caddyfile.maintenance.example": "9b013be2cc82296586fcf4ed698ca4e5da4901dc64460f4c888ca3952308c72c",
+    "scripts/pilot-acceptance/check-edge.sh": "5c51072a020e4db566af1bc8958d3ccd27ed7f4daef1de12c21404c02bb982c9",
+    "scripts/openjam-ops.py": "b10d6efc7f428008a573f1b47b9a2ff970f35d1975ab7102b98f00b0293fd623",
+    "scripts/openjam_offsite.py": "b973ab814a86119fcbc43671b1ad5252e4986d65a803f1baa4b71c6e69c3e251",
+    "scripts/openjam_schedule.py": "48246fbc9bfa4dd0a5947b2767eeeb56ef1357465c188dffbd82309bd0c0d61a",
+    "scripts/offsite-scheduling/backup.example.json": "44a0633a5e5642c390243dc7f277789e52d1512c1bbb842c4bab0bb0967f52f1",
+    "scripts/offsite-scheduling/retention.example.json": "354d4cbda3efe4744b4e97bd979e26834a7a4d83fbcfff1af90741ba1a8ed4c2",
+    "scripts/offsite-scheduling/openjam-offsite@.service": "285e36eca45576717a04eae1cc03a553c866522c23daae47d752c73250f670b4",
+    "scripts/offsite-scheduling/openjam-offsite@.timer": "970fd14fce04b0d35eba73e7b6e8fc1078b2bcbbbff978c78197c755bdc7b768",
+    "scripts/offsite-scheduling/com.openjam.offsite.plist": "a70ce23176797d25bda3bf10dce0ba73ff58a3cdfa7e9d2c837e59380b153c3e"
+  },
+  "evidence": {
+    "reconnect": {
+      "file": "reconnect.json",
+      "sha256": "a92d82eee7577615d67620a781f88aa7cb9033d9e2549388e85389a1ea9d1bd4",
+      "clients": 50,
+      "latencyP95Ms": 216.652,
+      "http429": 0
+    },
+    "joint": {
+      "file": "joint-rehearsal.json",
+      "sha256": "7095ed53f5d0b6d8f1d9abc2d65d9dcc4505726f2e484b045e9aae69ec1cc425",
+      "completedAtUtc": "2026-11-12T22:34:45.188Z",
+      "scope": "local Caddy TLS, two browser sessions, encrypted replica, empty restore, A to B to A"
+    },
+    "initialRestoreRejection": {
+      "file": "initial-restore-rejection.json",
+      "sha256": "b0aa60eb460e04fdcb0897b4b6806c2e49179f1948a6cb87bc40c6199399591b",
+      "scope": "local recovery directory mode check before decryption"
+    },
+    "replicaReceipt": {
+      "file": "encrypted-point-receipt.json",
+      "sha256": "f529070707200969e156adcd9f6f495de8e198bcc74a1882b63dda39c5b7621a",
+      "point": "20261112T223135Z-2b4eb2b5d4d10d6c"
+    },
+    "restoredManifest": {
+      "file": "restored-manifest.json",
+      "sha256": "2b4eb2b5d4d10d6cbd36ff7e1ac51203f7935d24728d7aa33ed4a8f759f9c28c"
+    },
+    "browser5000": {
+      "file": "../xw-154-image-sync/acceptance.json",
+      "sha256": "4dbfdc181d5a60486aec43ad39d391fbce2552c463877e143392e83df54f795d",
+      "issue": "XW-154",
+      "peerP95Ms": 225.5
+    }
+  },
+  "localRollback": {
+    "mode": "same-schema switchback",
+    "authoritative": "A",
+    "schema": 23,
+    "image": "openjam-pilot@sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+    "sourceCapturePoint": "20261112T223135Z-2b4eb2b5d4d10d6c",
+    "capturedAtUtc": "2026-11-12T22:31:35.429440+00:00",
+    "receiptSha256": "f529070707200969e156adcd9f6f495de8e198bcc74a1882b63dda39c5b7621a",
+    "servingConfigSha256": "6d818f5252574cce91a03d5c433f03e3e352247d683958c79978b7f7eb260c85",
+    "maintenanceConfigSha256": "25cfef4adc931991182987e0041b692f18d29d123946b121d33de6f682a93255",
+    "targetWriteReplayedExactlyOnce": true,
+    "syntheticArchivesRetained": false
+  },
+  "previousCandidate": {
+    "id": "openjam-pilot-20261112-rc1",
+    "lock": "rc1.lock.json",
+    "sourceCommit": "b4639c31ae9712867817fd8a83d6d30bd94a8d1c",
+    "image": "openjam-pilot@sha256:b178a8921ed54e7913e6547e4bdb93a7baa60304f24f73af312db4bacce31b41",
+    "schema": 23
+  },
+  "realPilot": {
+    "state": "pending-host-and-approval",
+    "meetingsMedia": false,
+    "externalAIProfile": false,
+    "rollbackPoint": null,
+    "note": "Record the previous live image, schema, proxy config and verified recovery point on the pilot host. For a fresh install, record the maintenance fallback and first verified encrypted recovery point."
+  }
+}

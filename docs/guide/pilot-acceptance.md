@@ -10,19 +10,20 @@ In the collaboration checks, A and B are the owner and editor browsers. In the r
 
 | Gate | Local evidence | Pilot pass standard |
 | --- | --- | --- |
-| 151-A HTTPS and sign-in | **Passed locally** in the joint rehearsal at `b4639c3` using the Caddy templates and the actual OpenJam image. Verified TLS 1.3, permanent redirect, health and cookie flags in two Chrome sessions. | **Pending.** The actual hostname and certificate chain validate on both clients, HTTP permanently redirects to the same HTTPS host and path, the edge and local probes pass, and both clients sign in with `wb_session` set to Secure, HttpOnly and SameSite=Lax. The application port is bound to loopback. |
-| 151-B WebSocket and reconnect | **Passed locally** through Caddy. Both sessions got `101` on `/ws/v2` and reached the same snapshot. The editor caught up and wrote again without reloading. The earlier loopback run at `7026a2f` also covered legacy `/ws`. | **Pending.** On representative client networks both board connections get `101` over WSS. Edits travel both ways. After a real disconnect and a new upgrade, the client catches up without a reload and can edit again. The clients agree on the snapshot epoch, sequence and hash after sync settles. |
-| 151-C Private files and revocation | **Passed locally** through Caddy. The private PNG bytes matched both downloads and the ZIP entry. Revocation closed the live connection and returned `403` for the snapshot, write, image and previously issued artifact. | **Pending.** Both granted users can read the same private PNG and the editor can generate a new Board ZIP with that PNG. Removing the editor closes the live subscription and denies all four paths. The owner keeps access. |
+| 151-A HTTPS and sign-in | **Passed locally on RC2.** The Caddy rehearsal used loopback, a local CA and two Chrome sessions. Verified TLS 1.3, permanent redirect, health and cookie flags. | **Pending.** The actual hostname and certificate chain validate on both clients, HTTP permanently redirects to the same HTTPS host and path, the edge and local probes pass, and both clients sign in with `wb_session` set to Secure, HttpOnly and SameSite=Lax. The application port is bound to loopback. |
+| 151-B WebSocket and reconnect | **Passed locally on RC2.** Both Caddy sessions got `101` on `/ws/v2`, saw each other's edits and reconnected after the backup. In the separate replica restart, all 50 affected sessions rejoined and applied the 13 missed changes, with p95 216.7 ms from readiness and 0 HTTP 429. The earlier run at `7026a2f` covered legacy `/ws`. | **Pending.** On representative client networks both board connections get `101` over WSS. Edits travel both ways. After a real disconnect and a new upgrade, the client catches up without a reload and can edit again. The clients agree on the snapshot epoch, sequence and hash after sync settles. |
+| 151-C Private files and revocation | **Passed locally on RC2.** The private PNG bytes matched both downloads and the ZIP entry. Revocation closed the live connection and returned `403` for the snapshot, write, image and previously issued artifact. | **Pending.** Both granted users can read the same private PNG and the editor can generate a new Board ZIP with that PNG. Removing the editor closes the live subscription and denies all four paths. The owner keeps access. |
 | 151-D Meetings, if enabled | The XW-151 loopback drill covered the app edge and board collaboration. | **Pending if enabled.** On the actual client networks both participants receive audio, video and screen share and recover media after reconnect. The revoked participant loses access. |
-| 152-A Replica and backup | **Passed locally** at `7026a2f` and `e05c7ac`. A roughly 1.02 GiB instance backup and an encrypted copy on a separate local mount were verified. Bad ciphertext, a wrong identity and a wrong trusted receipt were rejected. | **Pending.** The real replica is in an independent failure domain. Operators verify mount behavior, role permissions, deletion protection and capacity. A verified encrypted point has a capture time and a receipt SHA-256 in a trusted log outside the replica. The source resumes and accepts a confirmed write. |
+| 152-A Replica and backup | **Passed locally on RC2** with an encrypted copy on a separate local mount, receipt verification, monitoring and retention preview. Earlier runs at `7026a2f` and `e05c7ac` covered a roughly 1.02 GiB backup and rejection of bad ciphertext, a wrong identity and a wrong trusted receipt. | **Pending.** The real replica is in an independent failure domain. Operators verify mount behavior, role permissions, deletion protection and capacity. A verified encrypted point has a capture time and a receipt SHA-256 in a trusted log outside the replica. The source resumes and accepts a confirmed write. |
 | 152-B Schedule, retention and alerts | **Passed locally** at `0b7d92e`. A native launchd drill used one-minute windows, pruned two expired samples, coalesced missed windows into one backup, and retried a `503` with the same alert ID to a `204`. The 12-hour calendar and systemd template passed configuration checks. | **Pending.** Observe two consecutive scheduled backups 12 hours apart on the pilot. A scoped drill confirms one catch-up after missed windows, keeps protected points during retention, and records receiver acceptance and human acknowledgment. |
-| 152-C Restore and rollback | **Passed locally** in the joint rehearsal: source A → empty B → A through Caddy, with one accepted B write reconciled into A. Separate runs at `7026a2f` and `e05c7ac` covered the roughly 1 GiB scale and schema 14 to 23 upgrade and rollback. | **Pending.** Restore from the actual replica into an empty deployment and pass data, history, asset and permission checks. The operator demonstrates the selected rollback path. **RPO ≤ 24 hours and RTO ≤ 30 minutes**, including real retrieval, key access, image preparation and ingress cutover in the RTO. |
+| 152-C Restore and rollback | **Passed locally on RC2.** A → empty B → A through Caddy, with B's accepted write reconciled into A. See the [handoff](./pilot-handoff.md) for the recovery point, timing and directory correction. Separate runs at `7026a2f` and `e05c7ac` covered the roughly 1 GiB scale and schema 14 to 23 upgrade and rollback. | **Pending.** Restore from the actual replica into an empty deployment and pass data, history, asset and permission checks. The operator demonstrates the selected rollback path. **RPO ≤ 24 hours and RTO ≤ 30 minutes**, including real retrieval, key access, image preparation and ingress cutover in the RTO. |
 
 ## 1. Prepare the pilot
 
 - Record the application commit and image ID or digest, Compose project and file paths, pilot origin and proxy, storage layout and bucket, backup window, replica ID, operator and on-call contact, and the empty restore target's name and port. Record whether Meetings is enabled.
 - Prepare two separate browsers or profiles and two synthetic accounts. Give A ownership of a restricted Board in a Team Project. Invite B to the Team and grant B Editor on the Project. Use a small private PNG, a named version and a distinctive test edit. Keep B free of direct Board grants, share links or invitations that would preserve access after removal.
 - Keep a known-good proxy configuration and deployment configuration with the previous image and a verified pre-change recovery point. Save these separately from scheduled retention. Record the approved restore identity's retrieval procedure. Limit participant access at the edge until the acceptance run ends.
+- Provision an operator-owned recovery parent with mode `0700` on encrypted staging before the window. Use a private child directory if the staging mount root has broader permissions. Verify the parent is a real directory and reserve a new path for the decrypted point.
 
 Copy `scripts/pilot-acceptance/compose.env.example` to a protected file at mode `0600`. Set the approved image and deployment secrets, keep the backend port on loopback and set `CORS_ORIGINS` to the exact pilot HTTPS origin. The proxy port must match `OPENJAM_PUBLISH_PORT`. Configure `OPENJAM_TRUSTED_PROXIES` with the immediate address or narrow CIDR seen by the API if the deployment uses forwarded client addresses. Use the actual Docker gateway address when it is the immediate peer.
 
@@ -41,6 +42,16 @@ pilot_ops=(python3 -B scripts/openjam-ops.py --project "$pilot_project" --env-fi
 docker context show
 "${pilot_compose[@]}" config --quiet
 "${pilot_compose[@]}" config --images
+~~~
+
+Before the write hold, run this check on the recovery host as the account that will fetch the backup. On Linux, verify the recovery parent and the new destination with the following commands.
+
+~~~bash
+restore_parent=/secure/recovery/openjam
+restore_archive="$restore_parent/pilot-point"
+test -d "$restore_parent" && test ! -L "$restore_parent" &&
+  test "$(stat -c '%a:%u' -- "$restore_parent")" = "700:$(id -u)" &&
+  test ! -e "$restore_archive" && test ! -L "$restore_archive"
 ~~~
 
 For a new pilot instance, start the configured image with `"${pilot_compose[@]}" up --no-build --wait` in the approved window. For an existing instance, take and verify a pre-upgrade backup before the [upgrade steps](./operations.md#upgrade-a-deployment). Check the running stack before installing the validated serving config at the edge.
@@ -159,13 +170,12 @@ On the pilot, install the selected scheduler configuration, observe two real bac
 
 Start the UTC clock when the operator receives the drill signal, before retrieving the recovery key and archive or preparing the image. Select the latest verified point suitable for the drill using its independently recorded receipt hash. Record which test markers bracket that specific capture. If a later capture includes both markers, prepare a new pair around the point used for the drill. Prepare an empty target B with a new Compose project, fresh volumes and a different loopback port. Match the restored PostgreSQL major version, SeaweedFS image and bucket from the manifest and use the application image compatible with that schema.
 
-Fill the values on the recovery host. Prepare `restore.env` with the matching image and store settings and set `OPENJAM_PUBLISH_PORT=18081`. Use the **source** deployment and repository ID for `fetch`, then the **target** project for `restore`. A new recovery directory is required under a protected parent. The default restore tool rejects a populated target.
+Fill the values on the recovery host. Prepare `restore.env` with the matching image and store settings and set `OPENJAM_PUBLISH_PORT=18081`. Use the **source** deployment and repository ID for `fetch`, then the **target** project for `restore`. Use the private recovery parent prepared in section 1. The restore tool requires an empty target.
 
 ~~~bash
 restore_project=openjam-pilot-restore
 restore_env=/etc/openjam/restore.env
 restore_local=http://127.0.0.1:18081
-restore_archive=/secure/recovery/pilot-point
 restore_identity=/secure/recovery/openjam.agekey
 restore_point=REPLACE_WITH_POINT_ID
 restore_receipt=REPLACE_WITH_TRUSTED_RECEIPT_SHA256
