@@ -4,15 +4,17 @@ Use this runbook to qualify the actual pilot ingress and backup workflow before 
 
 Record the result of each gate as Pass, Fail, Pending or N/A with its UTC time, operator and evidence. Meetings can be N/A when the pilot leaves media disabled. Keep the pilot closed if a required gate fails, if a result is missing, or if the rollback point or account access is uncertain.
 
+In the collaboration checks, A and B are the owner and editor browsers. In the recovery checks, source A and target B are separate OpenJam deployments.
+
 | Gate | Local evidence | Pilot pass standard |
 | --- | --- | --- |
-| 151-A HTTPS and sign-in | **Passed locally** at `7026a2f` with a loopback CA, Go reverse proxy and two Chrome sessions. Verified TLS 1.3, redirect, health and cookie flags. | **Pending.** The actual hostname and certificate chain validate on both clients, HTTP permanently redirects to the same HTTPS host and path, the edge and local probes pass, and both clients sign in with `wb_session` set to Secure, HttpOnly and SameSite=Lax. The application port is bound to loopback. |
-| 151-B WebSocket and reconnect | **Passed locally** at `7026a2f`. WSS upgrades succeeded on `/ws/v2` and `/ws`, two sessions reached the same snapshot, and the disconnected client caught up without reloading. | **Pending.** On representative client networks both board connections get `101` over WSS. Edits travel both ways. After a real disconnect and a new upgrade, the client catches up without a reload and can edit again. The clients agree on the snapshot epoch, sequence and hash after sync settles. |
-| 151-C Private files and revocation | **Passed locally** at `7026a2f`. Authorized PNG and ZIP bytes matched. Revocation closed the live connection and returned `403` for the snapshot, write, image and previously issued artifact. | **Pending.** Both granted users can read the same private PNG and the editor can generate a new Board ZIP with that PNG. Removing the editor closes the live subscription and denies all four paths. The owner keeps access. |
+| 151-A HTTPS and sign-in | **Passed locally** in the joint rehearsal at `b4639c3` using the Caddy templates and the actual OpenJam image. Verified TLS 1.3, permanent redirect, health and cookie flags in two Chrome sessions. | **Pending.** The actual hostname and certificate chain validate on both clients, HTTP permanently redirects to the same HTTPS host and path, the edge and local probes pass, and both clients sign in with `wb_session` set to Secure, HttpOnly and SameSite=Lax. The application port is bound to loopback. |
+| 151-B WebSocket and reconnect | **Passed locally** through Caddy. Both sessions got `101` on `/ws/v2` and reached the same snapshot. The editor caught up and wrote again without reloading. The earlier loopback run at `7026a2f` also covered legacy `/ws`. | **Pending.** On representative client networks both board connections get `101` over WSS. Edits travel both ways. After a real disconnect and a new upgrade, the client catches up without a reload and can edit again. The clients agree on the snapshot epoch, sequence and hash after sync settles. |
+| 151-C Private files and revocation | **Passed locally** through Caddy. The private PNG bytes matched both downloads and the ZIP entry. Revocation closed the live connection and returned `403` for the snapshot, write, image and previously issued artifact. | **Pending.** Both granted users can read the same private PNG and the editor can generate a new Board ZIP with that PNG. Removing the editor closes the live subscription and denies all four paths. The owner keeps access. |
 | 151-D Meetings, if enabled | The XW-151 loopback drill covered the app edge and board collaboration. | **Pending if enabled.** On the actual client networks both participants receive audio, video and screen share and recover media after reconnect. The revoked participant loses access. |
 | 152-A Replica and backup | **Passed locally** at `7026a2f` and `e05c7ac`. A roughly 1.02 GiB instance backup and an encrypted copy on a separate local mount were verified. Bad ciphertext, a wrong identity and a wrong trusted receipt were rejected. | **Pending.** The real replica is in an independent failure domain. Operators verify mount behavior, role permissions, deletion protection and capacity. A verified encrypted point has a capture time and a receipt SHA-256 in a trusted log outside the replica. The source resumes and accepts a confirmed write. |
 | 152-B Schedule, retention and alerts | **Passed locally** at `0b7d92e`. A native launchd drill used one-minute windows, pruned two expired samples, coalesced missed windows into one backup, and retried a `503` with the same alert ID to a `204`. The 12-hour calendar and systemd template passed configuration checks. | **Pending.** Observe two consecutive scheduled backups 12 hours apart on the pilot. A scoped drill confirms one catch-up after missed windows, keeps protected points during retention, and records receiver acceptance and human acknowledgment. |
-| 152-C Restore and rollback | **Passed locally** at `7026a2f` and `e05c7ac`. The roughly 1.02 GiB local restore took 29.290 seconds from an available archive. The local encrypted-replica drill took 28.952 seconds with images preloaded. The schema 14 to 23 upgrade and rollback also passed on isolated local stores. | **Pending.** Restore from the actual replica into an empty deployment and pass data, history, asset and permission checks. The operator demonstrates the selected rollback path. **RPO ≤ 24 hours and RTO ≤ 30 minutes**, including real retrieval, key access, image preparation and ingress cutover in the RTO. |
+| 152-C Restore and rollback | **Passed locally** in the joint rehearsal: source A → empty B → A through Caddy, with one accepted B write reconciled into A. Separate runs at `7026a2f` and `e05c7ac` covered the roughly 1 GiB scale and schema 14 to 23 upgrade and rollback. | **Pending.** Restore from the actual replica into an empty deployment and pass data, history, asset and permission checks. The operator demonstrates the selected rollback path. **RPO ≤ 24 hours and RTO ≤ 30 minutes**, including real retrieval, key access, image preparation and ingress cutover in the RTO. |
 
 ## 1. Prepare the pilot
 
@@ -58,6 +60,8 @@ Run the edge probe from both client networks against the real hostname. It uses 
 bash scripts/pilot-acceptance/check-edge.sh "$pilot_host"
 ~~~
 
+For a joint rehearsal of XW-151 and XW-152, complete steps 1–3 below and prepare the revocation probe while B still has access. Take the manual backup in section 3 with B still an Editor. Reopen the edge to A, confirm both browsers have reconnected, make the source-only marker, and then complete step 4 below. This gives the restore drill a known Editor grant at capture and a later revocation to replay. Run all five steps in order when checking XW-151 on its own.
+
 1. **Sign in and establish WSS.** In both signed-in browsers inspect the cookie flags and the `/ws/v2` request in DevTools. Open the same Board by its deep link and confirm `101` and a working subscription in each session. If legacy clients are in scope, verify an authenticated `/ws` upgrade too.
 2. **Edit and reconnect.** Add distinct text in A and B and verify it appears in both. Interrupt B until its old socket closes, make another edit in A, reconnect B and verify a fresh `101`, that the missed edit appears, and that B can add a final edit. Compare `epoch`, `seq` and `hash` from `GET /api/v2/boards/BOARD_ID/snapshot` in both authenticated sessions after sync settles.
 3. **Verify the private PNG and export.** Add the PNG in A and compare bytes downloaded by both accounts. In B start a new Board ZIP export, wait for success and download it. Record the Board ID, image ID, B's job ID and SHA-256. The downloaded PNGs and the ZIP's `assets/<image ID>` entry must match the uploaded image. Verify the ZIP locally by substituting the four paths and the asset ID below.
@@ -81,7 +85,7 @@ if any(digest != expected for digest in digests):
 print("PASS private image SHA-256", expected)
 PY
 ~~~
-+
+
 In B's browser console, prepare the probe below while B still has access. Fill the three IDs for the synthetic Board, image and B's ZIP job. After revocation, run `await window.checkPilotRevocation()` in the same tab. The probe uses B's existing session and reports status codes.
 
 ~~~js
@@ -120,29 +124,34 @@ Save response codes, timestamps, receipt hashes and relevant `X-Request-ID` valu
 
 ## 3. Qualify the backup schedule on the pilot
 
-Fill the replica path and repository ID, local encrypted staging directory, public recipients file, and actual receiver in the [schedule templates and setup](./operations.md#run-backups-and-retention-unattended). Keep the decrypt identity on the recovery side. Verify the filesystem mount, a separate failure domain, writable staging, expected free space, and which identity can read, publish or prune. Use a scoped test point to check locking, atomic publication, sync, interruption and deletion protection on the actual provider. Establish the agreed UTC backup window and named on-call owner.
+Prepare the replica directory, an encrypted local staging filesystem, the public recipients file, and the actual receiver in the [schedule templates and setup](./operations.md#run-backups-and-retention-unattended). Keep the decrypt identity on the recovery side. Verify the filesystem mount, a separate failure domain, free space and which identity can read, publish or prune. Use a scoped test point to check locking, atomic publication, sync, interruption and deletion protection on the actual provider. Establish the agreed UTC backup window and named on-call owner.
 
 ~~~bash
 pilot_replica=/mnt/openjam-replica/openjam
-pilot_replica_id=REPLACE_WITH_REPOSITORY_ID
 pilot_stage=/var/lib/openjam-offsite/capture
 pilot_recipients=/etc/openjam/backup.recipients
-pilot_store=(--replica "$pilot_replica" --repository-id "$pilot_replica_id")
 
 df -h "$pilot_replica" "$pilot_stage"
-"${pilot_ops[@]}" offsite monitor "${pilot_store[@]}"
-"${pilot_ops[@]}" offsite prune "${pilot_store[@]}"
+
+# Run once, only for a new empty mode-0700 directory on the confirmed mount.
+"${pilot_ops[@]}" offsite init --replica "$pilot_replica"
 ~~~
 
-Initialize the repository once using the operations guide on a confirmed mount. Before enabling the scheduler, save a distinctive marker in the synthetic Board, put the edge in maintenance, let test users finish saving, and run one backup. This command controls the default Compose write freeze and resumes the app before encrypting and copying. After reopening the edge for testers, add a second marker. Record the start of the freeze, successful app resume and the confirmed write of the second marker. Keep the `replica_verified` point ID, capture time and receipt SHA-256 outside the replica.
+Record the `repositoryId` from initialization. For an existing replica, use the recorded ID and skip initialization. An empty replica has no verified point: `offsite monitor` reports critical and exits 1 until the first valid capture. Start with a manual backup before using monitor and the retention preview as gates for the scheduler.
+
+Save a distinctive marker in the synthetic Board, let test users finish saving, then put the edge in maintenance and confirm HTTPS 503. Run the backup below. It freezes the default Compose stores and resumes the app before encrypting and copying. Keep the `replica_verified` point ID, capture time and receipt SHA-256 in a trusted log outside the replica. Check that the source is healthy before reopening the edge for testers, then add a second marker and confirm its readback. Record both the backend freeze from `source_resumed` and the edge interval from the first maintenance 503 to the confirmed write. They measure different things. If publication fails after the source resumes, follow the [pending backup procedure](./operations.md#schedule-encrypted-offsite-copies) and keep the backup gate failed until verification succeeds.
 
 ~~~bash
+pilot_replica_id=REPLACE_WITH_REPOSITORY_ID
+pilot_store=(--replica "$pilot_replica" --repository-id "$pilot_replica_id")
+
 "${pilot_ops[@]}" offsite run "${pilot_store[@]}" --state "$pilot_stage" \
-  --recipients "$pilot_recipients" --url "$pilot_local"
-"${pilot_ops[@]}" offsite monitor "${pilot_store[@]}"
+  --recipients "$pilot_recipients" --url "$pilot_local" &&
+"${pilot_ops[@]}" offsite monitor "${pilot_store[@]}" &&
+"${pilot_ops[@]}" offsite prune "${pilot_store[@]}"  # preview only
 ~~~
 
-After installing the selected scheduler configuration, observe two real backup windows and record both verified point IDs. On a Linux pilot, use `systemctl list-timers --all 'openjam-offsite@*'` and `journalctl -u openjam-offsite@backup.service -u openjam-offsite@retention.service --since today`. Check `schedule_backup_verified` and the daily `schedule_retention` result against the prune preview. Use a separate synthetic deployment and replica namespace for missed-window, receiver failure and expired-point tests on that host. Prove that restart publishes one catch-up point, that protected points remain, that retries preserve the alert ID, and that the actual duty recipient both receives and acknowledges the test. Record the receiver and acknowledgment times separately.
+On the pilot, install the selected scheduler configuration, observe two real backup windows and record both verified point IDs. On Linux, use `systemctl list-timers --all 'openjam-offsite@*'` and `journalctl -u openjam-offsite@backup.service -u openjam-offsite@retention.service --since today`. Check `schedule_backup_verified` and the daily `schedule_retention` result against the prune preview. Use a separate synthetic deployment and replica namespace for missed-window, receiver failure and expired-point tests on that host. Prove that restart publishes one catch-up point, that protected points remain, that retries preserve the alert ID, and that the actual duty recipient both receives and acknowledges the test. Record the receiver and acknowledgment times separately.
 
 ## 4. Restore from the replica and measure
 
@@ -192,9 +201,19 @@ python3 -B scripts/openjam-ops.py quick-check "$restore_local" &&
 "${restore_ops[@]}" self-check --assets --timeout 5m
 ~~~
 
-Keep B private. Compare the recovery-point samples, including project ownership and access, named versions, private image hashes and a new ZIP export. The pre-capture marker must appear in B and the source-only post-capture marker must be absent. Reapply permission changes made after capture and verify they take effect. Follow the [restore procedure](./operations.md#restore-an-instance) if a restore is interrupted or the prior image predates `doctor`.
+Keep B private. Compare the recovery-point samples, including project ownership and access, named versions, private image hashes and a new ZIP export. The pre-capture marker must appear in B and the source-only post-capture marker must be absent. Check the captured ACLs against the record before replaying changes. Reapply all permission changes made after capture using a fresh owner session over restricted HTTPS or the authenticated local API. If sessions were cleared, confirm an old session is rejected and both test users can sign in afresh. A revoked account may still sign in; its resource access must fail. Verify the denials again before opening the edge. Follow the [restore procedure](./operations.md#restore-an-instance) if a restore is interrupted or the prior image predates `doctor`.
 
-For cutover, keep participant access restricted. Stop source API and worker processes and any other writers before routing pilot HTTPS to B. Run the edge check and verify a fresh login, one allowed write and readback, and one denied access check using the restricted pilot edge. Record that timestamp and the final selected writer before opening pilot access.
+For cutover, keep participant access restricted. Pause both deployments' schedulers and wait for any active backup to finish. Hold HTTPS in maintenance and verify 503. Stop source API and worker processes and any other writers before allowing test writes to B. When the source outage is part of the recovery drill, record that outage and stop its writers at the start of the drill. Before changing the proxy, check that no source writer is running and that B is healthy with both writer services running. Then reload the approved serving config pointing to B. Run the edge check and verify fresh logins, one allowed write with readback and one denied access using the restricted pilot edge. Record the first confirmed write time and the final selected writer before opening pilot access.
+
+~~~bash
+"${pilot_compose[@]}" stop --timeout 30 server worker &&
+source_running=$("${pilot_compose[@]}" ps --status running --services server worker) &&
+target_running=$("${restore_compose[@]}" ps --status running --services server worker) &&
+[[ -z "$source_running" && $(sort <<< "$target_running") == $'server\nworker' ]] &&
+python3 -B scripts/openjam-ops.py quick-check "$restore_local"
+~~~
+
+If B stays active under a different Compose project name, initialize a separate replica namespace and use B's new repository ID, capture directory and scheduler state. The replica marker is bound to its source deployment; B cannot publish to A's repository by copying A's settings. Preserve A's recovery points, and verify a first backup from B before enabling its scheduler. During a rehearsal keep both schedulers paused until the chosen writer is back.
 
 Use the source outage or simulated outage timestamp as the RPO reference. The restore start timestamp is the drill signal, which may be the same time. Record capture, restore start, outage and first confirmed write as explicit UTC timestamps.
 
@@ -222,7 +241,8 @@ PY
 
 1. **Hold the edge and stop new changes.** Switch the pilot site to its prepared maintenance config. Validate and reload the full proxy config and confirm HTTPS `503` on `/readyz` from a client. Pause backup and retention timers on both deployments and check for in-flight jobs. On Linux with the templates, use `sudo systemctl stop openjam-offsite@backup.timer openjam-offsite@retention.timer`, then inspect the corresponding services and wait for any active capture to resume the source or follow the interrupted-job procedure. Stop the serving candidate's API and worker with the explicit Compose project and `stop --timeout 30 server worker`. Keep the database, object volumes, logs and receipts.
 2. **Choose the rollback branch.** For a proxy-only change, reload the saved serving proxy config after the previously verified backend passes its local check. If the application changed and the earlier schema and stores are still compatible, restore the saved image and environment, start the previous stack and run its checks. If a migration committed, prepare a fresh project and restore the verified pre-change backup with the previous image and matching stores using step 4. If that archive is already local, run `python3 -B scripts/openjam-ops.py verify-backup "$restore_archive"` and continue with the target commands. Keep all affected writers stopped while choosing the authoritative data.
-3. **Reconcile and reopen.** If the candidate accepted writes after cutover, preserve that state and account for writes and access changes after the selected recovery point before routing users back. Repeat the local health and asset checks, then the signed-in edge read, write and denied access checks. Restore exactly one serving upstream, reopen pilot access after sign-off, and re-enable scheduling for the selected writer. Record the chosen point, known gap, timestamps and approver.
+3. **Reconcile before reopening.** Preserve the stopped candidate's stores and logs. Compare its final accepted writes and permission changes with the chosen target's state. In a rehearsal with only one intentional write, record its file, element, value and revision; apply it through the selected writer's normal edit path after checking for conflicts, then read it back. Verify the chosen target still contains any pre-cutover source-only writes and enforces the final access policy. If changes are unknown or cannot be reconciled, keep maintenance enabled until the owner approves a recovery choice and any data gap. This drill's single test write does not establish an automatic merge for diverged instances.
+4. **Reopen with one writer.** While the failed candidate stays stopped, repeat the local health and asset checks for the selected target. Route the restricted edge back, verify fresh login, allowed write with readback and denied access. Recheck that the rejected writer is stopped, reopen pilot access after sign-off, and re-enable scheduling only for the selected deployment. Record the chosen point, reconciled changes or approved gap, timestamps and approver.
 
 For Caddy, keep the prepared full maintenance and serving files and use `caddy validate --config FILE --adapter caddyfile` before each change. Install the approved file at the service's configured path and reload the service so restart uses the same file. Preserve the previous configuration until both health and browser checks pass. [Caddy commands](https://caddyserver.com/docs/command-line#caddy-validate)
 
@@ -233,6 +253,16 @@ test "$(curl --disable --silent --show-error --max-time 10 --output /dev/null \
   --write-out '%{http_code}' "https://$pilot_host/readyz")" = 503
 ~~~
 
+## Local rehearsal setup
+
+Use two disposable Compose projects with separate named volumes and different loopback ports. Use the production cookie settings in the example environment. Keep Meetings media and the backup schedulers off for this run; use the separate acceptance steps to qualify them. Use synthetic data and mount the replica on a separate local test volume. This checks the filesystem and recovery workflow, but does not simulate loss of the host or its storage.
+
+Use both Caddy templates. Set an explicit loopback bind and nonstandard HTTP, HTTPS and admin ports. For serving, make one config per upstream. Use a local CA and a test leaf with the template hostname as a DNS SAN; include the subject and authority key identifiers so clients with strict chain validation can use it. Set `tls CERT KEY` in both template site blocks and use the same certificate in maintenance. Keep `skip_install_trust` and separate Caddy data and config directories. Route the test hostname only for the test clients. With high loopback ports, a test-only HTTP and CONNECT relay can map the expected 80/443 for `check-edge.sh` to those ports. Set `CURL_CA_BUNDLE` and `SSL_CERT_FILE` for that probe process and use an isolated browser context for the fixture certificate. Keep the system trust store and normal proxy settings unchanged.
+
+For the simulated outage, take the edge to maintenance and stop A's writers before retrieving the replica. Leave A's data volumes in place so the rollback can select the original A deployment. While B is the selected writer, accept only the test write that you will reconcile during rollback. Record the candidate, sample size and assumptions next to the measured timings.
+
+The 2026-11-12 UTC rehearsal ran schema 23 with two test accounts, one Team Project, one file of each kind (Board, Doc, Sheet, Slides) and one private PNG. The two browsers saw both edits; after the editor's network tunnel was restored, catch-up took **2.14 s**. The encrypted payload was **2,645,463 bytes**. The backend write freeze was **24.15 s** and the edge was held for **24.69 s** to the confirmed source write. From the recovery start to a confirmed write on B through Caddy took **20.13 s**. B had the captured versions, links, asset and access grants. Old sessions were rejected and the later revocation was replayed before cutover. The simulated capture-to-outage gap was **39.54 s**. From putting B's edge in maintenance to a confirmed write on A took **8.00 s**; A retained its post-capture marker and B's reconciled write. These are small-sample local timings with the image and identity already available. Use the separate scale evidence and measure the pilot on its own storage, network and key retrieval path.
+
 ## Acceptance record
 
 Copy this record into the pilot handoff. Put only sanitized observations in XW-151 and XW-152.
@@ -241,9 +271,10 @@ Copy this record into the pilot handoff. Put only sanitized observations in XW-1
 Run ID / UTC window / operator / approver
 Application commit and image ID / actual proxy / HTTPS origin
 Source project and schema / target project and schema / media enabled
-Replica ID / capture UTC / trusted receipt SHA-256 / authorized roles
+Replica ID / capture UTC / trusted receipt SHA-256 / encrypted bytes / authorized roles
+Backend write freeze / edge hold to confirmed source write
 Outage UTC / restore start UTC / first verified write UTC / RPO / RTO
 151-A / 151-B / 151-C / 151-D / 152-A / 152-B / 152-C results and evidence
-Rollback branch exercised / authoritative writer / approved data gap
+Rollback branch exercised / maintenance to verified write / authoritative writer / replay or approved data gap
 Go or hold / issue references and remaining actions
 ~~~
