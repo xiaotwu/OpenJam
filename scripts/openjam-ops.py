@@ -13,6 +13,8 @@ import tarfile
 from datetime import datetime, timezone
 from urllib import error, parse, request
 
+import openjam_offsite
+
 ROOT = Path(__file__).resolve().parent.parent
 FORMAT = "openjam-instance-v1"
 DUMP = "postgres.dump"
@@ -81,12 +83,12 @@ class Compose:
             raise OpsError(f"Expected one {state} {name} service in {self.project}.")
         return matches[0]
 
-    def managed_stores(self):
+    def managed_stores(self, *, quiesced=True):
         config = json.loads(capture([*self.args, "config", "--format", "json"], "Read Compose configuration"))
         services = config["services"]
         containers = self.containers()
         postgres = self.service(containers, "postgres", running=True)
-        seaweed = self.service(containers, "seaweedfs", running=False)
+        seaweed = self.service(containers, "seaweedfs", running=not quiesced)
         pg_env = container_env(postgres)
         s3_env = container_env(seaweed)
         runtime = services["server"]["environment"]
@@ -111,7 +113,7 @@ class Compose:
             labels = container["Config"]["Labels"]
             if labels.get("com.docker.compose.service") not in ("server", "worker", "migrate"):
                 continue
-            if container["State"]["Running"]:
+            if quiesced and container["State"]["Running"]:
                 raise OpsError("Stop all OpenJam servers, workers and migrators before this operation.")
             if labels.get("com.docker.compose.service") in ("server", "worker"):
                 deployed = container_env(container)
@@ -126,7 +128,7 @@ class Compose:
                                         "Read Compose volume ownership"))[0]["Labels"] or {}
             if labels.get("com.docker.compose.project") != self.project:
                 raise OpsError("A data volume is outside the selected Compose deployment.")
-            if container is seaweed and capture(["docker", "ps", "-q", "--filter", f"volume={volume}"],
+            if quiesced and container is seaweed and capture(["docker", "ps", "-q", "--filter", f"volume={volume}"],
                                                "Check for active storage mounts"):
                 raise OpsError("A running container still mounts the SeaweedFS volume.")
         return postgres, seaweed, runtime["MINIO_BUCKET"]
@@ -221,27 +223,54 @@ def verify_backup(path):
     return info
 
 
-def backup(stack, path):
+def write_backup_file(args, label, path, limit):
+    with path.open("xb") as out:
+        if limit is None:
+            call(args, label, stdout=out)
+            return
+        with subprocess.Popen(args, stdout=subprocess.PIPE) as producer:
+            try:
+                while chunk := producer.stdout.read(1024 * 1024):
+                    limit -= len(chunk)
+                    if limit < 0:
+                        raise OpsError("Backup exceeds the configured size limit. Review capacity before raising it.")
+                    out.write(chunk)
+                if producer.wait():
+                    raise OpsError(f"{label} failed.")
+                out.flush()
+                os.fsync(out.fileno())
+            finally:
+                if producer.poll() is None:
+                    producer.kill()
+
+
+def backup(stack, path, *, captured_at=None, max_bytes=None):
     postgres, seaweed, bucket = stack.managed_stores()
     info = {
-        "format": FORMAT, "createdAt": datetime.now(timezone.utc).isoformat(), "schema": schema_version(postgres),
+        "format": FORMAT, "createdAt": (captured_at or datetime.now(timezone.utc)).isoformat(),
+        "schema": schema_version(postgres),
         "postgresMajor": postgres_major(postgres), "seaweedImage": seaweed["Config"]["Image"], "bucket": bucket,
     }
     try:
         path.mkdir(mode=0o700)
     except FileExistsError:
         raise OpsError("Choose a new backup directory. Existing backups are never overwritten.") from None
-    with (path / DUMP).open("xb") as out:
-        call(pg_command(postgres, "exec pg_dump --format=custom --no-owner --no-privileges " + PG_OPTIONS),
-             "Dump PostgreSQL", stdout=out)
-    with (path / OBJECTS).open("xb") as out:
-        call(["docker", "cp", seaweed["Id"] + ":/data/.", "-"], "Copy stopped SeaweedFS volume", stdout=out)
+    write_backup_file(pg_command(postgres, "exec pg_dump --format=custom --no-owner --no-privileges " + PG_OPTIONS),
+                      "Dump PostgreSQL", path / DUMP, max_bytes)
+    remaining = None if max_bytes is None else max_bytes - (path / DUMP).stat().st_size
+    write_backup_file(["docker", "cp", seaweed["Id"] + ":/data/.", "-"], "Copy stopped SeaweedFS volume",
+                      path / OBJECTS, remaining)
     scan_tar(path / OBJECTS)
     info["files"] = {name: checksum(path / name) for name in (DUMP, OBJECTS)}
     with (path / (MANIFEST + ".partial")).open("x") as out:
         json.dump(info, out, indent=2)
         out.write("\n")
+        if max_bytes is not None:
+            out.flush()
+            os.fsync(out.fileno())
     (path / (MANIFEST + ".partial")).rename(path / MANIFEST)
+    if max_bytes is not None:
+        openjam_offsite.sync_dir(path)
     print(f"PASS backup schema={info['schema']} postgres={info['postgresMajor']} directory={path}")
 
 
@@ -330,6 +359,7 @@ def main():
     sub.add_parser("backup", help="back up a quiesced default Compose deployment").add_argument("directory", type=Path)
     sub.add_parser("verify-backup", help="verify a backup directory without Docker").add_argument("directory", type=Path)
     sub.add_parser("restore", help="restore into empty default Compose stores").add_argument("directory", type=Path)
+    openjam_offsite.add_commands(sub)
     args = parser.parse_args()
     os.umask(0o077)
     try:
@@ -338,6 +368,8 @@ def main():
         elif args.command == "verify-backup":
             info = verify_backup(args.directory)
             print(f"PASS backup verification schema={info['schema']} postgres={info['postgresMajor']}")
+        elif args.command == "offsite":
+            return openjam_offsite.run_command(args, Compose, backup, verify_backup, quick_check, OpsError)
         else:
             stack = Compose(args.project, args.env_file)
             if args.command == "self-check":
@@ -346,7 +378,10 @@ def main():
                 backup(stack, args.directory)
             else:
                 restore(stack, args.directory)
-    except (OpsError, OSError, ValueError, KeyError, tarfile.TarError) as exc:
+    except KeyboardInterrupt:
+        print("FAIL interrupted. Check the deployment before retrying.", file=sys.stderr)
+        return 130
+    except (OpsError, openjam_offsite.OffsiteError, OSError, ValueError, KeyError, tarfile.TarError) as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1
     return 0

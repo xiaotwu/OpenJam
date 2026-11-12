@@ -44,6 +44,60 @@ python3 scripts/openjam-ops.py verify-backup "$oj_backup"
 
 Resume with `"${oj_compose[@]}" up --no-build --wait` if the maintenance window ends here. Keep the previous image and its deployment settings with the backup. For managed PostgreSQL, MinIO or another external S3 provider, use the provider's database and object backup procedures during the same write freeze. Restore both stores to one recovery point and rehearse that procedure with the chosen provider.
 
+## Schedule encrypted offsite copies
+
+Use this workflow for the default Compose stores on Linux or macOS. It writes to a dedicated, mounted filesystem that supports file locks, same-directory atomic renames, and file and directory sync. Use a different device from the local staging directory. For production, place the replica in a separate failure domain and rehearse a real recovery from it. A local disk image is useful for a drill.
+
+1. Install [age](https://github.com/FiloSottile/age) on the backup and recovery hosts. Generate a native identity on a recovery host with `age-keygen -o /secure/recovery/openjam.agekey` and export only its public recipient with `age-keygen -y /secure/recovery/openjam.agekey > openjam.recipients`. Keep the identity at mode `0600` and store a protected recovery copy separately from the app, replica and configuration. Confirm the identity works in a restore drill before rotating keys, and keep previous identities until their backups expire.
+2. Set up an encrypted local staging directory and an empty private directory on the mounted replica, both at mode `0700`. Verify the mount before initialization. Initialize once and record the returned `repositoryId` with the deployment config:
+
+   ```bash
+   oj_stage=/secure/local/openjam-offsite-stage
+   oj_replica=/mnt/replica/openjam
+   oj_public=/secure/config/openjam.recipients
+   oj_alert=/usr/local/libexec/openjam-backup-alert
+   "${oj_ops[@]}" offsite init --replica "$oj_replica"
+   oj_replica_id=REPLACE_WITH_THE_REPOSITORY_ID
+   oj_store=(--replica "$oj_replica" --repository-id "$oj_replica_id")
+   ```
+
+3. Schedule the following command every 12 hours in low traffic windows. Put ingress into maintenance and let users finish saving before each freeze. The command checks the configured stores, stops the API and worker and then SeaweedFS, captures the cold backup, and resumes service. It encrypts the three backup files with the public recipients and verifies the bytes read back from the replica **after** source health returns. A point becomes visible only after the complete staged copy is verified. Record the reported point ID and receipt SHA-256 in a trusted job log outside the replica; the hash next to the copy alone cannot authenticate a replica modified by a writer.
+
+   ```bash
+   "${oj_ops[@]}" offsite run "${oj_store[@]}" --state "$oj_stage" \
+     --recipients "$oj_public" --url "$oj_url" --alert-command "$oj_alert"
+   ```
+
+   Use a scheduler under the deployment operator account with a fixed checkout, environment file and `PATH`. A starting UTC schedule is backup at 01:00 and 13:00, monitoring every 15 minutes at :07/:22/:37/:52, and retention after the morning backup. Choose windows based on team activity. Use the scheduler to collect nonzero exits and detect missed runs even if a notifier fails. The optional alert executable receives one JSON event on standard input with no credentials. Deduplicate repeated age alerts by deployment and severity, and test routing and acknowledgement with the primary operator and their backup.
+
+   ```bash
+   "${oj_ops[@]}" offsite monitor "${oj_store[@]}" --alert-command "$oj_alert"
+   "${oj_ops[@]}" offsite prune "${oj_store[@]}"           # review the plan
+   "${oj_ops[@]}" offsite prune "${oj_store[@]}" --apply   # run under the authorized retention role
+   ```
+
+   The default copy retry budget is three attempts with delays of 5 and 10 seconds. The first failure and exhausted attempts are reported. After a failure, the next run retries the same pending point without another freeze. If the recovered point is already old, take a fresh backup in the next approved window. Monitor verifies the latest usable point from storage and measures its age from capture: warning at 20 hours, critical at 24 hours, or critical immediately if no usable point exists or a newer point is corrupt. The pilot RPO target is 24 hours.
+
+   Run retention daily after replication. It keeps up to two points per day in the latest seven UTC calendar days, one per ISO week in the latest four weeks, and one per calendar month in the latest three months. Overlapping points are kept once, and the newest two available points are always kept. Prune checks the managed points and refuses deletion if it finds a corrupt one. Keep any pre-upgrade backup required for rollback separately so scheduled retention cannot remove it. Plan for up to 21 scheduled points (about 21.4 GiB at the 1.02 GiB rehearsal size); allow at least 30 GiB per location at that size, plus space for recovery staging and extra rollback points. Use storage with separate credentials and deletion protection for the actual offsite copy.
+
+   By default one capture is limited to 2 GiB of database and object payload. The local staging directory can hold one pending point, at most one raw and one encrypted copy of that point plus headers; allow at least twice the configured limit plus staging reserve. Raise `--max-backup-bytes` only after checking space at both sites and budgeting a full recovery. After successful publication the pending copies are removed; a failed run leaves one point available for retry. Use an encrypted staging filesystem because an incomplete job can contain plaintext.
+
+### Recover from the replica
+
+Keep the target isolated. With the **source** deployment name and replica ID, choose the exact recovery point and use the receipt SHA-256 from the trusted backup log:
+
+```bash
+oj_recovery=/secure/recovery/fetched-openjam
+oj_point=REPLACE_WITH_POINT_ID
+oj_receipt_sha256=REPLACE_WITH_TRUSTED_RECEIPT_SHA256
+"${oj_ops[@]}" offsite fetch "${oj_store[@]}" "$oj_point" "$oj_recovery" \
+  --identity /secure/recovery/openjam.agekey --expect-receipt-sha256 "$oj_receipt_sha256"
+```
+
+Choose a new destination under an encrypted private directory with space for both ciphertext and plaintext. Fetch verifies the copy's ciphertext, decrypts with age, verifies the original manifest and both backup payloads, then makes the recovered directory available. It reports transfer, decryption, and inner verification time. If the trusted job log is unavailable, document that loss of provenance before recovering without the receipt argument. Run [Restore an instance](#restore-an-instance) with `oj_backup="$oj_recovery"` and a new **target** deployment name. Keep ingress closed until signed-in read/write and permission checks pass, and reapply revocations made after the recovery point.
+
+Set a pilot RTO target of 30 minutes. Measure from starting recovery, including replica access, retrieval, decryption and image preparation, until traffic cutover and the first verified write. Exercise a random retained point monthly and repeat the drill when changing storage or keys. Locally measured times exclude real network and failover. A shorter RPO based on PostgreSQL WAL and object versioning needs its own restore drill at a common recovery point.
+
 ## Upgrade a deployment
 
 1. Keep the Compose project name and store configuration. Record the current application image ID, the schema version from `doctor` when available, and a small sample of content, named versions, attachments and grants.
@@ -94,5 +148,9 @@ Verify a personal and a Team project, open historical file versions and project 
 | A job stays queued | Check the worker's image, logs and database connection. A running worker may wait for an existing lease to expire before resuming a job. Use a small Board ZIP export to verify progress. |
 | Collaboration reconnects repeatedly | Check the reverse proxy's WebSocket forwarding for `/ws` and `/ws/v2`, the HTTPS origin in `CORS_ORIGINS`, and Redis connectivity. Correlate an API failure using its `X-Request-ID`. |
 | Restore reports a checksum or target state error | Verify the backup without Docker, then confirm the destination project name and that its stores are empty. Keep the source backup available for a retry. |
+| Replica is missing or copy verification fails | Verify the mount, configured repository ID, permissions and space. Retry the same command with the same staging directory. Do not initialize a replacement over a missing mount. For a corrupt point, keep the evidence and select a different known good point for recovery. |
+| Offsite run was interrupted during capture | Keep the replica and staging directory. Manually resume the source with `docker compose up --no-build --wait` in the selected deployment, run the quick check and self-check, then repeat the offsite run with `--confirm-resumed`. If the pending local backup is invalid, inspect and quarantine that one pending directory before starting a new capture. |
+| No alert received or pruning is refused | Check the scheduler and the alert executable's exit status, then test delivery to the on-call owner. Prune is blocked by a corrupt point; investigate the point before any manual removal. |
+| Recovery fetch was interrupted | Confirm the process has exited. In the private recovery parent, inventory any leftover `.openjam-fetch-*` staging from that run before removing it. Start the next fetch with a new destination. |
 
 Use `"${oj_compose[@]}" logs --tail 100 server worker migrate postgres seaweedfs` for bounded diagnostics. Remove tokens, credentials, and private URLs before sharing logs.

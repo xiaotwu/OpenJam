@@ -7,6 +7,7 @@ on:
       - 'agent/**'
       - 'server/**'
       - 'contracts/**'
+      - 'scripts/**'
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker-compose.yml'
@@ -20,6 +21,7 @@ on:
       - 'agent/**'
       - 'server/**'
       - 'contracts/**'
+      - 'scripts/**'
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker-compose.yml'
@@ -54,6 +56,7 @@ jobs:
           docker buildx build --output type=cacheonly --target frontend-test .
           docker buildx build --output type=cacheonly --target backend-test .
           python3 -B -m unittest discover -s agent -v
+          python3 -B -m unittest discover -s scripts -v
 
       - name: Build and start the application
         run: |
