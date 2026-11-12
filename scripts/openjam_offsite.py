@@ -45,6 +45,10 @@ class OffsiteError(Exception):
     pass
 
 
+class OffsiteBusy(OffsiteError):
+    pass
+
+
 def now_utc():
     return datetime.now(timezone.utc)
 
@@ -143,7 +147,7 @@ def locked(path, shared=False):
         try:
             fcntl.flock(fd, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise OffsiteError("Another offsite operation holds this lock. Retry when it finishes.") from None
+            raise OffsiteBusy("Another offsite operation holds this lock. Retry when it finishes.") from None
         yield
     finally:
         os.close(fd)
@@ -410,7 +414,7 @@ def monitor(root, repo, now):
                 continue
             age = max(0, (now - at).total_seconds())
             level = "critical" if bad or age >= 24 * 3600 else "warning" if age >= 20 * 3600 else "ok"
-            return {"level": level, "point": path.name, "ageSeconds": round(age, 3),
+            return {"level": level, "point": path.name, "capturedAt": at.isoformat(), "ageSeconds": round(age, 3),
                     "receiptSha256": receipt_hash, "invalidNewerPoints": bad}
     return {"level": "critical", "point": None, "ageSeconds": None, "invalidNewerPoints": bad}
 
@@ -586,6 +590,9 @@ def cycle(args, root, repo, stack, backup, verify_backup, quick_check, reporter,
 def add_commands(commands):
     offsite = commands.add_parser("offsite", help="manage encrypted copies on a mounted replica")
     sub = offsite.add_subparsers(dest="offsite", required=True)
+    tick = sub.add_parser("tick", help="run due backup, monitoring or retention work")
+    tick.add_argument("--config", required=True, type=Path)
+    tick.add_argument("--role", choices=("backup", "retention"), default="backup")
     for name, help_text in (
         ("init", "initialize an empty private replica directory"),
         ("run", "capture, resume writes, encrypt and copy; retry a pending point first"),
@@ -617,14 +624,22 @@ def add_commands(commands):
             parser.add_argument("--expect-receipt-sha256", help="SHA-256 from the trusted backup job record")
 
 
-def run_command(args, compose_type, backup, verify_backup, quick_check, ops_error):
+def run_command(args, compose_type, backup, verify_backup, quick_check, ops_error, *, reporter=None):
     if os.name != "posix":
         raise OffsiteError("Use a Linux or macOS host for the mounted replica commands.")
     if not args.project or not DEPLOYMENT.fullmatch(args.project):
         raise OffsiteError("Use --project NAME for the source deployment recorded on the replica.")
     sub = args.offsite
+    if sub == "tick":
+        from openjam_schedule import tick
+
+        def run_backup(run_args, output):
+            return run_command(run_args, compose_type, backup, verify_backup, quick_check, ops_error, reporter=output)
+
+        return tick(args, run_backup, ops_error)
     caught = (OffsiteError, OSError, ValueError, KeyError, tarfile.TarError, ops_error)
-    reporter = Reporter(args.project, getattr(args, "alert_command", None))
+    if reporter is None:
+        reporter = Reporter(args.project, getattr(args, "alert_command", None))
     if reporter.command and (not reporter.command.is_absolute() or not reporter.command.is_file()
                              or not os.access(reporter.command, os.X_OK)):
         raise OffsiteError("Choose an absolute path to an executable alert command.")

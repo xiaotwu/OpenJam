@@ -61,14 +61,12 @@ Use this workflow for the default Compose stores on Linux or macOS. It writes to
    oj_store=(--replica "$oj_replica" --repository-id "$oj_replica_id")
    ```
 
-3. Schedule the following command every 12 hours in low traffic windows. Put ingress into maintenance and let users finish saving before each freeze. The command checks the configured stores, stops the API and worker and then SeaweedFS, captures the cold backup, and resumes service. It encrypts the three backup files with the public recipients and verifies the bytes read back from the replica **after** source health returns. A point becomes visible only after the complete staged copy is verified. Record the reported point ID and receipt SHA-256 in a trusted job log outside the replica; the hash next to the copy alone cannot authenticate a replica modified by a writer.
+3. Run a manual backup during a low traffic window before enabling the scheduler. Put ingress into maintenance and let users finish saving before the freeze. The command checks the configured stores, stops the API and worker and then SeaweedFS, captures the cold backup, and resumes service. It encrypts the three backup files with the public recipients and verifies the bytes read back from the replica **after** source health returns. A point becomes visible only after the complete staged copy is verified. Keep the reported point ID and receipt SHA-256 in a trusted job log outside the replica for later recovery verification.
 
    ```bash
    "${oj_ops[@]}" offsite run "${oj_store[@]}" --state "$oj_stage" \
      --recipients "$oj_public" --url "$oj_url" --alert-command "$oj_alert"
    ```
-
-   Use a scheduler under the deployment operator account with a fixed checkout, environment file and `PATH`. A starting UTC schedule is backup at 01:00 and 13:00, monitoring every 15 minutes at :07/:22/:37/:52, and retention after the morning backup. Choose windows based on team activity. Use the scheduler to collect nonzero exits and detect missed runs even if a notifier fails. The optional alert executable receives one JSON event on standard input with no credentials. Deduplicate repeated age alerts by deployment and severity, and test routing and acknowledgement with the primary operator and their backup.
 
    ```bash
    "${oj_ops[@]}" offsite monitor "${oj_store[@]}" --alert-command "$oj_alert"
@@ -81,6 +79,32 @@ Use this workflow for the default Compose stores on Linux or macOS. It writes to
    Run retention daily after replication. It keeps up to two points per day in the latest seven UTC calendar days, one per ISO week in the latest four weeks, and one per calendar month in the latest three months. Overlapping points are kept once, and the newest two available points are always kept. Prune checks the managed points and refuses deletion if it finds a corrupt one. Keep any pre-upgrade backup required for rollback separately so scheduled retention cannot remove it. Plan for up to 21 scheduled points (about 21.4 GiB at the 1.02 GiB rehearsal size); allow at least 30 GiB per location at that size, plus space for recovery staging and extra rollback points. Use storage with separate credentials and deletion protection for the actual offsite copy.
 
    By default one capture is limited to 2 GiB of database and object payload. The local staging directory can hold one pending point, at most one raw and one encrypted copy of that point plus headers; allow at least twice the configured limit plus staging reserve. Raise `--max-backup-bytes` only after checking space at both sites and budgeting a full recovery. After successful publication the pending copies are removed; a failed run leaves one point available for retry. Use an encrypted staging filesystem because an incomplete job can contain plaintext.
+
+### Run backups and retention unattended
+
+Copy `scripts/offsite-scheduling/backup.example.json` and `retention.example.json` to `/etc/openjam/offsite-backup.json` and `/etc/openjam/offsite-retention.json`. Set the deployment's replica ID and absolute paths. Give each role its own persistent local `scheduleState` directory at mode `0700`. Place both outside the replica and the capture staging directory. The backup role needs Compose access. Run retention with the identity authorized to delete expired copies on the replica.
+
+The OS starts a tick each minute. The backup role takes a backup every 12 hours at 01:00 and 13:00 UTC and checks replica freshness every 15 minutes. The retention role runs once per UTC day from 02:05 onward, after it verifies a backup captured in that day's schedule. Adjust the UTC backup offset and retention start for the deployment's low traffic windows.
+
+The first tick after the scheduler starts checks the latest due window. It takes one cold backup for that window when several windows were missed, or records an existing verified point captured within it. A catch-up can pause writes outside the usual windows. Plan for that pause before enabling the scheduler. A failed run retries after five minutes. If a pending copy predates the current window, the scheduler publishes it before capturing a fresh point. Keep the state directories across reboots.
+
+Set `alertUrl` to an HTTPS receiver that accepts a JSON POST and returns HTTP 2xx after accepting it. An optional `alertTokenFile` at mode `0600` supplies a bearer token. Loopback HTTP works for local tests. An unacknowledged event stays in the schedule state and is retried with the same `Idempotency-Key`. Deduplicate by that key at the receiver. Monitor scheduler exits and verify receipt with the on-call operator. Receiver acceptance and human acknowledgement are separate checks.
+
+On Linux, adjust the checkout, project, Compose file and operator account in the systemd templates before installing them. Use an instance override to assign a different user to retention when needed.
+
+```bash
+sudo install -m 0644 scripts/offsite-scheduling/openjam-offsite@.service scripts/offsite-scheduling/openjam-offsite@.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now openjam-offsite@backup.timer openjam-offsite@retention.timer
+systemctl list-timers 'openjam-offsite@*'
+journalctl -u openjam-offsite@backup.service -u openjam-offsite@retention.service
+```
+
+On macOS, use `scripts/offsite-scheduling/com.openjam.offsite.plist` in the Docker Desktop operator's session. Make one LaunchAgent per role and give each a distinct label, config path and log paths. Set the absolute Python and checkout paths. Place the configured files in the operator's LaunchAgents directory for startup at login. Use `plutil -lint` and `launchctl bootstrap "gui/$(id -u)" /path/to/configured.plist` to validate and load each agent. Keep job logs on a protected filesystem and configure their rotation.
+
+Review `schedule_backup_verified` for the point and receipt hash, `schedule_retention` for the kept and removed points, and `schedule_alert_delivered` for the receiver's acknowledgement. A `schedule_alert_delivery_failed` entry leaves the event queued. Check mount access, receiver availability and the task's schedule state before restarting a job.
+
+The XW-152 local drill on 2026-11-12 UTC checked the production 01:00 and 13:00 UTC calendar and ran the same backup logic under launchd with one-minute backup windows. Two consecutive windows published verified encrypted copies. The retention agent removed two expired test points and kept both new points. After two missed windows, reloading the backup agent produced one catch-up copy, which decrypted and contained the test board. The test receiver returned HTTP 503 on the first alert attempt and HTTP 204 for the same event ID on retry. Linux systemd templates passed unit verification. The pilot host still needs validation with its replica, account permissions and on-call receiver.
 
 ### Recover from the replica
 

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openjam.offsite.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/python3</string>
+    <string>-B</string>
+    <string>/opt/openjam/scripts/openjam-ops.py</string>
+    <string>--project</string>
+    <string>openjam</string>
+    <string>--env-file</string>
+    <string>/etc/openjam/compose.env</string>
+    <string>offsite</string>
+    <string>tick</string>
+    <string>--config</string>
+    <string>/etc/openjam/offsite-backup.json</string>
+    <string>--role</string>
+    <string>backup</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/OPENJAM_OPERATOR/Library/Logs/openjam-offsite-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/OPENJAM_OPERATOR/Library/Logs/openjam-offsite-backup.err.log</string>
+</dict>
+</plist>

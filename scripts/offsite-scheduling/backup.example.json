@@ -1,0 +1,14 @@
+{
+  "replica": "/mnt/openjam-replica/openjam",
+  "repositoryId": "REPLACE_WITH_REPOSITORY_ID",
+  "scheduleState": "/var/lib/openjam-offsite/backup-schedule",
+  "stage": "/var/lib/openjam-offsite/capture",
+  "recipients": "/etc/openjam/backup.recipients",
+  "sourceUrl": "http://127.0.0.1:8080",
+  "alertUrl": "https://alerts.example.test/openjam",
+  "alertTokenFile": "/etc/openjam/alert.token",
+  "backupIntervalMinutes": 720,
+  "backupOffsetMinutesUtc": 60,
+  "monitorIntervalMinutes": 15,
+  "retryDelaySeconds": 300
+}
