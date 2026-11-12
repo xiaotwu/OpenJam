@@ -2,6 +2,8 @@
 
 Use this runbook to qualify the actual pilot ingress and backup workflow before opening access to pilot users. The reference deployment uses a host proxy and Compose PostgreSQL, Redis and SeaweedFS. If the pilot uses managed PostgreSQL, MinIO or another S3 provider, keep the same ingress checks and run the storage provider's backup and restore procedure at a common recovery point. The default Compose backup command applies to the default stores.
 
+Start with the [pilot handoff](./pilot-handoff.md) to confirm the frozen candidate, required inputs and rollback point.
+
 Record the result of each gate as Pass, Fail, Pending or N/A with its UTC time, operator and evidence. Meetings can be N/A when the pilot leaves media disabled. Keep the pilot closed if a required gate fails, if a result is missing, or if the rollback point or account access is uncertain.
 
 In the collaboration checks, A and B are the owner and editor browsers. In the recovery checks, source A and target B are separate OpenJam deployments.
