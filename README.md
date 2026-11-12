@@ -1,193 +1,56 @@
 <div align="center">
-  <img src="app/public/icons/openjam.png" alt="OpenJam" width="128" height="128">
+  <img src="app/public/icons/openjam.png" alt="" width="96" height="96">
   <h1>OpenJam</h1>
-  <p><strong>A collaborative whiteboard for teams</strong></p>
-
+  <p><strong>A self-hosted workspace for teams that plan, write, and work together.</strong></p>
   <p>
-    <a href="#features">Features</a> •
-    <a href="#quick-start">Quick Start</a> •
-    <a href="#development">Development</a> •
-    <a href="#deployment">Deployment</a> •
-    <a href="#contributing">Contributing</a>
+    <a href="#get-started">Get Started</a> ·
+    <a href="docs/guide/getting-started.md">User Guide</a> ·
+    <a href="docs/guide/docker.md">Deploy</a> ·
+    <a href="https://github.com/xiaotwu/openjam/issues">Report an Issue</a>
   </p>
-
-  <!-- Add badges here when available -->
-  <!-- ![License](https://img.shields.io/github/license/your-username/openjam) -->
-  <!-- ![Stars](https://img.shields.io/github/stars/your-username/openjam) -->
 </div>
 
----
+OpenJam brings boards, documents, spreadsheets, and presentations into team-owned Projects. A team can sketch a plan on a board, write the brief, track the budget, and present a decision from the same workspace. Search and file relationships respect the access each person has.
 
-## Features
+![A Team Project in OpenJam with a board, document, spreadsheet, and presentation](docs/public/images/workshop-preview.png)
 
-- 🎨 **Real-time Collaboration** - Work together on the same canvas with your team
-- 📁 **Board Workbench** - Browse and organize boards in projects, favorite frequently used boards, and archive finished work
-- 🖼️ **Rich Drawing Tools** - Shapes, freehand drawing, text, and more
-- 💾 **Auto-save** - Save board changes as you work
-- 🔒 **Access Control** - Session-based authentication and per-board sharing
-- 📤 **Export** - Save your boards as images
-- 🐳 **Docker Ready** - One-command deployment
+## Workspace
 
-## Quick Start
+- **Teams and Projects.** Give each project a home and grant access by role. Personal Projects stay under your account. Team Projects and their history stay with the team when a member leaves.
+- **Work together in real time.** Collaborate on boards, write in Docs, edit cells in Sheets, and build decks in Slides. Use comments, private attachments, and named versions to review work and recover earlier content.
+- **Find the source.** Search projects, people, file names, and content. Jump to the matching board object, document block, sheet cell, or slide. Team Overview shows relationships between accessible files.
+- **Keep work in view.** Inbox brings team conversations, mentions, and upcoming items together. Calendar and Recents let you return to scheduled work and the files you opened.
+- **Keep your data portable.** Bring in Markdown, DOCX, CSV, XLSX, and PPTX. Export supported formats or move an entire Project with its files, saved versions, and private images. [Format coverage](docs/guide/getting-started.md#docs) · [Project archives](docs/guide/project-archive.md)
+- **Run it on your own infrastructure.** Docker Compose provisions the application, PostgreSQL, Redis, and SeaweedFS. Core collaboration, search, and file conversion run locally. [Deployment guide](docs/guide/docker.md)
 
-The fastest way to run OpenJam:
+## Get Started
 
-```bash
-git clone https://github.com/xiaotwu/openjam.git
-cd openjam
-docker compose up --build -d
-```
+For a local evaluation, install Docker with Compose and run this from the repository checkout.
 
-Open `http://localhost:8080` in your browser. Sign in to create a board in your personal Drafts or set up a new organization and project. Existing boards appear in Drafts, and named invitations continue to appear under Shared with me.
+~~~sh
+docker compose up --build --wait
+~~~
 
-## Prerequisites
+Open [localhost:8080](http://localhost:8080), create an account, and make a personal Project or a Team. Choose **New** inside a project to create a Board, Doc, Sheet, or Slide deck.
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose (for containerized deployment)
-- [Go](https://golang.org/dl/) 1.22+ (for backend development)
-- [Bun](https://bun.sh/) (for the frontend lockfile and scripts) and [Node.js](https://nodejs.org/) (for the Vite toolchain)
+For a shared deployment, set a trusted HTTPS origin, configure the reverse proxy, and plan a verified backup before inviting users. Existing deployments should follow the upgrade and rollback steps in the operations guide. [Docker setup](docs/guide/docker.md) · [Operations and recovery](docs/guide/operations.md)
 
-## Development
+## Release Status
 
-### 1. Start Services
+The first release targets Docker Compose for self-hosted teams. RC1 has local verification evidence. Pilot acceptance on the target host is pending. Meeting media requires separate setup and validation. Knowledge-base retrieval, the full deployment management console, and Kubernetes packaging are planned for later releases. [Pilot handoff](docs/guide/pilot-handoff.md) · [Meetings guide](docs/guide/meetings.md)
 
-```bash
-# Start PostgreSQL and Redis
-docker compose -f docker-compose.dev.yml up -d
-```
+## Documentation
 
-### 2. Run Backend
+| Guide | What it covers |
+| --- | --- |
+| [Using OpenJam](docs/guide/getting-started.md) | Teams, Projects, the editors, relationships, and search |
+| [Project branches and sync](docs/guide/project-sync.md) | Link a personal Project to a Team, create a branch, or restore a snapshot |
+| [Move a project](docs/guide/project-archive.md) | Export and recover project content on another instance |
+| [Deploy with Docker](docs/guide/docker.md) | Services, storage, and deployment configuration |
+| [Operations and recovery](docs/guide/operations.md) | Health checks, upgrades, backups, recovery, and troubleshooting |
 
-```bash
-cd server
-cp .env.example .env   # Linux/macOS
-# copy .env.example .env  # Windows
-go run .
-```
+## Development and Contributing
 
-### 3. Run Frontend
+The frontend uses React and TypeScript, with a Go API and worker. The [development setup](docs/guide/getting-started.md#development-setup) covers the local services and toolchain. Report reproducible issues with the revision, browser, and steps to reproduce, and leave credentials and private content out of reports.
 
-```bash
-cd app
-bun install --frozen-lockfile
-bun run dev
-```
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8080 |
-
-## Deployment
-
-### Docker (Recommended)
-
-```bash
-# Build the image and run the database migration before starting the app
-docker compose up --build -d
-```
-
-See the [Docker guide](docs/guide/docker.md) for a reverse proxy or an optional existing MinIO deployment.
-
-### Single Binary (Recommended for production)
-
-```bash
-make build
-```
-
-This builds the frontend, embeds it into the Go binary via `go:embed`, and produces a single `./openjam-server` file (~17MB). Deploy it anywhere — no Node.js runtime needed.
-
-```bash
-export DATABASE_URL=postgres://...
-./openjam-server migrate
-OPENJAM_AUTO_MIGRATE=false ./openjam-server api
-```
-
-### Manual Build
-
-<details>
-<summary>Click to expand</summary>
-
-```bash
-make frontend
-make backend
-```
-
-The backend build embeds the generated assets using a temporary build directory.
-
-</details>
-
-## Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `8080` |
-| `OPENJAM_BIND_HOST` | Interface to bind the API to | All interfaces |
-| `OPENJAM_AUTO_MIGRATE` | Apply migrations at API startup. Compose runs an explicit migration first | `true` |
-| `OPENJAM_TRUSTED_PROXIES` | Comma-separated addresses or CIDRs allowed to forward client IPs | _(empty)_ |
-| `ENVIRONMENT` | `development` / `production` | `development` |
-| `DATABASE_URL` | PostgreSQL connection string | - |
-| `REDIS_URL` | Redis connection string | - |
-| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` |
-| `MINIO_ENDPOINT` | MinIO/S3 endpoint | - |
-| `MINIO_ACCESS_KEY` | MinIO access key | - |
-| `MINIO_SECRET_KEY` | MinIO secret key | - |
-
-See [`.env.example`](server/.env.example) for all available options.
-
-The [operations guide](docs/guide/operations.md) covers upgrades, instance backups, recovery, and local diagnostics.
-
-The [directory API contract](contracts/directory.openapi.yaml) describes the authenticated organization, project, favorite and archive endpoints.
-
-## Project Structure
-
-```
-openjam/
-├── app/                      # Frontend (React + TypeScript + Vite)
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── canvas/       # Canvas decomposed modules
-│   │   │   │   ├── hooks/    # useDrawing, useEraser, useSelection, etc.
-│   │   │   │   └── ...       # DrawingPreview, EraserCursor, CanvasContext
-│   │   │   └── ...           # OpenJamCanvas, BottomToolbar, MenuBar, etc.
-│   │   └── lib/              # ElementStore, WebSocket, API client
-│   └── ...
-├── server/                   # Backend (Go + Gin)
-│   ├── internal/
-│   │   ├── config/           # Configuration
-│   │   ├── db/               # Database layer
-│   │   ├── handler/          # API handlers
-│   │   ├── middleware/       # Middleware
-│   │   ├── model/            # Data models
-│   │   ├── storage/          # File storage
-│   │   └── ws/               # WebSocket hub + client
-│   ├── static.go             # Embedded frontend assets (go:embed)
-│   └── main.go
-├── Makefile                  # Build: make build → single binary
-├── docker-compose.yml        # Production deployment
-├── docker-compose.dev.yml    # Development services
-└── Dockerfile                # Multi-stage build
-```
-
-## Tech Stack
-
-| Layer | Technologies |
-|:------|:-------------|
-| **Frontend** | ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white) |
-| **Backend** | ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![Gin](https://img.shields.io/badge/Gin-00ADD8?style=flat-square&logo=gin&logoColor=white) |
-| **Database** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white) |
-| **Storage** | ![MinIO](https://img.shields.io/badge/MinIO-C72E49?style=flat-square&logo=minio&logoColor=white) |
-| **DevOps** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) |
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-  <sub>Built with ❤️ by OpenJam</sub>
-</div>
+OpenJam is available under the [MIT License](LICENSE).
