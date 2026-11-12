@@ -80,6 +80,8 @@ In a Team project, open **Project Access** to grant roles to current Team member
 
 Use **Import to Team** in a personal Project to create a linked Team copy or an independent branch. [Project Branches and Sync](./project-sync.md) explains transfers, conflict resolution, and snapshots.
 
+Use [Project Archives](./project-archive.md) to move the contents and version history of a project between OpenJam instances.
+
 ## Docs
 
 Create a document in a personal or Team project with **New → New Document**. The editor saves blocks as you type. Select a block to edit its text, choose its style, or set its font. Enter splits a block and Shift+Enter inserts a line break inside it. Use **Preview** to read the rendered Markdown.

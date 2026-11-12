@@ -108,7 +108,7 @@ func ListProjectVersions(ctx context.Context, actor, project uuid.UUID, before *
 			return model.ErrDirectoryForbidden
 		}
 		rows, err := tx.Query(ctx, `
-			SELECT v.id, v.name, v.kind, coalesce(u.display_name, ''), v.created_at,
+			SELECT v.id, v.name, v.kind, coalesce(u.display_name, v.imported_author), v.created_at,
 				(SELECT count(*) FROM project_version_files f WHERE f.version_id = v.id)
 			FROM project_versions v LEFT JOIN users u ON u.id = v.actor_id
 			WHERE v.project_id = $1 AND ($2::uuid IS NULL OR (v.created_at, v.id) < (

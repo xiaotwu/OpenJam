@@ -91,9 +91,10 @@ func versionAccess(ctx context.Context, tx pgx.Tx, boardID string, actor uuid.UU
 }
 
 const versionFields = `v.id, v.name, v.kind, v.epoch, v.seq, s.digest, v.created_at,
-	COALESCE(author.display_name, ''),
-	ARRAY(SELECT member.display_name FROM users member WHERE member.id = ANY(v.participant_ids)
-	      ORDER BY member.display_name, member.id),
+	COALESCE(author.display_name, v.imported_author),
+	CASE WHEN cardinality(v.imported_participants) > 0 THEN v.imported_participants
+	     ELSE ARRAY(SELECT member.display_name FROM users member WHERE member.id = ANY(v.participant_ids)
+	                ORDER BY member.display_name, member.id) END,
 	v.source_version_id`
 
 const versionJoins = `

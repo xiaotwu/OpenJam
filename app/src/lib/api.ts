@@ -116,14 +116,11 @@ export async function request<T>(
 export async function requestResponse(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
 
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
-
-  if (token) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
   }
+  if (token) headers.set('Authorization', `Bearer ${token}`);
 
   let response: Response;
 

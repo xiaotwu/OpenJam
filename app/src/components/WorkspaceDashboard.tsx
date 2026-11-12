@@ -16,6 +16,7 @@ import BoardFilesPanel from './BoardFilesPanel';
 import ProjectImportDialog from './workbench/ProjectImportDialog';
 import ProjectFilesActions from './workbench/ProjectFilesActions';
 import { ImportProjectDialog, ProjectBranchDialog } from './workbench/ProjectBranchDialogs';
+import { ExportProjectArchiveDialog, RestoreProjectArchiveDialog } from './workbench/ProjectArchiveDialogs';
 import MeetingEditor from './workbench/MeetingEditor';
 import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
 import { ProjectAccess, ProjectList, TeamMembers } from './workbench/TeamDirectoryPanels';
@@ -96,6 +97,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const [importTarget, setImportTarget] = useState<{ kind: 'doc' | 'sheet' | 'slides'; project: Project }>();
   const [meetingScope, setMeetingScope] = useState<{ value: string; label: string }>();
   const [projectDialog, setProjectDialog] = useState<{ id: string; mode: 'import' | 'sync' }>();
+  const [archiveDialog, setArchiveDialog] = useState<{ scope: string; mode: 'export' | 'restore' }>();
   const [menuId, setMenuId] = useState<string | null>(null);
   const [modal, setModal] = useState<ActiveModal | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
@@ -586,6 +588,9 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
                 aria-label="New Meeting" title="New Meeting" onClick={() => setMeetingScope({
                   value: scheduleScope, label: activeProject?.name ?? organization?.name ?? '',
                 })}><WorkbenchIcon name="camera" /></button>}
+              {showAreaHome && organization && firstWorkspace && <button type="button" className="wb-icon-button wb-glass-control"
+                aria-label="Restore Project Archive" title="Restore Project Archive"
+                onClick={() => setArchiveDialog({ scope: organization.id, mode: 'restore' })}><WorkbenchIcon name="restore" /></button>}
               {showTeamWorkspaceAction && <button type="button" className="wb-icon-button" aria-label={text.newWorkspace}
                 title={text.newWorkspace} onClick={addWorkspace}><WorkbenchIcon name="folder" /></button>}
               {activeProject && defaultProject && view === 'recent' && <ProjectFilesActions
@@ -607,13 +612,16 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             {scope && <p>{scope}</p>}
             <h1>{title}</h1>
             {activeProject && defaultProject && !search && view === 'recent' && <div className="shell-island wb-project-branch-actions"
-              role="group" aria-label="Project Branches">
+              role="group" aria-label="Project Actions">
               {organization?.kind === 'personal' && teamWorkspaces.length > 0 && <button type="button" className="wb-icon-button wb-glass-control"
                 aria-label="Import to Team" title="Import to Team" onClick={() => setProjectDialog({ id: activeProject.id, mode: 'import' })}>
                 <WorkbenchIcon name="branch" />
               </button>}
               <button type="button" className="wb-icon-button wb-glass-control" aria-label="Project Sync & Versions" title="Project Sync & Versions"
                 onClick={() => setProjectDialog({ id: activeProject.id, mode: 'sync' })}><WorkbenchIcon name="sync" /></button>
+              {activeProject.role === 'manager' && <button type="button" className="wb-icon-button wb-glass-control"
+                aria-label="Export Project Archive" title="Export Project Archive"
+                onClick={() => setArchiveDialog({ scope: activeProject.id, mode: 'export' })}><WorkbenchIcon name="download" /></button>}
             </div>}
           </header>
 
@@ -711,6 +719,21 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
         onClose={() => setProjectDialog(undefined)} onChange={() => {
           void getDirectory().then(data => setLoad({ key, directory: data })).catch(() => undefined);
         }} />}
+      {archiveDialog?.mode === 'export' && activeProject?.role === 'manager' && archiveDialog.scope === activeProject.id
+        && <ExportProjectArchiveDialog project={activeProject} onClose={() => setArchiveDialog(undefined)} onExported={() => {
+          setArchiveDialog(undefined);
+          setNotice('Project archive downloaded.');
+        }} />}
+      {archiveDialog?.mode === 'restore' && organization && archiveDialog.scope === organization.id && firstWorkspace
+        && <RestoreProjectArchiveDialog key={organization.id} label={organization.kind === 'team' ? organization.name : 'Personal Projects'}
+          teamId={organization.kind === 'team' ? organization.id : undefined} actorId={user.id}
+          workspaces={organizationWorkspaces} initialWorkspaceId={firstWorkspace.id}
+          onClose={() => setArchiveDialog(undefined)} onRestored={project => {
+            setArchiveDialog(undefined);
+            selectDestination(organization.id, project.id);
+            setAttempt(current => current + 1);
+            setNotice('Project restored.');
+          }} />}
       {meetingScope && <MeetingEditor scopes={[meetingScope]} onClose={() => setMeetingScope(undefined)} onCreated={id => {
         setMeetingScope(undefined);
         navigate(meetingPath(id), { state: { workshop: location.pathname + location.search } });

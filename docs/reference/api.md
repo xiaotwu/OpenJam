@@ -199,6 +199,18 @@ These endpoints use `/api/v2/projects/:projectId`. Write requests use a client-g
 
 An outdated preview returns HTTP 409 with `STALE_PROJECT`.
 
+## Project Archives
+
+These authenticated endpoints return private, non-cacheable responses. Both instances must support project archive format version 1.
+
+| Method and path | Behavior |
+|:---|:---|
+| `GET /api/v2/projects/:projectId/archive?origin=…` | Downloads the ZIP for a Project Manager. Send the public HTTP(S) origin of the source instance for link resolution. |
+| `POST /api/v2/project-archives/inspect` | Accepts the raw ZIP as `application/zip` and validates its manifest, documents, and private images. Returns counts and source member labels without writing a project. |
+| `POST /api/v2/workspaces/:workspaceId/project-archives` | Creates a new project. Send multipart form data with the ZIP in `archive` and a JSON object in `options`. |
+
+Restore options include a required UUID `requestId`, an optional `name`, and optional `mappings` with `sourceUserId`, `targetUserId`, and `role` (`manager`, `edit`, `comment`, or `view`). A retry with the same request, bytes, and options returns the same new project. Only existing members of the destination Team may be mapped. See [Project Archives](../guide/project-archive.md) for scope and limits.
+
 ## Workshop
 
 Workshop endpoints use `/api/v2/workshop` and require authentication. Reads apply the account’s current Team, Project, and board access.

@@ -26,6 +26,7 @@ export default defineConfig({
           { text: 'What is OpenJam?', link: '/guide/what-is-openjam' },
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Project Branches and Sync', link: '/guide/project-sync' },
+          { text: 'Move a Project Between Instances', link: '/guide/project-archive' },
           { text: 'Meetings', link: '/guide/meetings' },
         ],
       },

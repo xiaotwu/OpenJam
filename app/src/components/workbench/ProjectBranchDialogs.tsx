@@ -13,7 +13,7 @@ import { useWorkshopResource } from '../../lib/workshop';
 import WorkbenchIcon from './WorkbenchIcon';
 import './project-branches.css';
 
-function BranchDialog({ title, context, busy, onClose, children }: {
+export function BranchDialog({ title, context, busy, onClose, children }: {
   title: string; context: string; busy: boolean; onClose: () => void; children: ReactNode;
 }) {
   const heading = useId();

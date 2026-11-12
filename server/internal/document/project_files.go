@@ -48,7 +48,11 @@ type projectScope struct {
 	drafts                  bool
 }
 
-func getProjectScope(ctx context.Context, tx pgx.Tx, actor, project uuid.UUID) (projectScope, error) {
+type projectScopeQuery interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func getProjectScope(ctx context.Context, tx projectScopeQuery, actor, project uuid.UUID) (projectScope, error) {
 	scope := projectScope{id: project}
 	err := tx.QueryRow(ctx, `
 		SELECT o.id, o.owner_id, p.name, o.kind, p.is_default AND w.is_default AND o.kind = 'personal',

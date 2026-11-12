@@ -1,0 +1,75 @@
+.wb-archive-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 15px 17px 10px;
+  padding: 13px;
+  border: 1px solid var(--wb-border);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-subtle);
+}
+.wb-archive-intro p { margin: 3px 0 0; color: var(--wb-muted); }
+.wb-archive-icon {
+  display: grid;
+  flex: 0 0 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--wb-active);
+}
+.wb-archive-note { margin: 9px 17px 14px; color: var(--wb-muted); font-size: 0.86rem; }
+.wb-archive-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 17px;
+}
+.wb-archive-select > span { min-width: 0; overflow-wrap: anywhere; color: var(--wb-muted); font-size: 0.86rem; }
+.wb-archive-picker { position: relative; flex: none; cursor: pointer; }
+.wb-archive-picker:focus-within { outline: 2px solid var(--wb-accent); outline-offset: 2px; }
+.wb-archive-picker[data-disabled='true'] { opacity: 0.6; cursor: default; }
+.wb-archive-picker input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: inherit; }
+.wb-archive-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 17px;
+  padding: 10px;
+  border: 1px solid var(--wb-border);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-subtle);
+}
+.wb-archive-summary span { padding: 2px 7px; font-size: 0.78rem; color: var(--wb-muted); }
+.wb-archive-summary strong { display: block; color: var(--wb-text); font-size: 1.13rem; font-variant-numeric: tabular-nums; }
+.wb-archive-destination { display: flex; margin: 0 17px; gap: 10px; }
+.wb-archive-destination .wb-field { flex: 1; min-width: 0; margin-inline: 0; }
+.wb-archive-mapping {
+  margin: 0 17px 12px;
+  border: 1px solid var(--wb-border);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-subtle);
+}
+.wb-archive-mapping summary { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 11px 12px; }
+.wb-archive-mapping summary::-webkit-details-marker { display: none; }
+.wb-archive-mapping summary > span { margin-inline-start: auto; font-size: 0.78rem; color: var(--wb-muted); }
+.wb-archive-mapping p { margin: 0 12px 10px; color: var(--wb-muted); font-size: 0.86rem; }
+.wb-archive-people { overflow: auto; max-height: min(33vh, 260px); padding: 0 10px 8px; }
+.wb-archive-person { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 6px 0; }
+.wb-archive-person + .wb-archive-person { border-top: 1px solid var(--wb-divider); }
+.wb-archive-person > div { flex: 1 1 112px; min-width: 0; overflow-wrap: anywhere; }
+.wb-archive-person small { display: block; color: var(--wb-muted); }
+.wb-archive-person select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--wb-border);
+  border-radius: var(--control-radius);
+  background: var(--wb-field);
+  color: var(--wb-text);
+}
+.wb-archive-person select:first-of-type { flex: 1 1 135px; }
+@media (max-width: 430px) {
+  .wb-archive-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 7px; }
+  .wb-archive-destination { display: grid; gap: 0; }
+  .wb-archive-destination .wb-field + .wb-field { margin-top: 0; }
+}
