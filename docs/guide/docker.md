@@ -31,6 +31,8 @@ The application exposes `/livez` for liveness, `/startupz` for startup and `/rea
 
 Use the [operations guide](./operations.md) for quick checks, upgrades, backups, recovery and troubleshooting.
 
+Use the [pilot acceptance checklist](./pilot-acceptance.md) to validate the actual ingress, replica and rollback path before opening a pilot.
+
 ## Object Storage
 
 The default stack uses SeaweedFS for private images. The application authenticates asset reads through the current board's permissions. Set `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, and `MINIO_USE_SSL` for an external S3 endpoint.

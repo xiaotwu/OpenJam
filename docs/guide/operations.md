@@ -12,6 +12,8 @@ oj_ops=(python3 scripts/openjam-ops.py --project "$oj_project" --env-file "$oj_e
 
 For a pilot, use a named deployment, pin the image in `OPENJAM_IMAGE`, and follow the [Docker deployment guide](./docker.md). Keep a separate, access controlled copy of the environment file, Compose files, proxy configuration, TLS material, and the application image reference or locally retained image. These are needed when rebuilding the deployment.
 
+Use the [pilot acceptance checklist](./pilot-acceptance.md) for the ordered XW-151 ingress and XW-152 recovery gates on the pilot host.
+
 ## Quick check and self-check
 
 ```bash
