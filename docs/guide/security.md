@@ -21,10 +21,9 @@ OpenJam implements session-based authentication with several security measures.
 
 ## WebSocket Authentication
 
-WebSocket connections are authenticated before upgrade:
-1. The browser sends the HTTP-only session cookie on the WebSocket handshake
-2. Server validates the token against the session store
-3. Only authenticated connections are upgraded to WebSocket
+WebSocket connections require a valid session before upgrade. Browsers send the HttpOnly session cookie. The document endpoint at `/ws/v2` also accepts bearer credentials from non-browser clients and validates each session against PostgreSQL.
+
+The document endpoint limits rejected handshakes by client IP and limits authenticated handshakes by account. Session lookups allow a burst of 64 per IP for shared gateways, with a sustained rate of two lookups per second per IP and a cap of 64 concurrent checks per API replica. The legacy `/ws` endpoint has its own per-IP rate limit. Configure [trusted proxies](../reference/configuration.md) for the specific reverse proxies that forward client addresses.
 
 ## Room Access Control
 

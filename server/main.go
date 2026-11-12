@@ -234,7 +234,7 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 	r.GET("/ws", middleware.RateLimit(wsLimiter), func(c *gin.Context) {
 		handler.HandleWebSocket(hub, c)
 	})
-	r.GET("/ws/v2", middleware.RateLimit(wsLimiter), func(c *gin.Context) {
+	r.GET("/ws/v2", middleware.DocumentSocketAuth(), func(c *gin.Context) {
 		handler.HandleDocumentWebSocket(hub, c)
 	})
 	handler.RegisterMeetingSignal(r, media, syncLimiter, draining)

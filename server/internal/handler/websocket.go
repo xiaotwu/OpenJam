@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/project-wb/server/internal/middleware"
 	"github.com/project-wb/server/internal/model"
 	"github.com/project-wb/server/internal/ws"
 )
@@ -38,21 +39,12 @@ var upgrader = websocket.Upgrader{
 }
 
 func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
-	handleWebSocket(hub, c, false)
-}
-
-func HandleDocumentWebSocket(hub *ws.Hub, c *gin.Context) {
-	handleWebSocket(hub, c, true)
-}
-
-func handleWebSocket(hub *ws.Hub, c *gin.Context, durable bool) {
-	// Browsers use the session cookie. Legacy connections may use the old URL
-	// parameter, while V2 allows an Authorization header for non-browser clients.
+	// Legacy clients can also use the old token query parameter.
 	token := ""
 	if cookie, err := c.Cookie("wb_session"); err == nil && cookie != "" {
 		token = cookie
 	}
-	if token == "" && !durable {
+	if token == "" {
 		token = c.Query("token")
 	}
 	if token == "" {
@@ -67,11 +59,7 @@ func handleWebSocket(hub *ws.Hub, c *gin.Context, durable bool) {
 		return
 	}
 
-	getSession := model.GetSession
-	if durable {
-		getSession = model.GetStoredSession
-	}
-	session, err := getSession(c.Request.Context(), token)
+	session, err := model.GetSession(c.Request.Context(), token)
 	if err != nil || session == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
 		return
@@ -83,21 +71,33 @@ func handleWebSocket(hub *ws.Hub, c *gin.Context, durable bool) {
 		return
 	}
 
+	upgradeWebSocket(hub, c, upgrader, user, "")
+}
+
+func HandleDocumentWebSocket(hub *ws.Hub, c *gin.Context) {
+	user, session := middleware.GetUser(c), middleware.GetSession(c)
+	if user == nil || session == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
+		return
+	}
 	socketUpgrader := upgrader
-	if durable {
-		socketUpgrader.CheckOrigin = func(r *http.Request) bool {
-			origin := r.Header.Get("Origin")
-			if origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host {
+	socketUpgrader.HandshakeTimeout = 3 * time.Second
+	socketUpgrader.CheckOrigin = func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host {
+			return true
+		}
+		for _, allowed := range allowedOrigins {
+			if allowed == origin {
 				return true
 			}
-			for _, allowed := range allowedOrigins {
-				if allowed == origin {
-					return true
-				}
-			}
-			return false
 		}
+		return false
 	}
+	upgradeWebSocket(hub, c, socketUpgrader, user, session.Token)
+}
+
+func upgradeWebSocket(hub *ws.Hub, c *gin.Context, socketUpgrader websocket.Upgrader, user *model.User, documentToken string) {
 	conn, err := socketUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
@@ -105,8 +105,8 @@ func handleWebSocket(hub *ws.Hub, c *gin.Context, durable bool) {
 	}
 
 	client := ws.NewClient(hub, conn, user)
-	if durable {
-		client.UseDocumentProtocol(token)
+	if documentToken != "" {
+		client.UseDocumentProtocol(documentToken)
 	}
 	if !hub.Register(client) {
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseServiceRestart, "OpenJam is restarting"), time.Now().Add(time.Second))
