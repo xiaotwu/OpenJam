@@ -59,6 +59,7 @@ export function clearToken(): void {
 
 async function getApiError(response: Response): Promise<ApiError> {
   const contentType = response.headers.get('content-type') || '';
+  const retryAfter = response.headers.get('Retry-After') ?? undefined;
   const body = await response.text().catch(() => '');
 
   if (contentType.includes('application/json')) {
@@ -71,6 +72,7 @@ async function getApiError(response: Response): Promise<ApiError> {
           response.status,
           typeof error.code === 'string' ? error.code : undefined,
           error.details && typeof error.details === 'object' && !Array.isArray(error.details) ? error.details : undefined,
+          retryAfter,
         );
       }
     } catch {
@@ -85,7 +87,7 @@ async function getApiError(response: Response): Promise<ApiError> {
     return new ApiError(BACKEND_UNAVAILABLE_MESSAGE, response.status);
   }
 
-  return new ApiError(body.trim() || `Request failed with HTTP ${response.status}`, response.status);
+  return new ApiError(body.trim() || `Request failed with HTTP ${response.status}`, response.status, undefined, undefined, retryAfter);
 }
 
 // ApiError carries the HTTP status so callers can distinguish 401/403/404/5xx
@@ -94,13 +96,15 @@ export class ApiError extends Error {
   status: number;
   code?: string;
   details?: Record<string, unknown>;
+  retryAfter?: string;
 
-  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>) {
+  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>, retryAfter?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.details = details;
+    this.retryAfter = retryAfter;
   }
 }
 

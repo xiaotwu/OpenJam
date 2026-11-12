@@ -14,11 +14,11 @@ import (
 	"github.com/project-wb/server/internal/model"
 )
 
-func RegisterBoardAssetRoutes(boards *gin.RouterGroup) {
+func RegisterBoardAssetRoutes(api *gin.RouterGroup) {
+	boards := documentBoardRoutes(api)
 	boards.POST("/assets", uploadBoardImage)
 	boards.GET("/assets/:assetId", getBoardImage)
 	boards.HEAD("/assets/:assetId", getBoardImage)
-	boards.POST("/copy", copyCurrentBoard)
 }
 
 // Limit concurrent upload bodies and decoders independently of per-user

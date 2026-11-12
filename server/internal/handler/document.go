@@ -14,9 +14,8 @@ import (
 	"github.com/project-wb/server/internal/middleware"
 )
 
-func RegisterDocumentRoutes(api *gin.RouterGroup, notify func(string, int64, int64), notifyAccessChanged func(string), agentConfig agent.Config) {
-	boards := api.Group("/v2/boards/:id")
-	boards.Use(func(c *gin.Context) {
+func documentBoardRoutes(api *gin.RouterGroup) *gin.RouterGroup {
+	return api.Group("/v2/boards/:id", func(c *gin.Context) {
 		c.Header("Cache-Control", "private, no-store")
 		if middleware.GetUser(c) == nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": "UNAUTHENTICATED", "error": "Sign in to open this board"})
@@ -24,6 +23,10 @@ func RegisterDocumentRoutes(api *gin.RouterGroup, notify func(string, int64, int
 		}
 		c.Next()
 	})
+}
+
+func RegisterDocumentRoutes(api *gin.RouterGroup, notify func(string, int64, int64), notifyAccessChanged func(string), agentConfig agent.Config) {
+	boards := documentBoardRoutes(api)
 	boards.GET("/snapshot", getDocumentSnapshot)
 	boards.GET("/changes", getDocumentChanges)
 	boards.POST("/commands", func(c *gin.Context) {
@@ -32,7 +35,7 @@ func RegisterDocumentRoutes(api *gin.RouterGroup, notify func(string, int64, int
 	RegisterBoardVersionRoutes(boards, notify)
 	RegisterBoardReviewRoutes(boards)
 	RegisterBoardSharingRoutes(boards, notifyAccessChanged)
-	RegisterBoardAssetRoutes(boards)
+	boards.POST("/copy", copyCurrentBoard)
 	RegisterBoardFileRoutes(boards)
 	RegisterBoardAgentRoutes(boards, agentConfig, notify)
 	boards.GET("/agent-attributions", getBoardAgentAttributions)

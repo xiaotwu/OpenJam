@@ -171,16 +171,17 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 
 	// Per-IP rate limiters: a strict one for auth endpoints (brute-force
 	// protection) and a general one for the rest of the API.
-	authLimiter := middleware.NewRateLimiter(0.2, 5) // 1 req / 5s, burst 5
-	apiLimiter := middleware.NewRateLimiter(5, 20)   // 5 rps, burst 20
-	wsLimiter := middleware.NewRateLimiter(2, 3)     // 2 rps, burst 3 (per-IP WS connects)
-	syncLimiter := middleware.NewRateLimiter(30, 60) // per authenticated editor
+	authLimiter := middleware.NewRateLimiter(0.2, 5)  // 1 req / 5s, burst 5
+	apiLimiter := middleware.NewRateLimiter(5, 20)    // 5 rps, burst 20
+	wsLimiter := middleware.NewRateLimiter(2, 3)      // 2 rps, burst 3 (per-IP WS connects)
+	syncLimiter := middleware.NewRateLimiter(30, 60)  // per authenticated account
+	assetLimiter := middleware.NewRateLimiter(30, 60) // per authenticated account
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.CorsOrigins,
 		AllowMethods:     []string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Idempotency-Key", "Last-Event-ID", "Range"},
-		ExposeHeaders:    []string{"X-Request-ID", "Content-Disposition", "ETag"},
+		ExposeHeaders:    []string{"X-Request-ID", "Content-Disposition", "ETag", "Retry-After"},
 		AllowCredentials: true,
 	}))
 
@@ -217,7 +218,9 @@ func newRouter(cfg *config.Config, hub *ws.Hub, draining func() bool, agentConfi
 		api.POST("/rooms/:id/export/json", handler.ExportJSON)
 		api.GET("/exports/*key", handler.GetExport)
 	}
-	syncAPI := r.Group("/api", middleware.DocumentAuthRequired(), middleware.RateLimitUser(syncLimiter))
+	documentAPI := r.Group("/api", middleware.DocumentAuthRequired())
+	syncAPI := documentAPI.Group("", middleware.RateLimitUser(syncLimiter))
+	handler.RegisterBoardAssetRoutes(documentAPI.Group("", middleware.RateLimitAssetUser(assetLimiter)))
 	handler.RegisterDirectoryRoutes(syncAPI, hub.NotifyAccessChanged)
 	handler.RegisterProjectSyncRoutes(syncAPI, hub.NotifyDocument)
 	handler.RegisterProjectArchiveRoutes(syncAPI)

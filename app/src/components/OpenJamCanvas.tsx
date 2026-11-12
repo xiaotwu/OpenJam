@@ -81,6 +81,7 @@ import { characterPose, readAgentAttributions, readAgentProfile, type AgentAttri
 import type { AgentPreview } from '../lib/boardAgent';
 import { useI18n } from '../i18n';
 import { copyPrivateBoard } from '../lib/boardFiles';
+import { BoardImages } from '../lib/boardImages';
 import BoardPresentationControls from './collaboration/BoardPresentationControls';
 import { useBoardPresentation } from './collaboration/useBoardPresentation';
 import ContextMenu, {
@@ -260,6 +261,13 @@ export default function OpenJamCanvas({
   const isV2 = mode === 'active';
   const canEdit = isLegacy ? legacyReady && legacyEditable : isV2 && boardSync.canEdit && Boolean(currentPageId);
   const canUseBoard = isLegacy ? legacyReady : isV2 && pages.length > 0 && boardSync.status !== 'revoked';
+  const [boardImages, setBoardImages] = useState<BoardImages>();
+  useLayoutEffect(() => {
+    if (!canUseBoard) return;
+    const images = new BoardImages(boardId);
+    setBoardImages(images);
+    return () => images.dispose();
+  }, [boardId, userId, canUseBoard]);
   const recordedRecent = useRef(false);
   useEffect(() => {
     if (!canUseBoard || recordedRecent.current) return;
@@ -1528,7 +1536,7 @@ export default function OpenJamCanvas({
   
   // Handle zoom with wheel
   const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+    (e: WheelEvent) => {
       stopFollowing();
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -1554,6 +1562,11 @@ export default function OpenJamCanvas({
     },
     [scale, offset, stopFollowing]
   );
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    container?.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container?.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
   
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -2196,7 +2209,6 @@ export default function OpenJamCanvas({
         }}
         onPointerCancel={event => { if (event.isPrimary) cancelCanvasGesture(); }}
         onContextMenu={handleContextMenu}
-        onWheel={handleWheel}
       >
         {/* Transform container */}
         <div
@@ -2246,7 +2258,7 @@ export default function OpenJamCanvas({
             return (
               <ElementRenderer
                 key={element.id}
-                boardId={boardId}
+                boardImages={boardImages}
                 element={element}
                 isSelected={canEdit && !isInkTool && selectedIds.has(element.id)}
                 isEditing={canEdit && editingId === element.id}

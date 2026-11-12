@@ -1,8 +1,14 @@
 package middleware
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/project-wb/server/internal/model"
 )
 
 func TestRateLimiter_AllowsBurstThenBlocks(t *testing.T) {
@@ -51,5 +57,38 @@ func TestRateLimiter_PerIPIsolation(t *testing.T) {
 	// Different IP should still have its own bucket
 	if !rl.allow("2.2.2.2") {
 		t.Fatal("first request from 2.2.2.2 should be allowed (isolated bucket)")
+	}
+}
+
+func TestAssetRateLimitPreservesSyncBudget(t *testing.T) {
+	assets, sync := NewRateLimiter(0, 1), NewRateLimiter(0, 1)
+	t.Cleanup(assets.Stop)
+	t.Cleanup(sync.Stop)
+	router := gin.New()
+	account := &model.User{ID: uuid.New()}
+	authenticated := router.Group("", func(c *gin.Context) {
+		c.Set(UserContextKey, account)
+	})
+	ok := func(c *gin.Context) { c.Status(http.StatusNoContent) }
+	authenticated.GET("/image", RateLimitAssetUser(assets), ok)
+	authenticated.GET("/changes", RateLimitUser(sync), ok)
+
+	for _, test := range []struct {
+		path   string
+		status int
+	}{
+		{"/image", http.StatusNoContent},
+		{"/image", http.StatusTooManyRequests},
+		{"/changes", http.StatusNoContent},
+		{"/changes", http.StatusTooManyRequests},
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if response.Code != test.status {
+			t.Errorf("%s returned %d, want %d", test.path, response.Code, test.status)
+		}
+		if test.status == http.StatusTooManyRequests && response.Header().Get("Retry-After") != "1" {
+			t.Errorf("%s missing Retry-After on 429", test.path)
+		}
 	}
 }

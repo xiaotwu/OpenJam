@@ -25,6 +25,8 @@ WebSocket connections require a valid session before upgrade. Browsers send the 
 
 The document endpoint limits rejected handshakes by client IP and limits authenticated handshakes by account. Session lookups allow a burst of 64 per IP for shared gateways, with a sustained rate of two lookups per second per IP and a cap of 64 concurrent checks per API replica. The legacy `/ws` endpoint has its own per-IP rate limit. Configure [trusted proxies](../reference/configuration.md) for the specific reverse proxies that forward client addresses.
 
+Private image requests and document sync each have a separate budget of 30 requests per second with a burst of 60 per authenticated account on each API replica. Image reads still check the current board access and association before serving the file. The editor shares image downloads within the open board session and releases their object URLs when that session closes or loses access.
+
 ## Room Access Control
 
 - Rooms are owned by the user who created them

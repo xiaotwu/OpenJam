@@ -1,7 +1,7 @@
 // Element renderer - renders all element types
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useI18n } from '../../i18n';
-import { readBoardAsset } from '../../lib/boardFiles';
+import type { BoardImages } from '../../lib/boardImages';
 import type { Element, ImageElement as ImageElementType, FrameElement as FrameElementType, DrawingElement } from '../../lib/elements';
 import StickyNote from './StickyNote';
 import Shape from './Shape';
@@ -35,7 +35,7 @@ function getDrawingBounds(element: DrawingElement) {
 
 interface ElementRendererProps {
   element: Element;
-  boardId?: string;
+  boardImages?: BoardImages;
   isSelected: boolean;
   isEditing: boolean;
   scale: number;
@@ -50,7 +50,7 @@ interface ElementRendererProps {
 
 function ElementRenderer({
   element,
-  boardId,
+  boardImages,
   isSelected,
   isEditing,
   scale,
@@ -134,7 +134,7 @@ function ElementRenderer({
       return (
         <ImageElement
           element={element}
-          boardId={boardId}
+          boardImages={boardImages}
           isSelected={isSelected}
           onSelect={onSelect}
         />
@@ -206,12 +206,12 @@ export default memo(ElementRenderer);
 
 interface ImageElementProps {
   element: ImageElementType;
-  boardId?: string;
+  boardImages?: BoardImages;
   isSelected: boolean;
   onSelect: (id: string, addToSelection: boolean) => void;
 }
 
-function ImageElement({ element, boardId, isSelected, onSelect }: ImageElementProps) {
+function ImageElement({ element, boardImages, isSelected, onSelect }: ImageElementProps) {
   const { messages: { images: text } } = useI18n();
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -232,8 +232,8 @@ function ImageElement({ element, boardId, isSelected, onSelect }: ImageElementPr
       }}
       onClick={handleClick}
     >
-      {boardId && element.assetId ? (
-        <PrivateImage key={boardId + '/' + element.assetId} boardId={boardId} assetId={element.assetId} fit={element.objectFit} />
+      {boardImages && element.assetId ? (
+        <PrivateImage key={element.assetId} images={boardImages} assetId={element.assetId} fit={element.objectFit} />
       ) : element.src ? (
         <img
           src={element.src}
@@ -263,31 +263,18 @@ function ImageElement({ element, boardId, isSelected, onSelect }: ImageElementPr
   );
 }
 
-function PrivateImage({ boardId, assetId, fit }: { boardId: string; assetId: string; fit: ImageElementType['objectFit'] }) {
+function PrivateImage({ images, assetId, fit }: { images: BoardImages; assetId: string; fit: ImageElementType['objectFit'] }) {
   const { messages: { images: text } } = useI18n();
-  const [source, setSource] = useState<string>();
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  const subscribe = useCallback((listener: () => void) => images.subscribe(assetId, listener), [images, assetId]);
+  const snapshot = useCallback(() => images.snapshot(assetId), [images, assetId]);
+  const image = useSyncExternalStore(subscribe, snapshot);
+  const [brokenUrl, setBrokenUrl] = useState<string>();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let objectUrl: string | undefined;
-    void readBoardAsset(boardId, assetId, controller.signal).then(blob => {
-      if (controller.signal.aborted) return;
-      objectUrl = URL.createObjectURL(blob);
-      setSource(objectUrl);
-    }, () => {
-      if (!controller.signal.aborted) setFailed(true);
-    });
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [assetId, attempt, boardId]);
-
-  if (source && !failed) {
-    return <img src={source} alt="" className="h-full w-full" style={{ objectFit: fit }} draggable={false} onError={() => setFailed(true)} />;
+  if (image.status === 'ready' && image.url !== brokenUrl) {
+    return <img src={image.url} alt="" className="h-full w-full" style={{ objectFit: fit }} draggable={false}
+      onError={() => setBrokenUrl(image.url)} />;
   }
+  const failed = image.status !== 'loading';
   return (
     <div className="grid h-full w-full place-content-center gap-1 overflow-hidden bg-[var(--badge-bg)] px-1 text-center text-xs text-[var(--text-secondary)]">
       <span>{failed ? text.unavailable : text.loading}</span>
@@ -299,9 +286,7 @@ function PrivateImage({ boardId, assetId, fit }: { boardId: string; assetId: str
           onPointerDown={event => event.stopPropagation()}
           onClick={event => {
             event.stopPropagation();
-            setSource(undefined);
-            setFailed(false);
-            setAttempt(current => current + 1);
+            images.retry(assetId);
           }}
         >
           {text.retry}

@@ -106,6 +106,15 @@ func RateLimit(rl *RateLimiter) gin.HandlerFunc {
 
 // RateLimitUser separates editors behind a shared gateway or office address.
 func RateLimitUser(rl *RateLimiter) gin.HandlerFunc {
+	return rateLimitUser(rl, "Too many sync requests. Try again shortly.")
+}
+
+// RateLimitAssetUser applies the separate budget for private image requests.
+func RateLimitAssetUser(rl *RateLimiter) gin.HandlerFunc {
+	return rateLimitUser(rl, "Too many image requests. Try again shortly.")
+}
+
+func rateLimitUser(rl *RateLimiter, message string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetUser(c)
 		if user == nil {
@@ -113,8 +122,9 @@ func RateLimitUser(rl *RateLimiter) gin.HandlerFunc {
 			return
 		}
 		if !rl.allow(user.ID.String()) {
+			c.Header("Retry-After", "1")
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"code": "RATE_LIMITED", "error": "Too many sync requests. Try again shortly.",
+				"code": "RATE_LIMITED", "error": message,
 			})
 			return
 		}
