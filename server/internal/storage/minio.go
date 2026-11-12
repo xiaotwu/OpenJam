@@ -13,18 +13,18 @@ import (
 
 const defaultBucket = "openjam"
 
-type storageBucket struct {
+type Bucket struct {
 	client *minio.Client
 	name   string
 }
 
-var activeBucket atomic.Pointer[storageBucket]
+var activeBucket atomic.Pointer[Bucket]
 
 func Init(endpoint, accessKey, secretKey string, useSSL bool) error {
 	return InitWithBucket(endpoint, accessKey, secretKey, useSSL, defaultBucket)
 }
 
-func InitWithBucket(endpoint, accessKey, secretKey string, useSSL bool, bucket string) error {
+func newBucket(endpoint, accessKey, secretKey string, useSSL bool, bucket string) (*Bucket, error) {
 	if bucket == "" {
 		bucket = defaultBucket
 	}
@@ -34,22 +34,29 @@ func InitWithBucket(endpoint, accessKey, secretKey string, useSSL bool, bucket s
 		Secure: useSSL,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create MinIO client: %w", err)
+		return nil, fmt.Errorf("failed to create MinIO client: %w", err)
 	}
+	return &Bucket{client: candidate, name: bucket}, nil
+}
 
+func InitWithBucket(endpoint, accessKey, secretKey string, useSSL bool, bucket string) error {
+	target, err := newBucket(endpoint, accessKey, secretKey, useSSL, bucket)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	exists, err := candidate.BucketExists(ctx, bucket)
+	exists, err := target.client.BucketExists(ctx, target.name)
 	if err != nil {
 		return fmt.Errorf("failed to check bucket: %w", err)
 	}
 
 	if !exists {
-		if err := candidate.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
+		if err := target.client.MakeBucket(ctx, target.name, minio.MakeBucketOptions{}); err != nil {
 			switch minio.ToErrorResponse(err).Code {
 			case "BucketAlreadyOwnedByYou", "BucketAlreadyExists":
-				exists, checkErr := candidate.BucketExists(ctx, bucket)
+				exists, checkErr := target.client.BucketExists(ctx, target.name)
 				if checkErr != nil || !exists {
 					return fmt.Errorf("failed to confirm existing bucket after create: %w", err)
 				}
@@ -59,8 +66,35 @@ func InitWithBucket(endpoint, accessKey, secretKey string, useSSL bool, bucket s
 		}
 	}
 
-	activeBucket.Store(&storageBucket{client: candidate, name: bucket})
+	activeBucket.Store(target)
 	return nil
+}
+
+// OpenExistingBucket checks read access without creating a bucket or objects.
+func OpenExistingBucket(ctx context.Context, endpoint, accessKey, secretKey string, useSSL bool, bucket string) (*Bucket, error) {
+	target, err := newBucket(endpoint, accessKey, secretKey, useSSL, bucket)
+	if err != nil {
+		return nil, err
+	}
+	exists, err := target.client.BucketExists(ctx, target.name)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("configured object bucket is missing")
+	}
+	listCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	for item := range target.client.ListObjects(listCtx, target.name, minio.ListObjectsOptions{MaxKeys: 1}) {
+		if item.Err != nil {
+			return nil, item.Err
+		}
+		break
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return target, nil
 }
 
 func IsInitialized() bool {

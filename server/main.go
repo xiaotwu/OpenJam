@@ -43,12 +43,15 @@ func run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		mode = args[0]
 	}
+	if mode == "doctor" {
+		return runDoctor(ctx, args[1:], os.Stdout)
+	}
 	if mode == "documents" {
 		if err := validateDocumentArguments(args[1:]); err != nil {
 			return err
 		}
 	} else if len(args) > 1 || (mode != "api" && mode != "migrate" && mode != "worker") {
-		return fmt.Errorf("usage: openjam-server [api|worker|migrate|documents]")
+		return fmt.Errorf("usage: openjam-server [api|worker|migrate|documents|doctor]")
 	}
 
 	cfg, err := config.Load()

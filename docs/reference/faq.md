@@ -17,7 +17,7 @@ OpenJam works in modern browsers: Chrome, Firefox, Safari, Edge. WebSocket suppo
 No. Redis is optional. Without it, session caching and multi-server pub/sub are disabled, but single-server deployment works fine.
 
 ### Do I need MinIO?
-No. MinIO is optional. Without it, board export (PNG/JSON) is disabled. All other features work normally.
+The default deployment uses SeaweedFS. A compatible object store is required for private images and storage-backed features. See [Docker deployment](../guide/docker.md#object-storage).
 
 ### Can I use an external PostgreSQL?
 Yes. Set the `DATABASE_URL` environment variable to your PostgreSQL connection string.
@@ -46,8 +46,6 @@ The MinIO client is S3-compatible. You can point `MINIO_ENDPOINT` to an S3-compa
 - Check available disk space
 - Try `docker compose build --no-cache`
 
-### How do I reset the database?
-```bash
-docker compose down -v   # Removes volumes too
-docker compose up --build -d
-```
+### How do I restore a deployment?
+
+Use the [instance recovery procedure](../guide/operations.md#restore-an-instance) to restore PostgreSQL and object storage together into fresh stores.

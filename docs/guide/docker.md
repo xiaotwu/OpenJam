@@ -1,6 +1,6 @@
 # Docker Deployment
 
-The OpenJam image embeds the frontend in a non-root Go runtime. Docker Compose runs database migrations before starting the application.
+The OpenJam image embeds the frontend in a non-root Go runtime. Docker Compose runs database migrations before starting the application. The default stack runs PostgreSQL, Redis, SeaweedFS and a background worker. The AI service is optional.
 
 ## Local Deployment
 
@@ -12,7 +12,7 @@ Open [localhost:8080](http://localhost:8080). Set `OPENJAM_PUBLISH_PORT` to run 
 
 Use the [Meetings overlay](./meetings.md#enable-media) to add the private audio, video, and screen-sharing service.
 
-For an HTTPS deployment, put a reverse proxy in front of OpenJam, configure it to forward WebSocket traffic, set `ENVIRONMENT=production`, and set `CORS_ORIGINS` to the HTTPS origin. Set PostgreSQL credentials with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. When credentials contain URI delimiters or PostgreSQL is external, provide a `DATABASE_URL` with properly encoded credentials.
+For a pilot deployment, copy `.env.example` to a protected environment file and replace the sample credentials. Use a fixed Compose project name and record the exact application image. For an HTTPS deployment, put a reverse proxy in front of OpenJam, configure it to forward WebSocket traffic, set `ENVIRONMENT=production`, and set `CORS_ORIGINS` to the HTTPS origin. Set PostgreSQL credentials with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. When credentials contain URI delimiters or PostgreSQL is external, provide a `DATABASE_URL` with properly encoded credentials.
 
 ## Services
 
@@ -29,7 +29,7 @@ For an HTTPS deployment, put a reverse proxy in front of OpenJam, configure it t
 
 The application exposes `/livez` for liveness, `/startupz` for startup and `/readyz` for readiness. Compose checks `/readyz` before reporting the server as healthy. The legacy `/health` endpoint also reports export availability.
 
-See [Board document migration and rollback](./document-migration.md) before upgrading an instance with active legacy editors.
+Use the [operations guide](./operations.md) for quick checks, upgrades, backups, recovery and troubleshooting.
 
 ## Object Storage
 
@@ -65,10 +65,7 @@ Use the same Compose project name on upgrades to keep using these volumes:
 - `seaweed_data` - Private S3 objects
 - `minio_data` - Uploaded files
 
-To back up the default PostgreSQL database:
-```bash
-docker compose exec postgres pg_dump -U postgres openjam > backup.sql
-```
+For a consistent instance backup, capture PostgreSQL and SeaweedFS during the same maintenance window. Follow [Create an instance backup](./operations.md#create-an-instance-backup).
 
 ## Development Services Only
 

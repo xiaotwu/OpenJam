@@ -22,7 +22,7 @@ OpenJam implements session-based authentication with several security measures.
 ## WebSocket Authentication
 
 WebSocket connections are authenticated before upgrade:
-1. Client sends the session token as a query parameter
+1. The browser sends the HTTP-only session cookie on the WebSocket handshake
 2. Server validates the token against the session store
 3. Only authenticated connections are upgraded to WebSocket
 
@@ -45,8 +45,8 @@ WebSocket connections are authenticated before upgrade:
 
 ## Best Practices for Production
 
-1. **Change `SESSION_SECRET`** - Generate a random string: `openssl rand -hex 32`
-2. **Restrict CORS origins** - Set `CORS_ORIGINS` to your actual domain(s)
-3. **Use HTTPS** - Deploy behind a reverse proxy (nginx, Caddy) with TLS
-4. **Change default credentials** - Update MinIO and PostgreSQL passwords
-5. **Enable Redis** - For session caching and multi-server support
+1. **Use HTTPS** with a reverse proxy and set `ENVIRONMENT=production` for secure session cookies.
+2. **Restrict CORS origins** by setting `CORS_ORIGINS` to the deployment's HTTPS origin.
+3. **Set unique credentials** for PostgreSQL and object storage.
+4. **Use Redis** for session caching and multi-server collaboration.
+5. **Protect instance backups** because they contain account data and active sessions. Follow the [operations guide](./operations.md).

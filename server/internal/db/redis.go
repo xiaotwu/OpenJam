@@ -20,6 +20,10 @@ const (
 )
 
 func InitRedis(redisURL string) error {
+	return InitRedisContext(context.Background(), redisURL)
+}
+
+func InitRedisContext(ctx context.Context, redisURL string) error {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return err
@@ -27,7 +31,7 @@ func InitRedis(redisURL string) error {
 	opt.ContextTimeoutEnabled = true
 
 	client := redis.NewClient(opt)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
 		_ = client.Close()

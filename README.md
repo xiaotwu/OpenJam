@@ -128,12 +128,13 @@ The backend build embeds the generated assets using a temporary build directory.
 | `DATABASE_URL` | PostgreSQL connection string | - |
 | `REDIS_URL` | Redis connection string | - |
 | `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` |
-| `SESSION_SECRET` | *(ignored — sessions are DB-stored tokens)* | - |
 | `MINIO_ENDPOINT` | MinIO/S3 endpoint | - |
 | `MINIO_ACCESS_KEY` | MinIO access key | - |
 | `MINIO_SECRET_KEY` | MinIO secret key | - |
 
 See [`.env.example`](server/.env.example) for all available options.
+
+The [operations guide](docs/guide/operations.md) covers upgrades, instance backups, recovery, and local diagnostics.
 
 The [directory API contract](contracts/directory.openapi.yaml) describes the authenticated organization, project, favorite and archive endpoints.
 

@@ -5,54 +5,29 @@ Deploy OpenJam without Docker by building the frontend and backend manually.
 ## Prerequisites
 
 - Go 1.22+
-- Node.js 20+ or Bun
+- Bun and Node.js for the frontend build. The Dockerfile records the versions used for Compose builds.
 - PostgreSQL 14+
 - Redis (optional)
 - MinIO or S3-compatible storage (optional)
 
-## Build the Frontend
-
-::: code-group
-
-```bash [Bun]
-cd app
-bun install
-bun run build
-```
-
-```bash [npm]
-cd app
-npm install
-npm run build
-```
-
-:::
-
-This produces a `dist/` directory with static files.
-
-## Build the Backend
+## Build the application
 
 ```bash
-cd server
-CGO_ENABLED=0 go build -ldflags="-s -w" -o openjam-server .
+make build
 ```
+
+This embeds the frontend in `./openjam-server`.
 
 ## Deploy
 
-1. Copy the frontend build output:
-   ```bash
-   cp -r app/dist server/static
-   ```
+Configure the same [environment](/reference/configuration) for the migrator, API and worker. Take a consistent backup before migrating an existing instance.
 
-2. Configure environment variables (see [Configuration](/reference/configuration))
+```bash
+./openjam-server migrate
+OPENJAM_AUTO_MIGRATE=false ./openjam-server api
+```
 
-3. Run the server:
-   ```bash
-   cd server
-   ./openjam-server
-   ```
-
-The server serves both the API and frontend on the configured port (default 8080).
+Start `./openjam-server worker` under the process supervisor with the same database and object store configuration. Verify the HTTP endpoints and run `./openjam-server doctor`. See [Operations and Recovery](./operations.md) for checks and restore verification.
 
 ## Running with systemd
 
@@ -67,8 +42,9 @@ After=network.target postgresql.service
 Type=simple
 User=openjam
 WorkingDirectory=/opt/openjam
-ExecStart=/opt/openjam/openjam-server
+ExecStart=/opt/openjam/openjam-server api
 EnvironmentFile=/opt/openjam/.env
+Environment=OPENJAM_AUTO_MIGRATE=false
 Restart=always
 RestartSec=5
 

@@ -83,14 +83,20 @@ func MigrateContext(ctx context.Context) error {
 
 // CheckSchema confirms that all migrations required by this binary have committed.
 func CheckSchema(ctx context.Context) error {
-	current, err := schemaVersion(ctx, pool)
+	current, required, err := SchemaVersions(ctx)
 	if err != nil {
 		return err
 	}
-	if current != len(migrations) {
-		return fmt.Errorf("OpenJam database schema is at version %d, binary requires %d", current, len(migrations))
+	if current != required {
+		return fmt.Errorf("OpenJam database schema is at version %d, binary requires %d", current, required)
 	}
 	return nil
+}
+
+// SchemaVersions reports the installed and required versions without running migrations.
+func SchemaVersions(ctx context.Context) (installed, required int, err error) {
+	installed, err = schemaVersion(ctx, pool)
+	return installed, len(migrations), err
 }
 
 type schemaQuerier interface {

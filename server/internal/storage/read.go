@@ -18,6 +18,10 @@ func OpenFile(ctx context.Context, objectName string) (io.ReadSeekCloser, int64,
 	if bucket == nil {
 		return nil, 0, errors.New("storage not initialized")
 	}
+	return bucket.OpenFile(ctx, objectName)
+}
+
+func (bucket *Bucket) OpenFile(ctx context.Context, objectName string) (io.ReadSeekCloser, int64, error) {
 	object, err := bucket.client.GetObject(ctx, bucket.name, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, 0, fmt.Errorf("open storage object: %w", err)

@@ -34,6 +34,7 @@ export default defineConfig({
         text: 'Deployment',
         items: [
           { text: 'Docker', link: '/guide/docker' },
+          { text: 'Operations and Recovery', link: '/guide/operations' },
           { text: 'Manual Setup', link: '/guide/manual-setup' },
         ],
       },
