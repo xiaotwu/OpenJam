@@ -5,7 +5,7 @@ The fastest way to run Shiori is with Docker Compose.
 ## Quick Start (Docker)
 
 ```bash
-git clone https://github.com/xiaotwu/OpenJam.git shiori
+git clone https://github.com/xiaotwu/Shiori.git shiori
 cd shiori
 docker compose up --build -d
 ```

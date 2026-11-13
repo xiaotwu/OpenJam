@@ -6,7 +6,7 @@
     <a href="#get-started">Get Started</a> ·
     <a href="docs/guide/getting-started.md">User Guide</a> ·
     <a href="docs/guide/docker.md">Deploy</a> ·
-    <a href="https://github.com/xiaotwu/openjam/issues">Report an Issue</a>
+    <a href="https://github.com/xiaotwu/Shiori/issues">Report an Issue</a>
   </p>
 </div>
 
@@ -55,7 +55,7 @@ The first release targets Docker Compose for self-hosted teams. The frozen RC2 p
 | [Deploy with Docker](docs/guide/docker.md) | Services, storage, and deployment configuration |
 | [Operations and recovery](docs/guide/operations.md) | Health checks, upgrades, backups, recovery, and troubleshooting |
 
-## Development and Contributing
+## Contributing
 
 The frontend uses React and TypeScript, with a Go API and worker. The [development setup](docs/guide/getting-started.md#development-setup) covers the local services and toolchain. Report reproducible issues with the revision, browser, and steps to reproduce, and leave credentials and private content out of reports.
 

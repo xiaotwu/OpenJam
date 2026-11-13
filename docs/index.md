@@ -10,7 +10,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/xiaotwu/OpenJam
+      link: https://github.com/xiaotwu/Shiori
 
 features:
   - title: Real-Time Collaboration

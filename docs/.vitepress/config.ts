@@ -3,12 +3,12 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   title: 'Shiori',
   description: 'Self-hosted collaboration for boards, documents, spreadsheets, and presentations',
-  base: '/OpenJam/',
+  base: '/Shiori/',
   ignoreDeadLinks: [/^http:\/\/localhost/],
 
   head: [
-    ['link', { rel: 'icon', href: '/OpenJam/icons/favicon-light.png', media: '(prefers-color-scheme: light)' }],
-    ['link', { rel: 'icon', href: '/OpenJam/icons/favicon-dark.png', media: '(prefers-color-scheme: dark)' }],
+    ['link', { rel: 'icon', href: '/Shiori/icons/favicon-light.png', media: '(prefers-color-scheme: light)' }],
+    ['link', { rel: 'icon', href: '/Shiori/icons/favicon-dark.png', media: '(prefers-color-scheme: dark)' }],
   ],
 
   themeConfig: {
@@ -17,7 +17,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/configuration' },
-      { text: 'GitHub', link: 'https://github.com/xiaotwu/OpenJam' },
+      { text: 'GitHub', link: 'https://github.com/xiaotwu/Shiori' },
     ],
 
     sidebar: [
@@ -60,7 +60,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/xiaotwu/OpenJam' },
+      { icon: 'github', link: 'https://github.com/xiaotwu/Shiori' },
     ],
 
     footer: {
