@@ -130,7 +130,7 @@ Removing a Project role removes access inherited from the project. An independen
 
 With two local Shiori API instances connected to the same disposable PostgreSQL, Redis, and object storage, grant a test user view access to a Team project. Edit searchable text and a board reference through one instance. Confirm the other instance finds the new text, opens its source, and shows the updated reference. Then revoke the Project grant and Team membership in turn. Confirm the other instance hides the Project’s results and rejects requests for the former Team.
 
-Run the same checks against a local test database named `openjam_cluster_test` from the `server` directory. Set `SHIORI_CLUSTER_PRIMARY` and `SHIORI_CLUSTER_SECONDARY` to the loopback API URLs, and `SHIORI_CLUSTER_DATABASE_URL` to the disposable database URL.
+Run the same checks against a local test database named `shiori_cluster_test` from the `server` directory. Set `SHIORI_CLUSTER_PRIMARY` and `SHIORI_CLUSTER_SECONDARY` to the loopback API URLs, and `SHIORI_CLUSTER_DATABASE_URL` to the disposable database URL. Run with `-v` and confirm that the selected tests report `PASS`.
 
 ```bash
 SHIORI_CLUSTER_WORKSHOP=1 SHIORI_CLUSTER_DOCS=1 SHIORI_CLUSTER_SHEETS=1 SHIORI_CLUSTER_SLIDES=1 \

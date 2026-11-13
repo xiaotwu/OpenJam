@@ -10,7 +10,6 @@ import (
 	"image/png"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/db"
 	"github.com/xiaotwu/shiori/server/internal/model"
 	"github.com/xiaotwu/shiori/server/internal/storage"
@@ -113,16 +113,16 @@ func TestDocumentImageReferencesWithPostgres(t *testing.T) {
 }
 
 func TestPrivateImagesWithPostgresAndS3(t *testing.T) {
-	endpoint := os.Getenv("OPENJAM_TEST_S3_ENDPOINT")
+	endpoint := config.Env("SHIORI_TEST_S3_ENDPOINT")
 	if endpoint == "" {
-		t.Skip("set OPENJAM_TEST_S3_ENDPOINT to a disposable loopback S3 server")
+		t.Skip("set SHIORI_TEST_S3_ENDPOINT to a disposable loopback S3 server")
 	}
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
 		t.Fatal("OPENJAM_TEST_S3_ENDPOINT must be a loopback address with a port")
 	}
 	ctx := documentTestDatabase(t)
-	if err := storage.InitWithBucket(endpoint, os.Getenv("OPENJAM_TEST_S3_ACCESS_KEY"), os.Getenv("OPENJAM_TEST_S3_SECRET_KEY"), false, os.Getenv("OPENJAM_TEST_S3_BUCKET")); err != nil {
+	if err := storage.InitWithBucket(endpoint, config.Env("SHIORI_TEST_S3_ACCESS_KEY"), config.Env("SHIORI_TEST_S3_SECRET_KEY"), false, config.Env("SHIORI_TEST_S3_BUCKET")); err != nil {
 		t.Fatal(err)
 	}
 	owner := testDocumentUser(t, ctx, "private-image-owner@example.invalid")

@@ -4,23 +4,23 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/document"
 	"github.com/xiaotwu/shiori/server/internal/model"
 	"github.com/xiaotwu/shiori/server/internal/sheetformat"
 )
 
 func TestSheetsCluster(t *testing.T) {
-	if os.Getenv("OPENJAM_CLUSTER_SHEETS") != "1" {
+	if config.Env("SHIORI_CLUSTER_SHEETS") != "1" {
 		t.Skip("requires two isolated local Shiori API replicas")
 	}
-	a, b, dsn := os.Getenv("OPENJAM_CLUSTER_PRIMARY"), os.Getenv("OPENJAM_CLUSTER_SECONDARY"), os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
+	a, b, dsn := config.Env("SHIORI_CLUSTER_PRIMARY"), config.Env("SHIORI_CLUSTER_SECONDARY"), config.Env("SHIORI_CLUSTER_DATABASE_URL")
 	requireLocalCluster(t, a, b, dsn)
 	client := &http.Client{Timeout: 8 * time.Second}
 	owner, _ := registerClusterUser(t, client, a, "Sheets owner")

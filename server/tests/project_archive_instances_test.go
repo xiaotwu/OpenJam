@@ -12,7 +12,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -21,16 +20,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/document"
 	"github.com/xiaotwu/shiori/server/internal/model"
 	"github.com/xiaotwu/shiori/server/internal/slideformat"
 )
 
 func TestProjectArchiveIndependentInstances(t *testing.T) {
-	if os.Getenv("OPENJAM_PROJECT_ARCHIVE_TEST") != "1" {
+	if config.Env("SHIORI_PROJECT_ARCHIVE_TEST") != "1" {
 		t.Skip("requires two disposable Shiori instances with independent stores")
 	}
-	a, b := os.Getenv("OPENJAM_ARCHIVE_A"), os.Getenv("OPENJAM_ARCHIVE_B")
+	a, b := config.Env("SHIORI_ARCHIVE_A"), config.Env("SHIORI_ARCHIVE_B")
 	checkArchiveTestInstances(t, a, b)
 	client := &http.Client{Timeout: 25 * time.Second}
 	tag := strings.ReplaceAll(uuid.NewString(), "-", "")[:8]
@@ -498,15 +498,17 @@ func checkArchiveTestInstances(t *testing.T, a, b string) {
 	if parse(a).Port() == parse(b).Port() {
 		t.Fatal("API ports must be distinct")
 	}
-	ds := []string{os.Getenv("OPENJAM_ARCHIVE_DB_A"), os.Getenv("OPENJAM_ARCHIVE_DB_B")}
+	ds := []string{config.Env("SHIORI_ARCHIVE_DB_A"), config.Env("SHIORI_ARCHIVE_DB_B")}
 	ports := make(map[string]bool)
 	for i, label := range []string{"a", "b"} {
 		u := parse(ds[i])
-		if u.Path != "/openjam_archive_"+label+"_test" || ports[u.Port()] {
+		shioriDB := "/shiori_archive_" + label + "_test"
+		legacyDB := "/openjam_archive_" + label + "_test"
+		if (u.Path != shioriDB && u.Path != legacyDB) || ports[u.Port()] {
 			t.Fatal("use two independent disposable archive test databases")
 		}
 		ports[u.Port()] = true
-		if label == "b" && os.Getenv("OPENJAM_ARCHIVE_VERIFY_EMPTY") == "1" {
+		if label == "b" && config.Env("SHIORI_ARCHIVE_VERIFY_EMPTY") == "1" {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			conn, err := pgx.Connect(ctx, ds[i])

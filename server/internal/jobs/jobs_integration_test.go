@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/db"
 )
 
@@ -375,13 +375,13 @@ func jobFixture(t *testing.T, ctx context.Context) (uuid.UUID, string) {
 
 func jobTestDatabase(t *testing.T) context.Context {
 	t.Helper()
-	dsn := os.Getenv("OPENJAM_TEST_DATABASE_URL")
+	dsn := config.Env("SHIORI_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set OPENJAM_TEST_DATABASE_URL to run the PostgreSQL integration test")
+		t.Skip("set SHIORI_TEST_DATABASE_URL to run the PostgreSQL integration test")
 	}
 	isolated, err := url.Parse(dsn)
 	if err != nil || (isolated.Scheme != "postgres" && isolated.Scheme != "postgresql") {
-		t.Fatal("OPENJAM_TEST_DATABASE_URL must be a PostgreSQL URL")
+		t.Fatal("SHIORI_TEST_DATABASE_URL must be a PostgreSQL URL")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
@@ -389,7 +389,7 @@ func jobTestDatabase(t *testing.T) context.Context {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := "openjam_job_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	schema := "shiori_job_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	quoted := pgx.Identifier{schema}.Sanitize()
 	t.Cleanup(func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)

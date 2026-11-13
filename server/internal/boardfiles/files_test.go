@@ -14,7 +14,6 @@ import (
 	"io"
 	"net"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/db"
 	"github.com/xiaotwu/shiori/server/internal/document"
 	"github.com/xiaotwu/shiori/server/internal/jobs"
@@ -169,9 +169,9 @@ func TestExportThemeIdentity(t *testing.T) {
 }
 
 func TestBoardFileJobsWithPostgresAndS3(t *testing.T) {
-	endpoint := os.Getenv("OPENJAM_TEST_S3_ENDPOINT")
+	endpoint := config.Env("SHIORI_TEST_S3_ENDPOINT")
 	if endpoint == "" {
-		t.Skip("set OPENJAM_TEST_S3_ENDPOINT for the isolated local S3 fixture")
+		t.Skip("set SHIORI_TEST_S3_ENDPOINT for the isolated local S3 fixture")
 	}
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
@@ -392,13 +392,13 @@ func finishFileJob(t *testing.T, ctx context.Context, lease jobs.Lease) jobs.Job
 
 func fileTestDatabase(t *testing.T) context.Context {
 	t.Helper()
-	dsn := os.Getenv("OPENJAM_TEST_DATABASE_URL")
+	dsn := config.Env("SHIORI_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set OPENJAM_TEST_DATABASE_URL to run the PostgreSQL integration test")
+		t.Skip("set SHIORI_TEST_DATABASE_URL to run the PostgreSQL integration test")
 	}
 	isolated, err := url.Parse(dsn)
 	if err != nil || (isolated.Scheme != "postgres" && isolated.Scheme != "postgresql") {
-		t.Fatal("OPENJAM_TEST_DATABASE_URL must be a PostgreSQL URL")
+		t.Fatal("SHIORI_TEST_DATABASE_URL must be a PostgreSQL URL")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
@@ -406,7 +406,7 @@ func fileTestDatabase(t *testing.T) context.Context {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := "openjam_file_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	schema := "shiori_file_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	quoted := pgx.Identifier{schema}.Sanitize()
 	t.Cleanup(func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)

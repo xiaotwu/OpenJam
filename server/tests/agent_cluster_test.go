@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -14,15 +13,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/document"
 	"github.com/xiaotwu/shiori/server/internal/jobs"
 )
 
 func TestAgentCluster(t *testing.T) {
-	if os.Getenv("OPENJAM_CLUSTER_AGENT") != "1" {
+	if config.Env("SHIORI_CLUSTER_AGENT") != "1" {
 		t.Skip("requires an isolated two-replica cluster with a worker and the deterministic agent")
 	}
-	a, b, dsn := os.Getenv("OPENJAM_CLUSTER_PRIMARY"), os.Getenv("OPENJAM_CLUSTER_SECONDARY"), os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
+	a, b, dsn := config.Env("SHIORI_CLUSTER_PRIMARY"), config.Env("SHIORI_CLUSTER_SECONDARY"), config.Env("SHIORI_CLUSTER_DATABASE_URL")
 	requireLocalCluster(t, a, b, dsn)
 	client := &http.Client{Timeout: 10 * time.Second}
 	owner, _ := registerClusterUser(t, client, a, "Agent fixture owner")
@@ -182,10 +182,10 @@ func TestAgentCluster(t *testing.T) {
 }
 
 func TestExternalAgentCluster(t *testing.T) {
-	if os.Getenv("OPENJAM_CLUSTER_EXTERNAL") != "1" {
+	if config.Env("SHIORI_CLUSTER_EXTERNAL") != "1" {
 		t.Skip("requires the isolated TLS connector fixture on both replicas")
 	}
-	a, b, dsn := os.Getenv("OPENJAM_CLUSTER_PRIMARY"), os.Getenv("OPENJAM_CLUSTER_SECONDARY"), os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
+	a, b, dsn := config.Env("SHIORI_CLUSTER_PRIMARY"), config.Env("SHIORI_CLUSTER_SECONDARY"), config.Env("SHIORI_CLUSTER_DATABASE_URL")
 	requireLocalCluster(t, a, b, dsn)
 	client := &http.Client{Timeout: 10 * time.Second}
 	owner, _ := registerClusterUser(t, client, a, "Connector fixture owner")

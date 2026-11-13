@@ -4,20 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/document"
 )
 
 func TestReviewCluster(t *testing.T) {
-	a := os.Getenv("OPENJAM_CLUSTER_PRIMARY")
-	b := os.Getenv("OPENJAM_CLUSTER_SECONDARY")
-	dsn := os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
+	a := config.Env("SHIORI_CLUSTER_PRIMARY")
+	b := config.Env("SHIORI_CLUSTER_SECONDARY")
+	dsn := config.Env("SHIORI_CLUSTER_DATABASE_URL")
 	if a == "" || b == "" || dsn == "" {
 		t.Skip("requires two loopback Docker API endpoints and the disposable cluster database")
 	}

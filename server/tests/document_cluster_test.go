@@ -9,21 +9,21 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/db"
 	"github.com/xiaotwu/shiori/server/internal/document"
 )
 
 func TestDocumentCluster(t *testing.T) {
-	a := os.Getenv("OPENJAM_CLUSTER_PRIMARY")
-	b := os.Getenv("OPENJAM_CLUSTER_SECONDARY")
-	dsn := os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
+	a := config.Env("SHIORI_CLUSTER_PRIMARY")
+	b := config.Env("SHIORI_CLUSTER_SECONDARY")
+	dsn := config.Env("SHIORI_CLUSTER_DATABASE_URL")
 	if a == "" || b == "" || dsn == "" {
 		t.Skip("requires two local Docker API endpoints and the disposable cluster database")
 	}
@@ -311,8 +311,8 @@ func requireLocalCluster(t *testing.T, a, b, dsn string) {
 		}
 	}
 	dbURL, _ := url.Parse(dsn)
-	if dbURL.Path != "/openjam_cluster_test" {
-		t.Fatal("cluster fixtures require the disposable openjam_cluster_test database")
+	if dbURL.Path != "/shiori_cluster_test" && dbURL.Path != "/openjam_cluster_test" {
+		t.Fatal("cluster fixtures require the disposable shiori_cluster_test database")
 	}
 }
 

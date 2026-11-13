@@ -43,7 +43,7 @@ Use two local API replicas connected to the same disposable PostgreSQL database 
 ```bash
 SHIORI_CLUSTER_PRIMARY=http://127.0.0.1:44881 \
 SHIORI_CLUSTER_SECONDARY=http://127.0.0.1:44882 \
-SHIORI_CLUSTER_DATABASE_URL='postgres://postgres:postgres@127.0.0.1:45442/openjam_cluster_test?sslmode=disable' \
+SHIORI_CLUSTER_DATABASE_URL='postgres://postgres:postgres@127.0.0.1:45442/shiori_cluster_test?sslmode=disable' \
 go test -race -count=1 -v ./tests -run '^Test(Document|Review)Cluster$'
 ```
 

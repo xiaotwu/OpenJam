@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/db"
 	"github.com/xiaotwu/shiori/server/internal/middleware"
 	"github.com/xiaotwu/shiori/server/internal/model"
@@ -186,13 +187,13 @@ func TestDirectoryWithPostgres(t *testing.T) {
 
 func directoryTestDatabase(t *testing.T) context.Context {
 	t.Helper()
-	dsn := os.Getenv("OPENJAM_TEST_DATABASE_URL")
+	dsn := config.Env("SHIORI_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set OPENJAM_TEST_DATABASE_URL to run the PostgreSQL integration test")
+		t.Skip("set SHIORI_TEST_DATABASE_URL to run the PostgreSQL integration test")
 	}
 	scopedURL, err := url.Parse(dsn)
 	if err != nil || (scopedURL.Scheme != "postgres" && scopedURL.Scheme != "postgresql") {
-		t.Fatal("OPENJAM_TEST_DATABASE_URL must be a PostgreSQL URL")
+		t.Fatal("SHIORI_TEST_DATABASE_URL must be a PostgreSQL URL")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
@@ -200,7 +201,7 @@ func directoryTestDatabase(t *testing.T) context.Context {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := "openjam_directory_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	schema := "shiori_directory_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	schemaIdentifier := pgx.Identifier{schema}.Sanitize()
 	if _, err := conn.Exec(ctx, "CREATE SCHEMA "+schemaIdentifier); err != nil {
 		_ = conn.Close(ctx)

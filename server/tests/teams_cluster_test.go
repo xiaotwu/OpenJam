@@ -7,13 +7,13 @@ import (
 	"image"
 	"image/png"
 	"net/http"
-	"os"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/config"
 	"github.com/xiaotwu/shiori/server/internal/db"
 	"github.com/xiaotwu/shiori/server/internal/document"
 	"github.com/xiaotwu/shiori/server/internal/jobs"
@@ -21,10 +21,10 @@ import (
 )
 
 func TestTeamsCluster(t *testing.T) {
-	if os.Getenv("OPENJAM_CLUSTER_TEAMS") != "1" {
+	if config.Env("SHIORI_CLUSTER_TEAMS") != "1" {
 		t.Skip("requires an isolated two-replica cluster with Redis, object storage and a file worker")
 	}
-	a, b, dsn := os.Getenv("OPENJAM_CLUSTER_PRIMARY"), os.Getenv("OPENJAM_CLUSTER_SECONDARY"), os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
+	a, b, dsn := config.Env("SHIORI_CLUSTER_PRIMARY"), config.Env("SHIORI_CLUSTER_SECONDARY"), config.Env("SHIORI_CLUSTER_DATABASE_URL")
 	requireLocalCluster(t, a, b, dsn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
