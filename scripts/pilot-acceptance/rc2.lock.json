@@ -147,6 +147,41 @@
         "restoredManifest": {
           "file": "xw-151-152-pilot-rc2-amd64/restored-manifest.json",
           "sha256": "151ebd3f4453733a767e6192ea975d610af3fffad06aa2a5b8a2c47abc94bd0b"
+        },
+        "caddyEnvironment": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/environment.json",
+          "sha256": "423808fd3d0676e80083e8b016e04a84b15d955bbdfbdf4bcb0dd11b10d23978"
+        },
+        "caddyHttpsWss": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/https-wss.json",
+          "sha256": "09d11f83affe23bed31af49b53b2333cbd5a21363dc910a5c2e1d65ac531db1d",
+          "clients": 2,
+          "transport": "loopback HTTPS and WSS"
+        },
+        "caddyReconnect": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/reconnect.json",
+          "sha256": "94c739b2d94af26386afd0ee654099dd3e669f30e41fe98f3f1b7cc0884bed08",
+          "clients": 50,
+          "readyToCatchUpP95Ms": 263.24,
+          "http429": 0
+        },
+        "caddyCutoverRollback": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/cutover-rollback.json",
+          "sha256": "65d79fb68153211751b6a979313c16df4bbbb727697a247c84abe0ba3527bd4a",
+          "rollbackSeconds": 7.546
+        },
+        "caddyPostRollbackWrite": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/post-rollback-write.json",
+          "sha256": "5c4147aaf8c308fd164136ccc58aaa24898a99264eb5f27ac27e1746281e52d7"
+        },
+        "caddyReplicaReceipt": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/encrypted-point-receipt.json",
+          "sha256": "ac0e13746526972ac14e3757ee466c305b9522a0ea6c05a9df5547975f5edfb1",
+          "point": "20261112T235234Z-48d29ae7fcd6462f"
+        },
+        "caddyRestoredManifest": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/restored-manifest.json",
+          "sha256": "48d29ae7fcd6462f9b923b843c925de3dfb8b5265d34b2856fa788870c50155a"
         }
       }
     }
@@ -166,13 +201,25 @@
       "syntheticArchivesRetained": false
     },
     "linux/amd64": {
-      "mode": "encrypted restore to empty Compose target",
+      "mode": "same-schema switchback",
+      "authoritative": "A",
       "schema": 23,
       "image": "openjam-pilot@sha256:31e28b2ed626b5d2e9c99eefff206d0ec4eb1a937896c0e03f0416733e467e31",
-      "sourceCapturePoint": "20261112T232358Z-151ebd3f4453733a",
-      "capturedAtUtc": "2026-11-12T23:23:58.213982+00:00",
-      "receiptSha256": "efe640fd233e87386e665b29f8755d5480c9d25c1d46af6d7410a5d230d85af8",
-      "syntheticArchivesRetained": false
+      "sourceCapturePoint": "20261112T235234Z-48d29ae7fcd6462f",
+      "capturedAtUtc": "2026-11-12T23:52:34.809106+00:00",
+      "receiptSha256": "ac0e13746526972ac14e3757ee466c305b9522a0ea6c05a9df5547975f5edfb1",
+      "proxyConfigSha256": {
+        "a": "954de1293961fbe0e257e66b3ca9aa7e6b12789d82671255facd186beca917de",
+        "b": "1627daf7ea85f7d13f796e50da0c1f075da838260fc2b81229c2e2274697bc54",
+        "maintenance": "ba2a13f4374f109cacc8e8f73b3a8520a09a5ac18f9e1c1eee6ddb45ac539faa"
+      },
+      "targetWriteReplayedExactlyOnce": true,
+      "syntheticArchivesRetained": false,
+      "earlierRestoreOnlyPoint": {
+        "sourceCapturePoint": "20261112T232358Z-151ebd3f4453733a",
+        "capturedAtUtc": "2026-11-12T23:23:58.213982+00:00",
+        "receiptSha256": "efe640fd233e87386e665b29f8755d5480c9d25c1d46af6d7410a5d230d85af8"
+      }
     }
   },
   "previousCandidate": {

@@ -12,7 +12,7 @@ RC2 is frozen locally for Linux ARM64 and Linux AMD64. Both use source commit `a
 | Offline artifact | `openjam-xw154-linux-arm64.oci.tar` (91,048,448 bytes) | `openjam-pilot-20261112-rc2-linux-amd64.oci.tar` (91,357,696 bytes) |
 | Offline artifact SHA-256 | `46a9e00f50d489cc17e0cee00aa73db32b388940e8a2318d566dfd2f2d3e8180` | `ccd08b1c1a27bb99516865d82ec4194b0470e18c9d9a4f9cf0a3373b15f3255e` |
 | Local archive and checksum directory | `xw-154-image-sync` | `xw-151-152-pilot-rc2-amd64` |
-| Local acceptance evidence directory | `xw-151-152-pilot-rc2` | `xw-151-152-pilot-rc2-amd64` |
+| Local acceptance evidence directories | `xw-151-152-pilot-rc2` | `xw-151-152-pilot-rc2-amd64` and `xw-151-152-pilot-rc2-amd64-edge` |
 
 The lock at `scripts/pilot-acceptance/rc2.lock.json` records both artifacts, the pinned stores and their per-platform manifests, the configuration template hashes and the evidence hashes. Each archive contains the application for server, worker and migrate. The Git tag points to the runtime source.
 
@@ -68,8 +68,10 @@ The default backup commands apply to the pinned Compose PostgreSQL, Redis and Se
 | --- | --- |
 | ARM64 encrypted capture and receipt | `20261112T223135Z-2b4eb2b5d4d10d6c` at `2026-11-12T22:31:35.429440+00:00` UTC. SHA-256 `f529070707200969e156adcd9f6f495de8e198bcc74a1882b63dda39c5b7621a` |
 | AMD64 encrypted capture and receipt | `20261112T232358Z-151ebd3f4453733a` at `2026-11-12T23:23:58.213982+00:00` UTC. SHA-256 `efe640fd233e87386e665b29f8755d5480c9d25c1d46af6d7410a5d230d85af8` |
+| AMD64 Caddy switchback capture and receipt | `20261112T235234Z-48d29ae7fcd6462f` at `2026-11-12T23:52:34.809106+00:00` UTC. SHA-256 `ac0e13746526972ac14e3757ee466c305b9522a0ea6c05a9df5547975f5edfb1` |
 | ARM64 same-schema switchback | RC2, schema 23. Caddy returned to source A after replaying B’s one confirmed write. A’s source-only write and the revoked grant were preserved. |
 | ARM64 serving and maintenance Caddy configurations | SHA-256 `6d818f5252574cce91a03d5c433f03e3e352247d683958c79978b7f7eb260c85` / `25cfef4adc931991182987e0041b692f18d29d123946b121d33de6f682a93255` |
+| AMD64 same-schema switchback | RC2, schema 23. Source A was selected after reconciling B’s one confirmed write. A retained its post-capture write and the revocation. The lock records the checksums for the A, B and maintenance Caddy configurations. |
 
 The local points are synthetic records. Retained evidence includes receipts and manifests. The lock at `scripts/pilot-acceptance/rc1.lock.json` identifies the archived earlier candidate. Record the image actually running on the pilot, its schema and a verified pilot recovery point before opening the operating window. For a fresh pilot, record the maintenance fallback and first verified encrypted point.
 
@@ -86,10 +88,12 @@ The local points are synthetic records. Retained evidence includes receipts and 
 | Scope | AMD64 evidence in Docker Desktop emulation on Apple Silicon |
 | --- | --- |
 | Offline load and cold start | All five OCI layers, the manifest, configuration and x86-64 binary verified. Loaded from the offline archive. Compose started from empty volumes in **11.97 s**. Migration exited successfully, both schema checks reported 23, and all six service manifests resolved to AMD64. |
-| Two browser clients | Independent Chrome sessions at 1440 × 900 both signed in and upgraded `/ws/v2` with HTTP 101. Each user edited the same board through the UI and saw the other's edit. The two snapshots agreed, with zero lost or duplicate edits. Owner to editor took **186.8 ms** and editor to owner **79.6 ms** in two observed edits. |
-| Encrypted backup and empty restore | Verified **529,499 bytes** of ciphertext, receipt and manifest. The backend write freeze was **40.32 s**, total backup **40.76 s**, and fetch through the first verified B write **20.02 s**. B restored all four resource types and named versions, Project history, a relative board link, a calculated Sheet cell, the private PNG, the existing and regenerated ZIP, and the captured grants. Old sessions returned 401 after clearing. Reapplying the post-capture revoke denied snapshot, image, export and write with 403. |
+| Caddy HTTPS and WSS | Two independent Chrome sessions at 1440 × 900 signed in over TLS 1.3, exchanged edits and rejoined after backup. HTTP redirected with 308 and both sessions upgraded `/ws/v2` with 101. Revocation closed the Editor's live subscription, hid the canvas and returned 403 for snapshot, write, image and the existing ZIP. The Owner retained access. |
+| 50-client concentrated reconnect | 100 authenticated WSS sessions shared a single Caddy ingress, with 50 per API replica. After SIGKILL and restart of one replica, all 50 affected sessions subscribed on their first attempt and applied the 13 missed writes. From readiness through catch-up, p95 was **263.24 ms**, with **0 HTTP 429** across upgrades and change requests. The healthy 50 stayed connected. Both replicas and all reconnecting clients agreed on the result. The 14 command receipts and 14 changes include the baseline write. |
+| Encrypted restore through Caddy | Verified **623,730 bytes** of ciphertext. Backend write freeze was **40.23 s**, and the HTTPS hold to a confirmed source write was **56.72 s**. B recovered all four file types, versions, Project history, internal links, PNG, ZIP and grants. The restored sessions were cleared and the post-capture revocation was applied. From the maintenance switch through recovery and the first confirmed B write took **19.98 s**. The serving config reload to the confirmed B write took **0.238 s**. |
+| Caddy switchback | From entering maintenance on B through verifying A over HTTPS took **7.55 s**. Only one deployment had active writers. B’s accepted edit was reconciled once on A, a repeated command returned the same sequence, and A’s source-only edit and revocation survived. A accepted a further write over HTTPS and its direct and proxy snapshots matched. |
 
-AMD64 local collaboration and restore used loopback HTTP and WebSocket. The Caddy cutover and 50-client reconnect evidence above applies to ARM64. Both rehearsals used synthetic data, a preloaded image and an available recovery identity. Repeat the checklist on the selected pilot hardware with its HTTPS origin, representative clients, independent replica, scheduler and alert receiver. Measure operational RPO and RTO there.
+The AMD64 Caddy run used a local CA and loopback clients. The reconnect run used a local Caddy route to assign clients to each replica and added no network delay. Both architectures used synthetic data, a preloaded image and an available recovery identity. The selected native pilot host still needs the real certificate chain, representative clients and shared egress, the production proxy routing, a replica in an independent failure domain, scheduler and alert delivery, and actual cutover and switchback. Record operational RPO and RTO there.
 
 ## 5. Inputs needed from the pilot owner
 
