@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { adoptBrowserPreference } from './browserPreference';
 
 export type InboxBadgeStyle = 'count' | 'dot' | 'hidden';
 export interface Appearance {
@@ -10,9 +11,9 @@ const defaultAppearance: Appearance = { textSize: 14, inboxBadge: 'count' };
 const preferenceEvent = 'shiori-appearance';
 const devicePreferences = new Map<string, string>();
 
-function read(key: string, previousKey: string) {
+function read(key: string, earlierKey: string) {
   try {
-    return devicePreferences.get(key) ?? localStorage.getItem(key) ?? localStorage.getItem(previousKey) ?? '';
+    return devicePreferences.get(key) ?? localStorage.getItem(earlierKey) ?? localStorage.getItem(key) ?? '';
   } catch {
     return devicePreferences.get(key) ?? '';
   }
@@ -41,21 +42,30 @@ function subscribe(listener: () => void) {
 
 export function useAppearance(userId?: string) {
   const scope = userId ?? 'guest';
-  const key = 'shiori:appearance:' + scope;
-  const previousKey = 'openjam:appearance:' + scope;
-  const snapshot = useSyncExternalStore(subscribe, () => read(key, previousKey));
+  const key = 'openjam:appearance:' + scope;
+  const earlierKey = 'shiori:appearance:' + scope;
+  const snapshot = useSyncExternalStore(subscribe, () => read(key, earlierKey));
   const appearance = useMemo(() => parse(snapshot), [snapshot]);
 
+  useEffect(() => {
+    try {
+      adoptBrowserPreference(localStorage, key, earlierKey);
+    } catch {
+      // Keep reading any available setting when storage is read-only.
+    }
+  }, [key, earlierKey]);
+
   const updateAppearance = useCallback((changes: Partial<Appearance>) => {
-    const next = JSON.stringify({ ...parse(read(key, previousKey)), ...changes });
+    const next = JSON.stringify({ ...parse(read(key, earlierKey)), ...changes });
     try {
       localStorage.setItem(key, next);
+      localStorage.removeItem(earlierKey);
       devicePreferences.delete(key);
     } catch {
       devicePreferences.set(key, next);
     }
     window.dispatchEvent(new Event(preferenceEvent));
-  }, [key, previousKey]);
+  }, [key, earlierKey]);
 
   return { appearance, updateAppearance };
 }

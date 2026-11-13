@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../lib/api';
-import { ApiError, TOKEN_KEY, getMe, login as apiLogin, register as apiRegister, logout as apiLogout, updateProfile, getToken, clearToken } from '../lib/api';
+import { ApiError, SESSION_TOKEN_STORAGE_KEY, getMe, login as apiLogin, register as apiRegister, logout as apiLogout, updateProfile, getToken, clearToken } from '../lib/api';
 import { countAccountPending, discardAccountPending } from '../lib/boardSyncQueue';
 
 interface AuthContextType {
@@ -40,7 +40,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     const onTokenChange = (event: StorageEvent) => {
-      if (event.storageArea !== localStorage || (event.key !== TOKEN_KEY && event.key !== null)) return;
+      if (event.storageArea !== localStorage || (event.key !== SESSION_TOKEN_STORAGE_KEY && event.key !== null)) return;
       setUser(null);
       setLoading(!!getToken());
       void checkAuth();

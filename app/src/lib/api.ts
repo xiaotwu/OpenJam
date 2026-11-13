@@ -41,20 +41,21 @@ export interface AuthResponse {
   user: User;
 }
 
-export const TOKEN_KEY = 'wb_token';
+// Share the bearer credential with open tabs and the previous client on rollback.
+export const SESSION_TOKEN_STORAGE_KEY = 'wb_token';
 const DEV_API_URL = 'http://localhost:8080';
 const BACKEND_UNAVAILABLE_MESSAGE = `Shiori API is unavailable. Start the Go backend on ${DEV_API_URL} and try again.`;
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
 }
 
 export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, token);
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
 }
 
 async function getApiError(response: Response): Promise<ApiError> {

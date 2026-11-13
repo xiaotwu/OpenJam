@@ -41,7 +41,7 @@ func (gate *documentSocketAdmission) authenticate(c *gin.Context) {
 	ip := clientIP(c)
 	// Preserve cookie precedence for browser sockets. V2 does not accept
 	// credentials in the URL.
-	token, _ := c.Cookie("wb_session")
+	token, _ := c.Cookie(SessionCookieName)
 	if token == "" {
 		header := c.GetHeader("Authorization")
 		if strings.HasPrefix(header, "Bearer ") {

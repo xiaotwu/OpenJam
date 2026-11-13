@@ -30,12 +30,12 @@ func TestMarkdownPreservesCodeParagraphs(t *testing.T) {
 func TestDOCXRoundTrip(t *testing.T) {
 	blocks := []Block{
 		{Text: "# Launch 计划", FontFamily: "Lora Variable"},
-		{Text: "Check **owners** & *dates* in [the board](/board/5711477f-032b-4b74-8266-4550a0ec1971).", FontFamily: DefaultFont},
+		{Text: "Check **owners** & *dates* with `inline code` in [the board](/board/5711477f-032b-4b74-8266-4550a0ec1971).", FontFamily: DefaultFont},
 		{Text: "1. First\n2. Second", FontFamily: DefaultFont},
 		{Text: "> Small note", FontFamily: DefaultFont},
 		{Text: fencedCode("line 1\n\nline 3"), FontFamily: "Space Mono"},
 	}
-	const origin = "https://openjam.example"
+	const origin = "https://shiori.example"
 	data, err := WriteDOCX(blocks, origin)
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestDOCXRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	markdown := string(WriteMarkdown(reopened))
-	for _, wanted := range []string{"# Launch 计划", "**owners**", "*dates*", "[the board](/board/5711477f-032b-4b74-8266-4550a0ec1971)", "1. First", "1. Second", "> Small note", "line 1\n\nline 3"} {
+	for _, wanted := range []string{"# Launch 计划", "**owners**", "*dates*", "`inline code`", "[the board](/board/5711477f-032b-4b74-8266-4550a0ec1971)", "1. First", "1. Second", "> Small note", "line 1\n\nline 3"} {
 		if !strings.Contains(markdown, wanted) {
 			t.Errorf("missing %q in %q", wanted, markdown)
 		}

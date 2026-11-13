@@ -13,6 +13,9 @@ import (
 const UserContextKey = "user"
 const SessionContextKey = "session"
 
+// SessionCookieName is shared with older servers during rolling upgrades and rollback.
+const SessionCookieName = "wb_session"
+
 func AuthRequired() gin.HandlerFunc {
 	return authenticate(model.GetSession, true)
 }
@@ -81,7 +84,7 @@ func extractToken(c *gin.Context, allowQuery bool) string {
 		}
 	}
 
-	if cookie, err := c.Cookie("wb_session"); err == nil {
+	if cookie, err := c.Cookie(SessionCookieName); err == nil {
 		return cookie
 	}
 

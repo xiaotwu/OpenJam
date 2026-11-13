@@ -38,13 +38,13 @@ func SetCookieSecurity(environment string) {
 	secureCookies = environment == "production"
 }
 
-// setSessionCookie writes the wb_session cookie with HttpOnly and SameSite=Lax
+// setSessionCookie writes the session cookie with HttpOnly and SameSite=Lax
 // always, plus Secure when serving over HTTPS in production. SameSite=Lax
 // blocks the cookie on cross-site POST (CSRF) while allowing top-level
 // navigation so shared links still open the app logged-in.
 func setSessionCookie(c *gin.Context, token string, maxAge int) {
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "wb_session",
+		Name:     middleware.SessionCookieName,
 		Value:    token,
 		Path:     "/",
 		MaxAge:   maxAge,
@@ -126,7 +126,7 @@ func Logout(c *gin.Context) {
 
 	if auth := c.GetHeader("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		token = strings.TrimPrefix(auth, "Bearer ")
-	} else if cookie, err := c.Cookie("wb_session"); err == nil {
+	} else if cookie, err := c.Cookie(middleware.SessionCookieName); err == nil {
 		token = cookie
 	}
 

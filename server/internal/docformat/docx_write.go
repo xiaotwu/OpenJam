@@ -20,6 +20,7 @@ const (
 	packageRelNS   = "http://schemas.openxmlformats.org/package/2006/relationships"
 )
 
+// Preserve the code style IDs that older importers recognize.
 var markdownForWord = goldmark.New(goldmark.WithExtensions(extension.GFM))
 
 type wordList struct {
@@ -82,7 +83,7 @@ func (output *wordWriter) writeBlock(node *html.Node, font, style string, depth 
 	case "p":
 		output.paragraph(inlineRuns(node), font, style, wordList{})
 	case "pre":
-		output.paragraph([]wordRun{{Text: strings.TrimSuffix(plainText(node), "\n")}}, font, "ShioriCode", wordList{})
+		output.paragraph([]wordRun{{Text: strings.TrimSuffix(plainText(node), "\n")}}, font, "OpenJamCode", wordList{})
 	case "blockquote":
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			output.writeBlock(child, font, "Quote", depth+1)
@@ -241,7 +242,7 @@ func (output *wordWriter) paragraph(runs []wordRun, font, style string, list wor
 		}
 		xmlOut.WriteString("<w:r><w:rPr>")
 		if run.Code {
-			xmlOut.WriteString(`<w:rStyle w:val="ShioriCodeChar"/>`)
+			xmlOut.WriteString(`<w:rStyle w:val="OpenJamCodeChar"/>`)
 		}
 		if font != "" {
 			fmt.Fprintf(xmlOut, `<w:rFonts w:ascii="%s" w:hAnsi="%s" w:cs="%s"/>`, font, font, font)
@@ -289,7 +290,7 @@ func wordStyles() string {
 	for level := 1; level <= 6; level++ {
 		fmt.Fprintf(&output, `<w:style w:type="paragraph" w:styleId="Heading%d"><w:name w:val="heading %d"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="100"/><w:outlineLvl w:val="%d"/></w:pPr><w:rPr><w:b/><w:sz w:val="%d"/></w:rPr></w:style>`, level, level, level-1, 38-2*level)
 	}
-	output.WriteString(`<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="400"/></w:pPr><w:rPr><w:i/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="ShioriCode"><w:name w:val="Code"/><w:basedOn w:val="Normal"/><w:pPr><w:shd w:val="clear" w:fill="F3F3F3"/><w:ind w:left="240" w:right="240"/></w:pPr><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/></w:rPr></w:style><w:style w:type="character" w:styleId="ShioriCodeChar"><w:name w:val="Inline Code"/><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/></w:rPr></w:style></w:styles>`)
+	output.WriteString(`<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="400"/></w:pPr><w:rPr><w:i/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="OpenJamCode"><w:name w:val="Code"/><w:basedOn w:val="Normal"/><w:pPr><w:shd w:val="clear" w:fill="F3F3F3"/><w:ind w:left="240" w:right="240"/></w:pPr><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/></w:rPr></w:style><w:style w:type="character" w:styleId="OpenJamCodeChar"><w:name w:val="Inline Code"/><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/></w:rPr></w:style></w:styles>`)
 	return output.String()
 }
 

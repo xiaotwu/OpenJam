@@ -73,13 +73,22 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 function organizationPreferenceKey(userId: string): string {
+  return `shiori-workshop-organization:${userId}`;
+}
+
+function legacyOrganizationPreferenceKey(userId: string): string {
+  return `openjam-workbench-organization-v1:${userId}`;
+}
+
+function earlierOrganizationPreferenceKey(userId: string): string {
   return `shiori-workbench-organization-v1:${userId}`;
 }
 
 function getOrganizationPreference(userId: string): string | null {
   try {
-    return sessionStorage.getItem(organizationPreferenceKey(userId))
-      ?? sessionStorage.getItem(`openjam-workbench-organization-v1:${userId}`);
+    return sessionStorage.getItem(earlierOrganizationPreferenceKey(userId))
+      ?? sessionStorage.getItem(legacyOrganizationPreferenceKey(userId))
+      ?? sessionStorage.getItem(organizationPreferenceKey(userId));
   } catch {
     return null;
   }
@@ -167,7 +176,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     if (mobileNavOpen) mobileCloseButton.current?.focus();
   }, [mobileNavOpen]);
 
-  const preferredOrganization = useMemo(() => getOrganizationPreference(user.id), [user.id]);
+  const preferredOrganization = getOrganizationPreference(user.id);
   const organizationId = params.get('organization');
   const personal = directory?.organizations.find(item => item.kind === 'personal');
   const teams = directory?.organizations.filter(item => item.kind === 'team') ?? [];
@@ -191,6 +200,9 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
     if (!activeOrganizationId || !teamMode || view !== 'recent') return;
     try {
       sessionStorage.setItem(organizationPreferenceKey(user.id), activeOrganizationId);
+      // A rolled-back client can update the same tab before the next upgrade.
+      sessionStorage.setItem(legacyOrganizationPreferenceKey(user.id), activeOrganizationId);
+      sessionStorage.removeItem(earlierOrganizationPreferenceKey(user.id));
     } catch {
       // Navigation still works when browser storage is unavailable.
     }

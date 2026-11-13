@@ -1,8 +1,9 @@
 import { useLayoutEffect, useSyncExternalStore } from 'react';
+import { adoptBrowserPreference } from './browserPreference';
 
 type Theme = 'light' | 'dark' | 'system';
-const themeKey = 'shiori-theme';
-const previousThemeKey = 'openjam-theme';
+const themeKey = 'openjam-theme';
+const earlierThemeKey = 'shiori-theme';
 const preference = window.matchMedia('(prefers-color-scheme: dark)');
 const listeners = new Set<() => void>();
 let deviceTheme: Theme | undefined;
@@ -10,7 +11,7 @@ let deviceTheme: Theme | undefined;
 function readTheme(): Theme {
   if (deviceTheme !== undefined) return deviceTheme;
   try {
-    const stored = localStorage.getItem(themeKey) ?? localStorage.getItem(previousThemeKey);
+    const stored = localStorage.getItem(earlierThemeKey) ?? localStorage.getItem(themeKey);
     if (stored === 'light' || stored === 'dark') return stored;
   } catch {
     // Use the OS setting when browser storage is unavailable.
@@ -23,7 +24,7 @@ function notify() {
 }
 
 function storageChanged(event: StorageEvent) {
-  if (event.key !== null && event.key !== themeKey && event.key !== previousThemeKey) return;
+  if (event.key !== null && event.key !== themeKey && event.key !== earlierThemeKey) return;
   deviceTheme = undefined;
   notify();
 }
@@ -31,6 +32,11 @@ function storageChanged(event: StorageEvent) {
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (listeners.size === 1) {
+    try {
+      adoptBrowserPreference(localStorage, themeKey, earlierThemeKey);
+    } catch {
+      // The current tab can still use its in-memory setting.
+    }
     preference.addEventListener('change', notify);
     window.addEventListener('storage', storageChanged);
   }
@@ -46,6 +52,7 @@ function subscribe(listener: () => void) {
 function setTheme(theme: Theme) {
   try {
     localStorage.setItem(themeKey, theme);
+    localStorage.removeItem(earlierThemeKey);
     deviceTheme = undefined;
   } catch {
     deviceTheme = theme;

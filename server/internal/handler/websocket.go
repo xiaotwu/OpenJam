@@ -41,7 +41,7 @@ var upgrader = websocket.Upgrader{
 func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
 	// Legacy clients can also use the old token query parameter.
 	token := ""
-	if cookie, err := c.Cookie("wb_session"); err == nil && cookie != "" {
+	if cookie, err := c.Cookie(middleware.SessionCookieName); err == nil && cookie != "" {
 		token = cookie
 	}
 	if token == "" {
