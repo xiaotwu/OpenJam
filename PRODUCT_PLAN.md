@@ -258,7 +258,7 @@ sequenceDiagram
 | 形态 | 交付内容 | 预期操作 |
 | --- | --- | --- |
 | Docker Compose | `compose.yaml` 和配置示例，包含 API、Go worker、PostgreSQL、Redis、对象存储与独立迁移任务。AI、Mailpit 和观测按 profile 启动。默认仅暴露 Web 入口 | 初始化、打开页面、建组织、启停 AI、按卷保留数据、原位升级、生成备份、以新实例恢复 |
-| 本地 Kubernetes | `deploy/helm/openjam`、`values-local.yaml`、kind 配置和故障演练脚本。kind 多节点验证两个 API 副本、独立 worker 和同源 Web/WS 入口。本地镜像可直接装载到节点。Gateway API 接入实际支持 WS 与 SSE 的控制器 | 渲染并校验 Helm，启动迁移 Job、部署副本、验证 WebSocket/SSE，滚动升级，替换 Pod，关闭 Redis 后继续补读，从备份恢复到新命名空间。[^kind][^gateway] |
+| 本地 Kubernetes | `deploy/helm/shiori`、`values-local.yaml`、kind 配置和故障演练脚本。kind 多节点验证两个 API 副本、独立 worker 和同源 Web/WS 入口。本地镜像可直接装载到节点。Gateway API 接入实际支持 WS 与 SSE 的控制器 | 渲染并校验 Helm，启动迁移 Job、部署副本、验证 WebSocket/SSE，滚动升级，替换 Pod，关闭 Redis 后继续补读，从备份恢复到新命名空间。[^kind][^gateway] |
 | 云端部署映射 | EKS 可换用 RDS PostgreSQL 与 S3，GKE 可换用 Cloud SQL PostgreSQL 与经同一套测试的 S3 兼容对象服务。Redis、TLS、Secret 和身份通过 Helm values 选择外部服务。需要原生 GCS 时先实现并验收该存储适配器 | 编写可迁移配置与操作说明。本地验证配置替换和应用行为，实际云 IAM、数据库扩展、负载均衡、对象签名和故障切换留待真实环境演练 |
 
 - **构建与镜像。** Pin 应用、包管理器、基础镜像和配套服务版本，维护镜像和协议版本对应表。统一前端构建进入 Go 镜像的资源路径，以全新 checkout 和多架构构建验证深链接。运行镜像使用非 root、最少权限、可写目录限于必要路径，生成 SBOM 和依赖报告。CI 构建前端、Go、可选 Python 和镜像。
