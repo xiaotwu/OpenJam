@@ -58,3 +58,21 @@
     clip-path: inset(50%);
   }
 }
+
+@media (max-width: 480px) {
+  .doc-header:has(.sync-status:not([data-state='synced'], [data-state='editing'])) {
+    flex-wrap: wrap;
+  }
+
+  .doc-header:has(.sync-status:not([data-state='synced'], [data-state='editing'])) .doc-crumb {
+    flex-basis: 0;
+  }
+
+  .doc-header .sync-status:not([data-state='synced'], [data-state='editing']) {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-end;
+    padding-inline: 4px;
+    border-color: transparent;
+  }
+}
