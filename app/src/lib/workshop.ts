@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { request } from './api';
+import { API_BASE_URL, request } from './api';
 import type { ResourceKind } from './directory';
 
 export const workshopPath = '/api/v2/workshop';
@@ -150,7 +150,7 @@ export function meetingEndpoint(id: string) {
 }
 
 export function meetingSignalURL(id: string) {
-  const url = new URL('/ws/meetings/' + encodeURIComponent(id), import.meta.env.VITE_API_URL || window.location.origin);
+  const url = new URL('/ws/meetings/' + encodeURIComponent(id), API_BASE_URL || window.location.origin);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   return url.toString();
 }

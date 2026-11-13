@@ -119,7 +119,7 @@ func TestPrivateImagesWithPostgresAndS3(t *testing.T) {
 	}
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
-		t.Fatal("OPENJAM_TEST_S3_ENDPOINT must be a loopback address with a port")
+		t.Fatal("SHIORI_TEST_S3_ENDPOINT must be a loopback address with a port")
 	}
 	ctx := documentTestDatabase(t)
 	if err := storage.InitWithBucket(endpoint, config.Env("SHIORI_TEST_S3_ACCESS_KEY"), config.Env("SHIORI_TEST_S3_SECRET_KEY"), false, config.Env("SHIORI_TEST_S3_BUCKET")); err != nil {

@@ -247,8 +247,8 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
                 Shiori
               </h3>
-              {import.meta.env.VITE_SHIORI_BUILD && <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
-                Build {import.meta.env.VITE_SHIORI_BUILD}
+              {import.meta.env.SHIORI_BUILD && <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
+                Build {import.meta.env.SHIORI_BUILD}
               </p>}
               <p className="text-sm max-w-md mx-auto mb-6" style={{ color: 'var(--text-secondary)' }}>
                 An open-source workspace for teams to collaborate on boards, documents, spreadsheets, and presentations.

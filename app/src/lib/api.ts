@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || '';
+export const API_BASE_URL = import.meta.env.SHIORI_API_URL;
 
 export interface User {
   id: string;
@@ -82,7 +82,7 @@ async function getApiError(response: Response): Promise<ApiError> {
   }
 
   const isUnavailableStatus = [500, 502, 503, 504].includes(response.status);
-  const isDevProxyRequest = API_BASE === '';
+  const isDevProxyRequest = API_BASE_URL === '';
 
   if (isDevProxyRequest && isUnavailableStatus) {
     return new ApiError(BACKEND_UNAVAILABLE_MESSAGE, response.status);
@@ -130,7 +130,7 @@ export async function requestResponse(endpoint: string, options: RequestInit = {
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE}${endpoint}`, {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
       credentials: 'include',
@@ -277,7 +277,7 @@ export async function saveBoard(roomId: string, data: BoardData, expectedUpdated
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}/api/rooms/${roomId}/save`, {
+    response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/save`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

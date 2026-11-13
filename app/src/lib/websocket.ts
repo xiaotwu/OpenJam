@@ -1,8 +1,8 @@
 import { getToken } from './api';
 
 function getWsUrl(): string {
-  if (import.meta.env.VITE_WS_URL) {
-    return import.meta.env.VITE_WS_URL;
+  if (import.meta.env.SHIORI_WS_URL) {
+    return import.meta.env.SHIORI_WS_URL;
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}/ws`;
@@ -12,10 +12,10 @@ const WS_URL = getWsUrl();
 
 // Whether the WS endpoint is cross-origin relative to the page. When same-origin
 // the browser sends the wb_session cookie automatically, so we don't need to leak
-// the token in the URL. For cross-origin (dev with VITE_WS_URL), fall back to the
+// the token in the URL. For cross-origin (dev with SHIORI_WS_URL), fall back to the
 // query token since cookies may not be sent.
 function isWsCrossOrigin(): boolean {
-  if (!import.meta.env.VITE_WS_URL) return false; // same-origin (production embed)
+  if (!import.meta.env.SHIORI_WS_URL) return false; // same-origin (production embed)
   try {
     const wsHost = new URL(WS_URL).host;
     return wsHost !== window.location.host;
@@ -130,7 +130,7 @@ class WebSocketClient {
 
       this.shouldReconnect = true;
       // Same-origin: rely on the wb_session cookie (auto-sent, not logged).
-      // Cross-origin (dev with VITE_WS_URL): fall back to query token.
+      // Cross-origin (dev with SHIORI_WS_URL): fall back to query token.
       const url = isWsCrossOrigin() ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL;
       this.ws = new WebSocket(url);
 

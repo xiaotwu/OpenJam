@@ -82,12 +82,12 @@ Organization owners can enable the assistant and choose a configured provider fr
 
 ## Frontend Configuration
 
-The frontend supports these Vite environment variables:
+The frontend reads these settings at build time.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_URL` | Backend API base URL | _(empty, uses same origin)_ |
-| `VITE_WS_URL` | WebSocket URL | _(auto-detected from page URL)_ |
-| `VITE_SHIORI_BUILD` | Optional version or source revision displayed in About. Pass `--build-arg SHIORI_BUILD=<revision>` for a Docker build. | _(empty)_ |
+| `SHIORI_API_URL` | Backend API base URL | _(empty, uses same origin)_ |
+| `SHIORI_WS_URL` | WebSocket URL | _(auto-detected from page URL)_ |
+| `SHIORI_BUILD` | Optional version or source revision displayed in About. Pass `--build-arg SHIORI_BUILD=<revision>` for a Docker build. | _(empty)_ |
 
-The API and WebSocket URL settings are only needed when running the frontend on a different origin than the backend.
+The API and WebSocket URL settings are only needed when running the frontend on a different origin than the backend. `VITE_API_URL` and `VITE_WS_URL` remain accepted when the corresponding Shiori setting is unset.

@@ -52,7 +52,7 @@ function boardTransport(boardId: string, lifecycle: AbortSignal, isCurrentAccoun
 function documentSocketUrl(): string | undefined {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   try {
-    const url = new URL(import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}/ws`);
+    const url = new URL(import.meta.env.SHIORI_WS_URL || `${protocol}//${window.location.host}/ws`);
     if (url.protocol !== protocol || url.host !== window.location.host || url.username || url.password) return;
     url.pathname = url.pathname.replace(/\/$/, '');
     if (!url.pathname.endsWith('/ws/v2')) url.pathname = `${url.pathname}/v2`;

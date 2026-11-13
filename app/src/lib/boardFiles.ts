@@ -1,4 +1,4 @@
-import { ApiError, getToken, request, requestResponse } from './api';
+import { API_BASE_URL, ApiError, getToken, request, requestResponse } from './api';
 
 export interface BoardAsset {
   id: string;
@@ -104,7 +104,7 @@ function uploadFile<T>(endpoint: string, file: File, type: string, signal: Abort
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const abort = () => xhr.abort();
-    xhr.open('POST', `${import.meta.env.VITE_API_URL || ''}${endpoint}`);
+    xhr.open('POST', `${API_BASE_URL}${endpoint}`);
     xhr.withCredentials = true;
     xhr.timeout = 90_000;
     xhr.responseType = 'json';
