@@ -50,11 +50,6 @@
   cursor: default;
 }
 
-.shiori-workshop :is(button, a, input, textarea, select, summary):focus-visible {
-  outline: 2px solid var(--workshop-accent);
-  outline-offset: 2px;
-}
-
 .workshop-button,
 .workshop-icon-button {
   display: inline-flex;
@@ -83,7 +78,7 @@
 }
 
 .workshop-icon-button:hover:not(:disabled) {
-  background: var(--workshop-hover);
+  background: var(--badge-bg);
   color: var(--workshop-text);
 }
 

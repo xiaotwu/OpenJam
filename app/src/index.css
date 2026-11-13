@@ -23,6 +23,7 @@
   --accent-hover: #6b3e5e;
   --accent-contrast: #fff;
   --focus-ring: #845574;
+  --status-error: #a0253c;
   --badge-bg: rgb(128 75 112 / 10%);
   --toast-bg: rgb(255 255 255 / 94%);
   --surface-canvas: #f8f6f9;
@@ -62,6 +63,7 @@
   --accent-hover: #e0b7d4;
   --accent-contrast: #261b25;
   --focus-ring: #dbafd0;
+  --status-error: #ff9ca9;
   --badge-bg: rgb(219 175 208 / 13%);
   --toast-bg: rgb(52 43 56 / 94%);
   --surface-canvas: #1e1922;
@@ -195,7 +197,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   color: var(--text-secondary);
   transition: background-color 140ms ease, color 140ms ease;
 }
@@ -218,14 +220,7 @@
 .board-action-button[aria-expanded='true'],
 details[open] > .board-action-button {
   color: var(--text-primary);
-  background-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
-}
-
-.board-action-button:focus-visible,
-.board-share-action:focus-visible,
-.board-account-trigger:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
+  background-color: var(--badge-bg);
 }
 
 .board-share-action,
@@ -366,6 +361,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
+summary:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;

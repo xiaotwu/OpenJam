@@ -219,15 +219,6 @@
 @media (max-width: 520px) {
   .sheet-workspace { gap: 8px; padding-top: 10px; }
   .sheet-title { padding-inline: 3px; }
-  .shiori-sheet .doc-sync[data-state='synced'] { position: relative; padding: 5px; }
-  .shiori-sheet .doc-sync[data-state='synced'] span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
   .sheet-controls { gap: 4px; }
   .sheet-address { flex-basis: 55px; }
   .sheet-formula { gap: 6px; padding-inline: 8px; }

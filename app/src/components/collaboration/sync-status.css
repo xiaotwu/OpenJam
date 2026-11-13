@@ -1,0 +1,60 @@
+.sync-status {
+  position: relative;
+  display: inline-flex;
+  min-height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding-inline: 8px;
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sync-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.sync-status[data-state='synced'] .sync-status-dot,
+.sync-status[data-state='saved'] .sync-status-dot,
+.sync-status[data-state='idle'] .sync-status-dot {
+  background: currentColor;
+}
+
+.sync-status[data-state='offline'] { border-style: dashed; }
+.sync-status[data-state='conflict'],
+.sync-status[data-state='error'],
+.sync-status[data-state='revoked'] { color: var(--status-error); }
+
+.sync-status-compact {
+  min-width: 24px;
+  padding-inline: 3px;
+  border-color: transparent;
+}
+
+.sync-status-compact .sync-status-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 520px) {
+  .sync-status { padding-inline: 5px; }
+  .sync-status:is([data-state='synced'], [data-state='saved'], [data-state='editing']) .sync-status-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}

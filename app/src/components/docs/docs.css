@@ -12,11 +12,6 @@
 
 .shiori-doc svg { flex: 0 0 auto; width: 17px; height: 17px; }
 
-.shiori-doc :is(button, a, input, select, textarea, summary):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
-}
-
 .doc-header {
   position: relative;
   z-index: 4;
@@ -57,7 +52,8 @@
   cursor: pointer;
 }
 
-.doc-icon:hover, .doc-tool:hover, .doc-icon[aria-pressed='true'], .doc-tool[aria-pressed='true'] {
+.doc-icon:hover:not(:disabled), .doc-tool:hover:not(:disabled),
+.doc-icon[aria-pressed='true'], .doc-tool[aria-pressed='true'], .doc-dropdown[open] > .doc-icon {
   background: var(--badge-bg);
   color: var(--text-primary);
 }
@@ -66,23 +62,6 @@
 .doc-top-actions { display: flex; align-items: center; gap: 2px; }
 .doc-header .shell-account { margin-left: 4px; }
 
-.doc-sync {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-inline: 2px;
-  padding: 4px 9px;
-  border: 1px solid var(--doc-line);
-  border-radius: var(--control-radius);
-  color: var(--doc-quiet);
-  font-size: 0.81rem;
-  font-weight: 570;
-  white-space: nowrap;
-}
-
-.doc-sync i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.doc-sync[data-state='conflict'], .doc-sync[data-state='error'] { color: #a0253c; }
-.dark .doc-sync[data-state='conflict'], .dark .doc-sync[data-state='error'] { color: #ff9ca9; }
 .doc-presence { display: flex; align-items: center; padding-left: 4px; }
 .doc-presence:empty { display: none; }
 
@@ -340,7 +319,6 @@
   .doc-crumb svg, .doc-presence { display: none; }
   .doc-top-actions { gap: 0; }
   .doc-header .doc-icon { width: 33px; height: 36px; }
-  .doc-sync { padding: 4px 6px; font-size: 0.74rem; }
   .doc-tools { border-radius: 24px; }
   .doc-tools-divider { display: none; }
   .doc-select { max-width: 103px; }

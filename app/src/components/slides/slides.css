@@ -342,14 +342,5 @@
   .slide-present { width: 34px; min-height: 34px; padding: 0; }
   .slide-present span { display: none; }
   .shiori-slides .doc-header .doc-icon { width: 30px; }
-  .shiori-slides .doc-sync { position: relative; padding: 5px; }
-  .shiori-slides .doc-sync span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
   .slide-align { width: 64px; }
 }

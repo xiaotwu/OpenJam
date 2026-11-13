@@ -88,5 +88,6 @@ The frontend supports these Vite environment variables:
 |----------|-------------|---------|
 | `VITE_API_URL` | Backend API base URL | _(empty, uses same origin)_ |
 | `VITE_WS_URL` | WebSocket URL | _(auto-detected from page URL)_ |
+| `VITE_SHIORI_BUILD` | Optional version or source revision displayed in About. Pass `--build-arg SHIORI_BUILD=<revision>` for a Docker build. | _(empty)_ |
 
-These are only needed when running the frontend on a different origin than the backend.
+The API and WebSocket URL settings are only needed when running the frontend on a different origin than the backend.

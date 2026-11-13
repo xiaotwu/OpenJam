@@ -75,7 +75,7 @@ export const board = {
   },
   sync: {
     idle: 'Ready', dirty: 'Unsaved changes', saving: 'Saving…', saved: 'Saved', error: 'Save failed', offline: 'Offline',
-    conflict: 'Conflict', loading: 'Opening board', 'catching-up': 'Syncing', synced: 'Synced',
+    conflict: 'Review needed', loading: 'Opening board', 'catching-up': 'Syncing…', synced: 'Saved', editing: 'Editing…',
     'saving-local': 'Saving to device', pending: 'Awaiting confirmation', revoked: 'Access lost',
   },
 };

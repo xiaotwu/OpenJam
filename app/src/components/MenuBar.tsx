@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import CollaborationPresence, { type PresenceCollaborator } from './collaboration/CollaborationPresence';
 import ConnectionStatus, { type ConnectionState } from './collaboration/ConnectionStatus';
-import SaveStatusIndicator from './collaboration/SaveStatusIndicator';
+import SyncStatus from './collaboration/SyncStatus';
 import { ProfileSettingsDialog } from './UserMenu';
 import PagesPanel, { type Page } from './PagesPanel';
 import { useI18n } from '../i18n';
@@ -32,7 +32,7 @@ interface MenuBarProps {
   onZoomReset: () => void;
   onZoomFit: () => void;
   onSave?: () => void;
-  saveStatus?: string;
+  saveStatus?: ComponentProps<typeof SyncStatus>['status'];
   saveError?: string;
   onExportPNG?: () => void;
   onExportJSON?: () => void;
@@ -336,7 +336,7 @@ export default function MenuBar(props: MenuBarProps) {
           ) : <span className="block truncate px-1.5 py-1 text-[13px] font-semibold sm:text-sm">{boardName}</span>}
         </div>
 
-        <SaveStatusIndicator compact monochrome status={saveStatus} error={saveError} pendingCount={pendingCount} />
+        <SyncStatus compact status={saveStatus} error={saveError} pendingCount={pendingCount} />
         {limitedAccess && <span className="board-access-indicator" title={limitedAccess === 'comment' ? text.canComment : text.viewOnly}
           role="img" aria-label={limitedAccess === 'comment' ? text.canComment : text.viewOnly}>
           {limitedAccess === 'comment' ? <CommentsIcon /> : <ViewMenuIcon />}

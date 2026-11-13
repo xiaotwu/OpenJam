@@ -18,6 +18,8 @@ import BoardSharingDialog from '../BoardSharingDialog';
 import BoardReviewPanel from '../collaboration/BoardReviewPanel';
 import BoardSyncNotice from '../collaboration/BoardSyncNotice';
 import BoardVersionsPanel from '../collaboration/BoardVersionsPanel';
+import SyncStatus from '../collaboration/SyncStatus';
+import { closeFileMenu } from '../docs/closeFileMenu';
 import AccountPopover from '../workshop/AccountPopover';
 import WorkshopDialog from '../workshop/WorkshopDialog';
 import WorkshopIcon from '../workshop/WorkshopIcon';
@@ -103,9 +105,6 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
   const draftNeedsReview = dirty && (!canEdit || draft.epoch !== sync.epoch || !tabs.some(candidate => candidate.id === draft.tab));
   const canWrite = canEdit && !draftNeedsReview;
   const selectedSource = Boolean(requestedCell && tab?.id === requestedTab && address === requestedCell.toUpperCase());
-  const status = sync.status === 'synced' ? 'Saved' : sync.status === 'offline' ? 'Offline'
-    : sync.status === 'conflict' ? 'Review Needed'
-      : sync.status === 'error' ? 'Unavailable' : 'Syncing…';
 
   const updateDraft = useCallback((value: Draft | undefined) => {
     draftRef.current = value;
@@ -338,8 +337,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
           : <span>{title}</span>}
       </div>
       {canShow && <>
-        <span className="doc-sync" role="status" data-state={dirty ? 'editing' : sync.status}
-          title={dirty ? 'Editing…' : status}><i /><span>{dirty ? 'Editing…' : status}</span></span>
+        <SyncStatus status={sync.status} editing={dirty} pendingCount={sync.pendingCount} />
         <div className="doc-presence" aria-label="Collaborators">
           {sync.collaborators.slice(0, 4).map(person => <span className="doc-avatar" key={person.id}
             title={person.displayName} aria-label={person.displayName} role="img" style={{ backgroundColor: person.avatarColor }}>
@@ -352,7 +350,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
             onClick={() => setPanel(panel === 'comments' ? null : 'comments')}><WorkshopIcon name="message" /></button>
           <button type="button" className="doc-icon" aria-label="Spreadsheet History" title="History" aria-pressed={panel === 'history'}
             onClick={() => setPanel(panel === 'history' ? null : 'history')}><WorkshopIcon name="recent" /></button>
-          <details className="doc-dropdown" ref={exportMenu}>
+          <details className="doc-dropdown" ref={exportMenu} onKeyDown={closeFileMenu}>
             <summary className="doc-icon" aria-label="Export Spreadsheet" title="Export"><WorkshopIcon name="download" /></summary>
             <div className="doc-menu">
               <button type="button" disabled={!readyToExport} onClick={() => void exportFile('xlsx')}>Excel (.xlsx)</button>

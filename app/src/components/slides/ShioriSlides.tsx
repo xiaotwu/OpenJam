@@ -19,6 +19,8 @@ import ImageUploadDialog, { type ImageUploadResult } from '../ImageUploadDialog'
 import BoardReviewPanel from '../collaboration/BoardReviewPanel';
 import BoardSyncNotice from '../collaboration/BoardSyncNotice';
 import BoardVersionsPanel from '../collaboration/BoardVersionsPanel';
+import SyncStatus from '../collaboration/SyncStatus';
+import { closeFileMenu } from '../docs/closeFileMenu';
 import AccountPopover from '../workshop/AccountPopover';
 import WorkshopDialog from '../workshop/WorkshopDialog';
 import WorkshopIcon, { type WorkshopIconName } from '../workshop/WorkshopIcon';
@@ -437,8 +439,6 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
 
   if (sync.resourceKind && sync.resourceKind !== 'slides') return <Navigate replace to={resourcePath(sync.resourceKind, presentationId) + location.search} />;
   const title = canShow ? documentState?.name ?? 'Presentation' : 'Presentation';
-  const status = sync.status === 'synced' ? 'Saved' : sync.status === 'offline' ? 'Offline'
-    : sync.status === 'conflict' ? 'Review Needed' : sync.status === 'error' ? 'Unavailable' : 'Syncing…';
   const playbackOpen = canShow && playback;
   const fileActions: { label: string; icon: WorkshopIconName; run: () => void; active?: boolean; disabled?: boolean }[] = [
     { label: 'Comments', icon: 'message', run: () => setPanel(panel === 'comments' ? null : 'comments'), active: panel === 'comments' },
@@ -463,9 +463,7 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
             onClick={event => setRename(event.currentTarget)}>{title}</button> : <span>{title}</span>}
         </div>
         {canShow && <>
-          <span className="doc-sync" role="status" data-state={dirty ? 'editing' : sync.status} title={dirty ? 'Editing…' : status}>
-            <i /><span>{dirty ? 'Editing…' : status}</span>
-          </span>
+          <SyncStatus status={sync.status} editing={dirty} pendingCount={sync.pendingCount} />
           <div className="doc-presence" aria-label="Collaborators">
             {sync.collaborators.slice(0, 4).map(person => <span className="doc-avatar" key={person.id} role="img"
               aria-label={person.displayName} title={person.displayName} style={{ backgroundColor: person.avatarColor }}>
@@ -479,11 +477,7 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
               <WorkshopIcon name={action.icon} />
             </button>)}
           </div>
-          <details className="doc-dropdown slide-compact-actions" onKeyDown={event => {
-            if (event.key !== 'Escape' || !event.currentTarget.open) return;
-            event.currentTarget.open = false;
-            event.currentTarget.querySelector('summary')?.focus();
-          }}>
+          <details className="doc-dropdown slide-compact-actions" onKeyDown={closeFileMenu}>
             <summary className="doc-icon" aria-label="Presentation Actions" title="Presentation Actions"><WorkshopIcon name="more" /></summary>
             <div className="doc-menu">
               {fileActions.map(action => <button type="button" key={action.label} disabled={action.disabled} onClick={event => {

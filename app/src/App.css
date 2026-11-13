@@ -35,12 +35,6 @@
   background: #9ca3af;
 }
 
-/* Button focus styles */
-button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -251,7 +245,7 @@ input[type="color"]::-webkit-color-swatch {
 .shell-pill:focus-visible,
 .shell-icon-button:focus-visible,
 .shell-popover :is(button, input):focus-visible {
-  outline: 2px solid var(--text-primary);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 

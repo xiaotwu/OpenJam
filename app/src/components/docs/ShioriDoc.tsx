@@ -14,7 +14,9 @@ import BoardSharingDialog from '../BoardSharingDialog';
 import BoardReviewPanel from '../collaboration/BoardReviewPanel';
 import BoardSyncNotice from '../collaboration/BoardSyncNotice';
 import BoardVersionsPanel from '../collaboration/BoardVersionsPanel';
+import SyncStatus from '../collaboration/SyncStatus';
 import DocMarkup from './DocMarkup';
+import { closeFileMenu } from './closeFileMenu';
 import './docs.css';
 
 const emptyPages: BoardDocument['pages'] = [];
@@ -155,10 +157,6 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
     (!canEdit || draft.epoch !== epoch || !blocks.some(block => block.id === draft.id)));
   const canWrite = canEdit && !draftNeedsReview;
   const contentReady = sync.status === 'synced' && !draft && !exporting;
-  const status = sync.status === 'synced' ? 'Saved'
-    : sync.status === 'offline' ? 'Offline'
-      : sync.status === 'conflict' ? 'Review Needed'
-        : sync.status === 'error' || sync.status === 'revoked' ? 'Unavailable' : 'Syncing…';
 
   const clearDraft = useCallback(() => {
     draftRef.current = undefined;
@@ -329,9 +327,7 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
       }}><WorkshopIcon name="back" /></Link>
       <span className="doc-crumb"><WorkshopIcon name="document" /><span>{canShow ? documentState?.name : 'Document'}</span></span>
       {canShow && <>
-        <span className="doc-sync" role="status" data-state={sync.status}>
-          <i />{draft ? 'Editing…' : status}
-        </span>
+        <SyncStatus status={sync.status} editing={!!draft} pendingCount={sync.pendingCount} />
         <div className="doc-presence" aria-label="Collaborators">
           {sync.collaborators.slice(0, 4).map(person => <span className="doc-avatar" key={person.id} title={person.displayName}
             aria-label={person.displayName} role="img" style={{ backgroundColor: person.avatarColor }}>{person.displayName.slice(0, 1).toUpperCase()}</span>)}
@@ -342,7 +338,7 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
             onClick={() => setPanel(current => current === 'comments' ? null : 'comments')}><WorkshopIcon name="message" /></button>
           <button type="button" className="doc-icon" aria-label="Document History" title="History" aria-pressed={panel === 'history'}
             onClick={() => { void flush(); setPanel(current => current === 'history' ? null : 'history'); }}><WorkshopIcon name="recent" /></button>
-          <details className="doc-dropdown" ref={exportMenu}>
+          <details className="doc-dropdown" ref={exportMenu} onKeyDown={closeFileMenu}>
             <summary className="doc-icon" aria-label="Export Document" title="Export"><WorkshopIcon name="download" /></summary>
             <div className="doc-menu">
               <button type="button" disabled={!contentReady} onClick={() => void exportFile('md')}>Markdown</button>
