@@ -1,6 +1,6 @@
 # Docker Deployment
 
-The OpenJam image embeds the frontend in a non-root Go runtime. Docker Compose runs database migrations before starting the application. The default stack runs PostgreSQL, Redis, SeaweedFS and a background worker. The AI service is optional.
+The Shiori image embeds the frontend in a non-root Go runtime. Docker Compose runs database migrations before starting the application. The default stack runs PostgreSQL, Redis, SeaweedFS and a background worker. The AI service is optional.
 
 ## Local Deployment
 
@@ -8,11 +8,11 @@ The OpenJam image embeds the frontend in a non-root Go runtime. Docker Compose r
 docker compose up --build --wait
 ```
 
-Open [localhost:8080](http://localhost:8080). Set `OPENJAM_PUBLISH_PORT` to run on a different local port. Compose uses the current project name for its network, containers, volumes and default image tag. To run a prebuilt local image, set `OPENJAM_IMAGE` to its tag and use `docker compose up --no-build --wait`.
+Open [localhost:8080](http://localhost:8080). Set `SHIORI_PUBLISH_PORT` to run on a different local port. Compose uses the current project name for its network, containers, volumes and default image tag. To run a prebuilt local image, set `SHIORI_IMAGE` to its tag and use `docker compose up --no-build --wait`.
 
 Use the [Meetings overlay](./meetings.md#enable-media) to add the private audio, video, and screen-sharing service.
 
-For a pilot deployment, copy `.env.example` to a protected environment file and replace the sample credentials. Use a fixed Compose project name and record the exact application image. For an HTTPS deployment, put a reverse proxy in front of OpenJam, configure it to forward WebSocket traffic, set `ENVIRONMENT=production`, and set `CORS_ORIGINS` to the HTTPS origin. Set PostgreSQL credentials with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. When credentials contain URI delimiters or PostgreSQL is external, provide a `DATABASE_URL` with properly encoded credentials.
+For a pilot deployment, copy `.env.example` to a protected environment file and replace the sample credentials. Use a fixed Compose project name and record the exact application image. For an HTTPS deployment, put a reverse proxy in front of Shiori, configure it to forward WebSocket traffic, set `ENVIRONMENT=production`, and set `CORS_ORIGINS` to the HTTPS origin. Set PostgreSQL credentials with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. When credentials contain URI delimiters or PostgreSQL is external, provide a `DATABASE_URL` with properly encoded credentials.
 
 ## Services
 
@@ -47,13 +47,13 @@ The profile publishes the object API and console on loopback ports 9000 and 9001
 
 ## Board assistant
 
-Set `OPENJAM_AGENT_URL=http://agent:8091`, provide a shared `OPENJAM_AGENT_TOKEN`, and configure the allowed provider and model in the environment. Start Compose with `--profile ai`. The provider service is reachable within the Compose network. The assistant starts disabled for each organization.
+Set `SHIORI_AGENT_URL=http://agent:8091`, provide a shared `SHIORI_AGENT_TOKEN`, and configure the allowed provider and model in the environment. Start Compose with `--profile ai`. The provider service is reachable within the Compose network. The assistant starts disabled for each organization.
 
 ```bash
 docker compose --profile ai up --build --wait
 ```
 
-For local validation set `OPENJAM_AGENT_MOCK=true` and select the test model in the board assistant settings. For Ollama, start a local server with the configured model available. Docker Desktop can reach it using `OPENJAM_OLLAMA_URL=http://host.docker.internal:11434`.
+For local validation set `SHIORI_AGENT_MOCK=true` and select the test model in the board assistant settings. For Ollama, start a local server with the configured model available. Docker Desktop can reach it using `SHIORI_OLLAMA_URL=http://host.docker.internal:11434`.
 
 The worker persists claims, leases, retry deadlines, and results in PostgreSQL. File tasks and the assistant use separate polling loops. Job payloads and artifacts expire after 24 hours by default, with stored-byte limits of 512 MiB per deployment and 96 MiB per actor. Private board images are accessed through the application with current board permissions. Board ZIPs carry authorized private images, and PNG exports and workbench thumbnails use the selected light or dark theme.
 

@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
 )
 
 const maxVersionRequestBytes = 16 * 1024

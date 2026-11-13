@@ -4,23 +4,23 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
-	"github.com/project-wb/server/internal/agent"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/boardfiles"
-	"github.com/project-wb/server/internal/jobs"
-	"github.com/project-wb/server/internal/storage"
+	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/boardfiles"
+	"github.com/xiaotwu/shiori/server/internal/config"
+	"github.com/xiaotwu/shiori/server/internal/jobs"
+	"github.com/xiaotwu/shiori/server/internal/storage"
 )
 
 func runWorker(ctx context.Context, agentConfig agent.Config) error {
 	lease := 30 * time.Second
-	if raw := os.Getenv("OPENJAM_JOB_LEASE_SECONDS"); raw != "" {
+	if raw := config.Env("SHIORI_JOB_LEASE_SECONDS"); raw != "" {
 		seconds, err := strconv.Atoi(raw)
 		if err != nil || seconds < 2 || seconds > 300 {
-			return fmt.Errorf("OPENJAM_JOB_LEASE_SECONDS must be between 2 and 300")
+			return fmt.Errorf("SHIORI_JOB_LEASE_SECONDS must be between 2 and 300")
 		}
 		lease = time.Duration(seconds) * time.Second
 	}
@@ -34,7 +34,7 @@ func runWorker(ctx context.Context, agentConfig agent.Config) error {
 			defer ticker.Stop()
 			for {
 				if _, err := assets.Sweep(sweepCtx, 25); err != nil && sweepCtx.Err() == nil {
-					log.Print("OpenJam asset cleanup deferred")
+					log.Print("Shiori asset cleanup deferred")
 				}
 				select {
 				case <-sweepCtx.Done():
@@ -44,7 +44,7 @@ func runWorker(ctx context.Context, agentConfig agent.Config) error {
 			}
 		}()
 	}
-	log.Print("OpenJam worker is polling the durable job queue")
+	log.Print("Shiori worker is polling the durable job queue")
 	work, cancel := context.WithCancel(ctx)
 	defer cancel()
 	results := make(chan error, 2)

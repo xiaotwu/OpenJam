@@ -96,7 +96,7 @@ func inspectImageConfig(data []byte, contentType string) (image.Config, string, 
 }
 
 // Animation frames can multiply the decoded memory required for an image.
-// OpenJam accepts one raster frame per upload.
+// Shiori accepts one raster frame per upload.
 func staticPNG(data []byte) bool {
 	for offset := 8; offset+12 <= len(data); {
 		length := int64(binary.BigEndian.Uint32(data[offset : offset+4]))

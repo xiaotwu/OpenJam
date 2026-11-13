@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 func TestRateLimiter_AllowsBurstThenBlocks(t *testing.T) {

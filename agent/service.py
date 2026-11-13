@@ -1,4 +1,4 @@
-"""Internal OpenJam provider service."""
+"""Internal Shiori provider service."""
 
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -63,7 +63,7 @@ class AgentServer(ThreadingHTTPServer):
 
 class AgentHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = "OpenJam-Agent"
+    server_version = "Shiori-Agent"
     sys_version = ""
 
     def log_message(self, *_):
@@ -146,7 +146,7 @@ def main():
     try:
         config = Config.from_env()
     except ValueError as exc:
-        print(f"OpenJam model service configuration error. {exc}", file=sys.stderr)
+        print(f"Shiori model service configuration error. {exc}", file=sys.stderr)
         return 1
     with AgentServer(("0.0.0.0", config.port), config) as server:
         server.serve_forever()

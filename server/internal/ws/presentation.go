@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 type presentedView struct {

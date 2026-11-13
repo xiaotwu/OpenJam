@@ -8,6 +8,6 @@ USER 10001:10001
 EXPOSE 8091
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-  CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('OPENJAM_AGENT_PORT', '8091') + '/healthz', timeout=2).close()"]
+  CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('SHIORI_AGENT_PORT', os.getenv('OPENJAM_AGENT_PORT', '8091')) + '/healthz', timeout=2).close()"]
 
 ENTRYPOINT ["python", "service.py"]

@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/ws"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/ws"
 )
 
 // allowedOrigins is set by InitWebSocket from the config's CorsOrigins.
@@ -109,7 +109,7 @@ func upgradeWebSocket(hub *ws.Hub, c *gin.Context, socketUpgrader websocket.Upgr
 		client.UseDocumentProtocol(documentToken)
 	}
 	if !hub.Register(client) {
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseServiceRestart, "OpenJam is restarting"), time.Now().Add(time.Second))
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseServiceRestart, "Shiori is restarting"), time.Now().Add(time.Second))
 		_ = conn.Close()
 		return
 	}

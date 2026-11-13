@@ -2,14 +2,14 @@
 
 ## General
 
-### Is OpenJam free?
-Yes. OpenJam is open-source and licensed under the MIT License.
+### Is Shiori free?
+Yes. Shiori is open-source and licensed under the MIT License.
 
 ### Can I use it commercially?
 Yes. The MIT license allows commercial use.
 
 ### What browsers are supported?
-OpenJam works in modern browsers: Chrome, Firefox, Safari, Edge. WebSocket support is required.
+Shiori works in modern browsers: Chrome, Firefox, Safari, Edge. WebSocket support is required.
 
 ## Deployment
 

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import openjam_offsite as offsite
+import shiori_offsite as offsite
 
 
 NOW = datetime(2026, 6, 15, 16, tzinfo=timezone.utc)  # Monday

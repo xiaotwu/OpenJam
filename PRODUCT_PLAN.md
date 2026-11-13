@@ -1,4 +1,4 @@
-# OpenJam 自托管产品化实施计划
+# Shiori 自托管产品化实施计划
 
 2026-11-10 · 依据本地 `main` 的 `0107faa` 和当前工作树
 
@@ -33,11 +33,11 @@
 | 区域 | 当前可复用的东西与代码证据 | 本轮改造 |
 | --- | --- | --- |
 | 工作台 | [App.tsx](app/src/App.tsx#L39) 有登录、`/workplace`、画板和旧链接跳转。[WorkspaceDashboard.tsx](app/src/components/WorkspaceDashboard.tsx#L33) 把工作区分类和画板归组放在浏览器存储 | 组织、工作区、项目成为服务端实体。个人折叠状态继续做偏好，实际归属从 API 读取 |
-| 编辑器 | [OpenJamCanvas.tsx](app/src/components/OpenJamCanvas.tsx#L1609) 用 DOM/SVG 与变换层渲染，已有选区、属性、工具、快捷键和组件。当前排序遍历所有对象，[元素基类](app/src/lib/elements.ts#L54) 无 `pageId`，[usePages.ts](app/src/components/canvas/hooks/usePages.ts#L23) 只改变页面列表与当前页 | 真实页面和区块、视口裁剪、可复用命令、按对象订阅。把客户端当前页从共享文档移到个人视图状态 |
+| 编辑器 | [ShioriCanvas.tsx](app/src/components/ShioriCanvas.tsx#L1609) 用 DOM/SVG 与变换层渲染，已有选区、属性、工具、快捷键和组件。当前排序遍历所有对象，[元素基类](app/src/lib/elements.ts#L54) 无 `pageId`，[usePages.ts](app/src/components/canvas/hooks/usePages.ts#L23) 只改变页面列表与当前页 | 真实页面和区块、视口裁剪、可复用命令、按对象订阅。把客户端当前页从共享文档移到个人视图状态 |
 | 分享与评审 | [ShareDialog.tsx](app/src/components/ShareDialog.tsx#L124) 已有邀请、链接角色和成员列表。[room.go](server/internal/model/room.go#L196) 决定 owner、成员和链接访问。[main.go](server/main.go#L99) 的路由覆盖这些操作。当前工作树删除了版本面板，评论角色已有枚举和访问门槛 | 做有效权限展示、邀请接受/过期/撤回、评论线程与版本服务。通过 API 返回能力，所有写入走后端鉴权 |
-| 实时保存 | [useCollaboration.ts](app/src/lib/useCollaboration.ts#L88) 已接收 WS 历史，[useAutoSave.ts](app/src/components/canvas/hooks/useAutoSave.ts#L74) 仍独立保存整板。[OpenJamCanvas.tsx](app/src/components/OpenJamCanvas.tsx#L277) 的冲突回调载入远端状态。[client.go](server/internal/ws/client.go#L292) 持久化操作出错后仍走广播 | 一条可恢复的提交路径。按服务端序号追赶，收到数据库提交确认才显示已同步。替换 HTTP 与 WS 各自写入的模式 |
+| 实时保存 | [useCollaboration.ts](app/src/lib/useCollaboration.ts#L88) 已接收 WS 历史，[useAutoSave.ts](app/src/components/canvas/hooks/useAutoSave.ts#L74) 仍独立保存整板。[ShioriCanvas.tsx](app/src/components/ShioriCanvas.tsx#L277) 的冲突回调载入远端状态。[client.go](server/internal/ws/client.go#L292) 持久化操作出错后仍走广播 | 一条可恢复的提交路径。按服务端序号追赶，收到数据库提交确认才显示已同步。替换 HTTP 与 WS 各自写入的模式 |
 | 多实例和离线 | [hub.go](server/internal/ws/hub.go#L119) 通过 Redis 转发，慢连接可能丢消息或被移除。[websocket.ts](app/src/lib/websocket.ts#L137) 重连时先发送内存待发消息，再重入房间，协作层会跳过断线时的操作和同一账号发来的更新 | 连接身份细化到设备与标签页。IndexedDB 持久保存待发命令，恢复会话后重放。Redis 转发丢失由 PostgreSQL 补齐 |
-| 文件与导出 | [OpenJamCanvas.tsx](app/src/components/OpenJamCanvas.tsx#L637) 的客户端 PNG 把多种对象画成矩形，JSON 缺少页面。[export.go](server/internal/handler/export.go#L101) 的后端 JSON 从操作表生成。图片上传有 Data URL 路径。文件信息用示例时间和大小 | 同一版本生成 PNG 和可重导入的项目包，资源按引用管理。文件信息展示真实创建人、修改时间和版本 |
+| 文件与导出 | [ShioriCanvas.tsx](app/src/components/ShioriCanvas.tsx#L637) 的客户端 PNG 把多种对象画成矩形，JSON 缺少页面。[export.go](server/internal/handler/export.go#L101) 的后端 JSON 从操作表生成。图片上传有 Data URL 路径。文件信息用示例时间和大小 | 同一版本生成 PNG 和可重导入的项目包，资源按引用管理。文件信息展示真实创建人、修改时间和版本 |
 | 发布与维护 | [Dockerfile](Dockerfile) 分开编译和拷贝前端，Go 静态资源有 embed 与磁盘回退两种路径。[docker-compose.yml](docker-compose.yml) 使用固定容器名、示例凭据和 `minio:latest`。[main.go](server/main.go#L26) 在进程启动时迁移，现有 GitHub Actions 为文档发布 | 可复现的应用镜像、独立迁移任务、Compose 与 Helm、应用 CI、健康探针、优雅退出和运维控制台 |
 
 **界面读屏。** 用当前源码和合成 API 数据在 1280 × 720 浏览了登录、工作台、编辑器与分享对话框。工作台重复显示分类，每张卡片同时铺开打开、重命名、删除和移动。编辑器网格占据过多视觉注意力，分享弹窗用了缺少定义的 `--surface-panel`，底下的文字和网格穿透弹窗。该预览用于界面设计取样，真实鉴权、多人同步、备份及部署属于实现后的验收。
@@ -48,7 +48,7 @@
 
 ### Figma 与 FigJam 的参考点
 
-FigJam 适合对照白板工具、区块定位、跟随演示、评论和基于自然语言的白板生成。Figma Design 的图层与右侧属性面板用于对照复杂对象编辑，命名版本和管理员活动日志用于对照历史与治理。OpenJam 的差异化设计是部署状态直接可见、模型运行范围明确、AI 草案与正式画板提交之间有清晰交互。[^figjam][^figma-inspector][^figma-follow][^figma-version][^figma-ai][^figma-audit]
+FigJam 适合对照白板工具、区块定位、跟随演示、评论和基于自然语言的白板生成。Figma Design 的图层与右侧属性面板用于对照复杂对象编辑，命名版本和管理员活动日志用于对照历史与治理。Shiori 的差异化设计是部署状态直接可见、模型运行范围明确、AI 草案与正式画板提交之间有清晰交互。[^figjam][^figma-inspector][^figma-follow][^figma-version][^figma-ai][^figma-audit]
 
 ### 页面与面板
 
@@ -96,7 +96,7 @@ FigJam 适合对照白板工具、区块定位、跟随演示、评论和基于�
 
 ```mermaid
 flowchart LR
-    accTitle: OpenJam service architecture
+    accTitle: Shiori service architecture
     accDescr: Browsers connect to replicated APIs. PostgreSQL stores committed state and work while Redis speeds up notifications.
     browser["Web 编辑器与管理面板"] --> gateway["同源 HTTP 和 WS 入口"]
     gateway --> api["Go API 副本"]

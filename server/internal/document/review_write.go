@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 type ReviewDraft struct {

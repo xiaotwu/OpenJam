@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/project-wb/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/assets"
 )
 
 type dimensions struct {

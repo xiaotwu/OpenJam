@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/docformat"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/docformat"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 func TestDocsCluster(t *testing.T) {
 	if os.Getenv("OPENJAM_CLUSTER_DOCS") != "1" {
-		t.Skip("requires two isolated local OpenJam API replicas")
+		t.Skip("requires two isolated local Shiori API replicas")
 	}
 	a, b, dsn := os.Getenv("OPENJAM_CLUSTER_PRIMARY"), os.Getenv("OPENJAM_CLUSTER_SECONDARY"), os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
 	requireLocalCluster(t, a, b, dsn)

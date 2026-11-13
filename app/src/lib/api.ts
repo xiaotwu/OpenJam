@@ -43,7 +43,7 @@ export interface AuthResponse {
 
 export const TOKEN_KEY = 'wb_token';
 const DEV_API_URL = 'http://localhost:8080';
-const BACKEND_UNAVAILABLE_MESSAGE = `OpenJam API is unavailable. Start the Go backend on ${DEV_API_URL} and try again.`;
+const BACKEND_UNAVAILABLE_MESSAGE = `Shiori API is unavailable. Start the Go backend on ${DEV_API_URL} and try again.`;
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);

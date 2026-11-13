@@ -283,9 +283,9 @@ func themeXML() string {
 	}
 	fill := `<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>`
 	font := `<a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/>`
-	return `<a:theme xmlns:a="` + drawingNS + `" name="OpenJam"><a:themeElements><a:clrScheme name="OpenJam">` +
-		colors.String() + `</a:clrScheme><a:fontScheme name="OpenJam"><a:majorFont>` + font +
-		`</a:majorFont><a:minorFont>` + font + `</a:minorFont></a:fontScheme><a:fmtScheme name="OpenJam"><a:fillStyleLst>` +
+	return `<a:theme xmlns:a="` + drawingNS + `" name="Shiori"><a:themeElements><a:clrScheme name="Shiori">` +
+		colors.String() + `</a:clrScheme><a:fontScheme name="Shiori"><a:majorFont>` + font +
+		`</a:majorFont><a:minorFont>` + font + `</a:minorFont></a:fontScheme><a:fmtScheme name="Shiori"><a:fillStyleLst>` +
 		strings.Repeat(fill, 3) + `</a:fillStyleLst><a:lnStyleLst>` +
 		strings.Repeat(`<a:ln w="12700">`+fill+`<a:prstDash val="solid"/></a:ln>`, 3) +
 		`</a:lnStyleLst><a:effectStyleLst>` + strings.Repeat(`<a:effectStyle><a:effectLst/></a:effectStyle>`, 3) +

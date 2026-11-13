@@ -1,4 +1,4 @@
-.openjam-meeting {
+.shiori-meeting {
   --meeting-line: var(--glass-border-strong);
   --meeting-muted: var(--text-secondary);
   --meeting-danger: #9c2941;
@@ -13,14 +13,14 @@
   color-scheme: light;
 }
 
-.dark .openjam-meeting {
+.dark .shiori-meeting {
   --meeting-danger: #ffb6c0;
   color-scheme: dark;
 }
 
-.openjam-meeting svg { flex: none; width: 18px; height: 18px; }
+.shiori-meeting svg { flex: none; width: 18px; height: 18px; }
 
-.openjam-meeting :is(button, a, input):focus-visible {
+.shiori-meeting :is(button, a, input):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -138,7 +138,7 @@
 .meeting-lobby-card p { color: var(--meeting-muted); }
 .meeting-lobby-card .meeting-button { min-height: 42px; margin-top: 10px; padding-inline: 16px; }
 .meeting-device-note { font-size: 0.84rem; }
-.openjam-meeting .meeting-error { color: var(--meeting-danger); }
+.shiori-meeting .meeting-error { color: var(--meeting-danger); }
 
 .meeting-call {
   display: flex;

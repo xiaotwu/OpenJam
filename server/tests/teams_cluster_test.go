@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/jobs"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/jobs"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 func TestTeamsCluster(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/document"
 )
 
 type Proposal struct {

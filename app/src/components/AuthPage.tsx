@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useI18n } from '../i18n';
+import ShioriMark from './ShioriMark';
 
 interface AuthPageProps {
   onSuccess?: () => void;
@@ -44,9 +45,9 @@ export default function AuthPage({ onSuccess, initialMode = 'login', variant = '
     <div className="shell-auth-form">
       <div className="shell-auth-brand">
         {variant === 'page' ? (
-          <Link to="/" aria-label={text.home}><img src="/icons/openjam.png" alt="" width="34" height="34" /></Link>
-        ) : <img src="/icons/openjam.png" alt="" width="34" height="34" />}
-        <strong>OpenJam</strong>
+          <Link to="/" aria-label={text.home}><ShioriMark size={34} /></Link>
+        ) : <ShioriMark size={34} />}
+        <strong>Shiori</strong>
       </div>
       <div className="shell-auth-modes" role="group" aria-label={mode === 'login' ? text.signIn : text.createAccount}>
         <button type="button" aria-pressed={mode === 'login'} onClick={() => setMode('login')}>{text.signIn}</button>

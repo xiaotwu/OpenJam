@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 const (
@@ -411,6 +411,6 @@ func (c *Client) sendError(message string) {
 func (c *Client) sendUpgradeRequired() {
 	c.sendMessage(MsgTypeError, map[string]string{
 		"code":    "PROTOCOL_UPGRADE_REQUIRED",
-		"message": "This board uses persistent sync. Reload OpenJam to edit it.",
+		"message": "This board uses persistent sync. Reload Shiori to edit it.",
 	})
 }

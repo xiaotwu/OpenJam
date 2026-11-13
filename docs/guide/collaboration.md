@@ -1,6 +1,6 @@
 # Real-Time Collaboration
 
-OpenJam uses WebSocket connections with an operation-log and last-writer-wins conflict resolution for real-time multi-user collaboration.
+Shiori uses WebSocket connections with an operation-log and last-writer-wins conflict resolution for real-time multi-user collaboration.
 
 ## How It Works
 

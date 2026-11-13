@@ -9,9 +9,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
-	"github.com/project-wb/server/internal/agent"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
 )
 
 func documentBoardRoutes(api *gin.RouterGroup) *gin.RouterGroup {
@@ -132,6 +132,6 @@ func rejectLegacyWrite(c *gin.Context, err error) bool {
 func writeLegacyUpgrade(c *gin.Context) {
 	c.JSON(http.StatusConflict, gin.H{
 		"code":  "PROTOCOL_UPGRADE_REQUIRED",
-		"error": "This board uses persistent sync. Reload OpenJam to edit it.",
+		"error": "This board uses persistent sync. Reload Shiori to edit it.",
 	})
 }

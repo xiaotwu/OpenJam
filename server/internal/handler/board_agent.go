@@ -13,9 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/agent"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 type agentRoutes struct {

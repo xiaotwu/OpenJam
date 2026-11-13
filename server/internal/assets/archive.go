@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/project-wb/server/internal/storage"
+	"github.com/xiaotwu/shiori/server/internal/storage"
 )
 
 // ReadRegistered opens bytes whose ready metadata and source association were

@@ -1,8 +1,8 @@
 {
-  "name": "openjam",
+  "name": "shiori",
   "private": true,
   "version": "1.0.0",
-  "description": "OpenJam - Collaborative Whiteboard for Teams",
+  "description": "Shiori is a self-hosted team workspace.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -80,7 +80,7 @@ function boxAfterDrag(drag: Gesture, page: SlidePage, dx: number, dy: number): S
   return { x: item.x, y: item.y, width, height, rotation: item.rotation };
 }
 
-export default function OpenJamSlides({ presentationId, user }: { presentationId: string; user: User }) {
+export default function ShioriSlides({ presentationId, user }: { presentationId: string; user: User }) {
   const { theme, setTheme } = useTheme();
   const { logout } = useAuth();
   const location = useLocation();
@@ -447,7 +447,7 @@ export default function OpenJamSlides({ presentationId, user }: { presentationId
     { label: 'Share Presentation', icon: 'shared', run: () => setPanel('share') },
   ];
 
-  return <main ref={root} className="openjam-doc openjam-slides" aria-label="Presentation Editor">
+  return <main ref={root} className="shiori-doc shiori-slides" aria-label="Presentation Editor">
     {playbackOpen ? <SlidePlayback page={playback} items={layers.get(playback.id) ?? emptyItems} images={images}
       index={playbackIndex} count={pages.length} onGo={goPlayback} onExit={() => endPlayback()} /> : <>
       <header className="doc-header">

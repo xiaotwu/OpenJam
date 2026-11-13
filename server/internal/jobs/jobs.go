@@ -1,4 +1,4 @@
-// Package jobs owns the durable work queue shared by OpenJam API and worker processes.
+// Package jobs owns the durable work queue shared by Shiori API and worker processes.
 package jobs
 
 import (

@@ -17,15 +17,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 func TestDirectoryWithPostgres(t *testing.T) {
 	ctx := directoryTestDatabase(t)
 
-	// Populate the versionless schema a previous OpenJam build would leave behind.
+	// Populate the versionless schema a previous Shiori build would leave behind.
 	legacySQL, err := os.ReadFile("../db/migrations/001_legacy.sql")
 	if err != nil {
 		t.Fatal(err)

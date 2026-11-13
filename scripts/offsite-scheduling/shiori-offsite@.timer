@@ -1,5 +1,5 @@
 [Unit]
-Description=Check OpenJam offsite %i schedule
+Description=Check Shiori offsite %i schedule
 
 [Timer]
 OnBootSec=30s

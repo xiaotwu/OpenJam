@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/storage"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/storage"
 )
 
 // AuditStoredImages reads each registered image linked from a file or a

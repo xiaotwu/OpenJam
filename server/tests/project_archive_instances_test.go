@@ -20,15 +20,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/slideformat"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/slideformat"
 )
 
 func TestProjectArchiveIndependentInstances(t *testing.T) {
 	if os.Getenv("OPENJAM_PROJECT_ARCHIVE_TEST") != "1" {
-		t.Skip("requires two disposable OpenJam instances with independent stores")
+		t.Skip("requires two disposable Shiori instances with independent stores")
 	}
 	a, b := os.Getenv("OPENJAM_ARCHIVE_A"), os.Getenv("OPENJAM_ARCHIVE_B")
 	checkArchiveTestInstances(t, a, b)

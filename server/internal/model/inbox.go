@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/db"
 )
 
 var (

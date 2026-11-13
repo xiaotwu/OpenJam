@@ -1,5 +1,5 @@
 // Canvas
-export { default as OpenJamCanvas } from './OpenJamCanvas';
+export { default as ShioriCanvas } from './ShioriCanvas';
 
 // UI Components
 export { default as MenuBar } from './MenuBar';

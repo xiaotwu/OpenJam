@@ -28,18 +28,19 @@ FROM backend AS backend-build
 ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
-    -mod=readonly -trimpath -buildvcs=false -ldflags="-s -w" -o /openjam-server .
+    -mod=readonly -trimpath -buildvcs=false -ldflags="-s -w" -o /shiori-server .
 
 FROM alpine:3.23.8@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
 WORKDIR /app
 RUN apk add --no-cache font-noto-cjk=0_git20220127-r1
 COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=backend-build /openjam-server /usr/local/bin/openjam
+COPY --from=backend-build /shiori-server /usr/local/bin/shiori
+RUN ln -s /usr/local/bin/shiori /usr/local/bin/openjam
 USER 10001:10001
 EXPOSE 8080
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
     CMD wget -qO /dev/null "http://127.0.0.1:${PORT:-8080}/readyz" || exit 1
 
-ENTRYPOINT ["/usr/local/bin/openjam"]
+ENTRYPOINT ["/usr/local/bin/shiori"]
 CMD ["api"]

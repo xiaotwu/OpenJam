@@ -9,8 +9,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/sheetformat"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/sheetformat"
 )
 
 type archiveLinkTarget struct {
@@ -31,7 +31,7 @@ func parseArchiveOrigin(value string) (*url.URL, error) {
 		(origin.Scheme != "http" && origin.Scheme != "https") || len(value) > 512 ||
 		(origin.Path != "" && origin.Path != "/") || origin.ForceQuery || origin.RawQuery != "" || origin.Fragment != "" ||
 		strings.ContainsAny(origin.Host, "\\%") {
-		return nil, projectInput("Provide the HTTP or HTTPS origin of this OpenJam instance.")
+		return nil, projectInput("Provide the HTTP or HTTPS origin of this Shiori instance.")
 	}
 	origin.Path, origin.RawPath = "", ""
 	origin.Host = strings.ToLower(origin.Host)

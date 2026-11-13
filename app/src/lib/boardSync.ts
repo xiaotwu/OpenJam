@@ -397,7 +397,7 @@ export function useBoardSync({ boardId, userId, onDocument }: BoardSyncOptions) 
     const url = URL.createObjectURL(new Blob([draft], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'openjam-board-draft.json';
+    link.download = 'shiori-board-draft.json';
     document.body.appendChild(link);
     link.click();
     link.remove();

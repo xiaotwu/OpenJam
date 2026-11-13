@@ -37,9 +37,9 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	autoMigrate, err := strconv.ParseBool(getEnv("OPENJAM_AUTO_MIGRATE", "true"))
+	autoMigrate, err := strconv.ParseBool(getEnv("SHIORI_AUTO_MIGRATE", "true"))
 	if err != nil {
-		return nil, fmt.Errorf("OPENJAM_AUTO_MIGRATE must be true or false")
+		return nil, fmt.Errorf("SHIORI_AUTO_MIGRATE must be true or false")
 	}
 
 	// Accept both CORS_ORIGIN and CORS_ORIGINS for compatibility
@@ -50,7 +50,7 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Port:        getEnv("PORT", "8080"),
-		BindHost:    getEnv("OPENJAM_BIND_HOST", ""),
+		BindHost:    getEnv("SHIORI_BIND_HOST", ""),
 		Environment: getEnv("ENVIRONMENT", "development"),
 		AutoMigrate: autoMigrate,
 
@@ -58,7 +58,7 @@ func Load() (*Config, error) {
 		RedisURL:    getEnv("REDIS_URL", ""),
 
 		CorsOrigins:    corsOrigins,
-		TrustedProxies: getEnvList("OPENJAM_TRUSTED_PROXIES", nil),
+		TrustedProxies: getEnvList("SHIORI_TRUSTED_PROXIES", nil),
 
 		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:8333"),
 		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
@@ -66,21 +66,32 @@ func Load() (*Config, error) {
 		MinioUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
 		MinioBucket:    getEnv("MINIO_BUCKET", "openjam"),
 
-		MeetingsMediaURL:    getEnv("OPENJAM_MEETINGS_MEDIA_URL", ""),
-		MeetingsMediaKey:    getEnv("OPENJAM_MEETINGS_MEDIA_KEY", ""),
-		MeetingsMediaSecret: getEnv("OPENJAM_MEETINGS_MEDIA_SECRET", ""),
+		MeetingsMediaURL:    getEnv("SHIORI_MEETINGS_MEDIA_URL", ""),
+		MeetingsMediaKey:    getEnv("SHIORI_MEETINGS_MEDIA_KEY", ""),
+		MeetingsMediaSecret: getEnv("SHIORI_MEETINGS_MEDIA_SECRET", ""),
 	}, nil
 }
 
+// Env resolves a Shiori setting and the environment name used by older deployments.
+func Env(key string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	if suffix, ok := strings.CutPrefix(key, "SHIORI_"); ok {
+		return os.Getenv("OPENJAM_" + suffix)
+	}
+	return ""
+}
+
 func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
+	if value := Env(key); value != "" {
 		return value
 	}
 	return fallback
 }
 
 func getEnvList(key string, fallback []string) []string {
-	if value := os.Getenv(key); value != "" {
+	if value := Env(key); value != "" {
 		var result []string
 		for _, s := range splitAndTrim(value, ",") {
 			if s != "" {

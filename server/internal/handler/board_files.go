@@ -9,10 +9,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/boardfiles"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/jobs"
-	"github.com/project-wb/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/boardfiles"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/jobs"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
 )
 
 func RegisterBoardFileRoutes(boards *gin.RouterGroup) {
@@ -64,7 +64,7 @@ func queueBoardImport(c *gin.Context) {
 	}
 	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || (mediaType != "application/json" && mediaType != "application/zip") {
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"code": "INVALID_BOARD_FILE", "error": "Upload an OpenJam JSON or ZIP file"})
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"code": "INVALID_BOARD_FILE", "error": "Upload an Shiori JSON or ZIP file"})
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, boardfiles.MaxPackageBytes)
@@ -124,7 +124,7 @@ func writeBoardFileError(c *gin.Context, err error) {
 	case errors.Is(err, boardfiles.ErrTooLarge), errors.Is(err, document.ErrPortableTooLarge):
 		status, code, message = http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "The file is too large. Export a page or smaller selection"
 	case errors.Is(err, boardfiles.ErrInvalidFile), errors.Is(err, jobs.ErrInvalid):
-		code, message = "INVALID_BOARD_FILE", "Invalid OpenJam board file"
+		code, message = "INVALID_BOARD_FILE", "Invalid Shiori board file"
 	case errors.Is(err, jobs.ErrConflict):
 		status, code, message = http.StatusConflict, "IDEMPOTENCY_CONFLICT", "This request ID was already used with different contents"
 	case errors.Is(err, jobs.ErrCapacity):

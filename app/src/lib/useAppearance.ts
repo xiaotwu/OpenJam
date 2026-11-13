@@ -7,12 +7,12 @@ export interface Appearance {
 }
 
 const defaultAppearance: Appearance = { textSize: 14, inboxBadge: 'count' };
-const preferenceEvent = 'openjam-appearance';
+const preferenceEvent = 'shiori-appearance';
 const devicePreferences = new Map<string, string>();
 
-function read(key: string) {
+function read(key: string, previousKey: string) {
   try {
-    return localStorage.getItem(key) ?? devicePreferences.get(key) ?? '';
+    return devicePreferences.get(key) ?? localStorage.getItem(key) ?? localStorage.getItem(previousKey) ?? '';
   } catch {
     return devicePreferences.get(key) ?? '';
   }
@@ -40,20 +40,22 @@ function subscribe(listener: () => void) {
 }
 
 export function useAppearance(userId?: string) {
-  const key = 'openjam:appearance:' + (userId ?? 'guest');
-  const snapshot = useSyncExternalStore(subscribe, () => read(key));
+  const scope = userId ?? 'guest';
+  const key = 'shiori:appearance:' + scope;
+  const previousKey = 'openjam:appearance:' + scope;
+  const snapshot = useSyncExternalStore(subscribe, () => read(key, previousKey));
   const appearance = useMemo(() => parse(snapshot), [snapshot]);
 
   const updateAppearance = useCallback((changes: Partial<Appearance>) => {
-    const next = JSON.stringify({ ...parse(read(key)), ...changes });
-    devicePreferences.set(key, next);
+    const next = JSON.stringify({ ...parse(read(key, previousKey)), ...changes });
     try {
       localStorage.setItem(key, next);
+      devicePreferences.delete(key);
     } catch {
-      // Keep the preference for this tab when browser storage is unavailable.
+      devicePreferences.set(key, next);
     }
     window.dispatchEvent(new Event(preferenceEvent));
-  }, [key]);
+  }, [key, previousKey]);
 
   return { appearance, updateAppearance };
 }

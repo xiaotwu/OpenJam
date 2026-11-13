@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/jobs"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/jobs"
 )
 
 type ApplyInput struct {

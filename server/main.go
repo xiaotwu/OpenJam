@@ -18,15 +18,15 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/agent"
-	"github.com/project-wb/server/internal/config"
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/handler"
-	"github.com/project-wb/server/internal/meetings"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/storage"
-	"github.com/project-wb/server/internal/ws"
+	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/config"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/handler"
+	"github.com/xiaotwu/shiori/server/internal/meetings"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/storage"
+	"github.com/xiaotwu/shiori/server/internal/ws"
 )
 
 func main() {
@@ -51,7 +51,7 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 	} else if len(args) > 1 || (mode != "api" && mode != "migrate" && mode != "worker") {
-		return fmt.Errorf("usage: openjam-server [api|worker|migrate|documents|doctor]")
+		return fmt.Errorf("usage: shiori-server [api|worker|migrate|documents|doctor]")
 	}
 
 	cfg, err := config.Load()
@@ -75,7 +75,7 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	}
 	if err := db.CheckSchema(startupCtx); err != nil {
-		return fmt.Errorf("check database schema (run openjam-server migrate before starting the API): %w", err)
+		return fmt.Errorf("check database schema (run shiori-server migrate before starting the API): %w", err)
 	}
 	cancel()
 	if mode == "documents" {
@@ -127,7 +127,7 @@ func run(ctx context.Context, args []string) error {
 	}
 	serveError := make(chan error, 1)
 	go func() {
-		log.Printf("OpenJam API listening on %s", server.Addr)
+		log.Printf("Shiori API listening on %s", server.Addr)
 		serveError <- server.ListenAndServe()
 	}()
 
@@ -296,7 +296,7 @@ func frontendFiles() fs.FS {
 			return files
 		}
 	}
-	log.Print("Frontend assets unavailable. Run the Vite development server or build OpenJam.")
+	log.Print("Frontend assets unavailable. Run the Vite development server or build Shiori.")
 	return nil
 }
 
@@ -312,6 +312,15 @@ func mountFrontend(r *gin.Engine, files fs.FS) {
 				}
 			}
 		}
+		if manifest, err := fs.ReadFile(files, "manifest.webmanifest"); err == nil {
+			r.GET("/manifest.webmanifest", func(c *gin.Context) {
+				c.Data(http.StatusOK, "application/manifest+json", manifest)
+			})
+			r.HEAD("/manifest.webmanifest", func(c *gin.Context) {
+				c.Header("Content-Type", "application/manifest+json")
+				c.Status(http.StatusOK)
+			})
+		}
 	}
 
 	r.NoRoute(func(c *gin.Context) {
@@ -320,7 +329,7 @@ func mountFrontend(r *gin.Engine, files fs.FS) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Endpoint not found"})
 			return
 		}
-		isAsset := path == "/assets" || path == "/icons" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/icons/")
+		isAsset := path == "/manifest.webmanifest" || path == "/assets" || path == "/icons" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/icons/")
 		if len(index) == 0 || isAsset || (c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead) {
 			c.Status(http.StatusNotFound)
 			return

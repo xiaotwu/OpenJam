@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/db"
 )
 
 type MeetingDraft struct {
@@ -141,7 +141,7 @@ func MarkMeetingRead(ctx context.Context, actor, id uuid.UUID) error {
 }
 
 // MeetingParticipants reads the room's live status and the allowed media identities
-// in one statement. Each media identity belongs to one unexpired OpenJam session.
+// in one statement. Each media identity belongs to one unexpired Shiori session.
 func MeetingParticipants(ctx context.Context, id uuid.UUID, identities []uuid.UUID) (bool, []uuid.UUID, error) {
 	var allowed []uuid.UUID
 	var open bool

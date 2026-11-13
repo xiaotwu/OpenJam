@@ -1,4 +1,4 @@
-.openjam-slides { overflow: hidden; }
+.shiori-slides { overflow: hidden; }
 
 .slide-title {
   min-width: 0;
@@ -227,7 +227,7 @@
 }
 .slide-text { pointer-events: none; user-select: none; }
 .slide-text-input { overflow: auto; resize: none; }
-.openjam-slides .slide-text-input:focus-visible { outline: none; }
+.shiori-slides .slide-text-input:focus-visible { outline: none; }
 .slide-picture, .slide-picture-placeholder { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .slide-picture { object-fit: fill; }
 .slide-picture-placeholder { display: grid; place-items: center; background: #e4e4e4; color: #555; text-align: center; }
@@ -337,13 +337,13 @@
 
 @media (max-width: 520px) {
   .slide-title { padding-inline: 2px; }
-  .openjam-slides .slide-desktop-actions { display: none; }
+  .shiori-slides .slide-desktop-actions { display: none; }
   .slide-compact-actions { display: block; }
   .slide-present { width: 34px; min-height: 34px; padding: 0; }
   .slide-present span { display: none; }
-  .openjam-slides .doc-header .doc-icon { width: 30px; }
-  .openjam-slides .doc-sync { position: relative; padding: 5px; }
-  .openjam-slides .doc-sync span {
+  .shiori-slides .doc-header .doc-icon { width: 30px; }
+  .shiori-slides .doc-sync { position: relative; padding: 5px; }
+  .shiori-slides .doc-sync span {
     position: absolute;
     width: 1px;
     height: 1px;

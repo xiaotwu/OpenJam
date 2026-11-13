@@ -3,20 +3,20 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.openjam.offsite.backup</string>
+  <string>com.shiori.offsite.backup</string>
   <key>ProgramArguments</key>
   <array>
     <string>/opt/homebrew/bin/python3</string>
     <string>-B</string>
-    <string>/opt/openjam/scripts/openjam-ops.py</string>
+    <string>/opt/shiori/scripts/shiori-ops.py</string>
     <string>--project</string>
-    <string>openjam</string>
+    <string>shiori</string>
     <string>--env-file</string>
-    <string>/etc/openjam/compose.env</string>
+    <string>/etc/shiori/compose.env</string>
     <string>offsite</string>
     <string>tick</string>
     <string>--config</string>
-    <string>/etc/openjam/offsite-backup.json</string>
+    <string>/etc/shiori/offsite-backup.json</string>
     <string>--role</string>
     <string>backup</string>
   </array>
@@ -30,8 +30,8 @@
   <key>StartInterval</key>
   <integer>60</integer>
   <key>StandardOutPath</key>
-  <string>/Users/OPENJAM_OPERATOR/Library/Logs/openjam-offsite-backup.log</string>
+  <string>/Users/SHIORI_OPERATOR/Library/Logs/shiori-offsite-backup.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/OPENJAM_OPERATOR/Library/Logs/openjam-offsite-backup.err.log</string>
+  <string>/Users/SHIORI_OPERATOR/Library/Logs/shiori-offsite-backup.err.log</string>
 </dict>
 </plist>

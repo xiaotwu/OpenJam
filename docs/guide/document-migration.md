@@ -1,6 +1,6 @@
 # Board document migration and rollback
 
-OpenJam keeps the existing board ID, project assignment, owner and sharing permissions. A V2 board stores its pages, elements and stamps in PostgreSQL and exposes a consistent snapshot with an epoch, sequence and content hash.
+Shiori keeps the existing board ID, project assignment, owner and sharing permissions. A V2 board stores its pages, elements and stamps in PostgreSQL and exposes a consistent snapshot with an epoch, sequence and content hash.
 
 ## Migrate a board
 
@@ -41,10 +41,10 @@ Use the current application image for compatibility mode. A board explicitly rol
 Use two local API replicas connected to the same disposable PostgreSQL database and Redis instance. Publish the API and PostgreSQL ports on loopback. Run the acceptance test from `server/` after both APIs report readiness.
 
 ```bash
-OPENJAM_CLUSTER_PRIMARY=http://127.0.0.1:44881 \
-OPENJAM_CLUSTER_SECONDARY=http://127.0.0.1:44882 \
-OPENJAM_CLUSTER_DATABASE_URL='postgres://postgres:postgres@127.0.0.1:45442/openjam_cluster_test?sslmode=disable' \
+SHIORI_CLUSTER_PRIMARY=http://127.0.0.1:44881 \
+SHIORI_CLUSTER_SECONDARY=http://127.0.0.1:44882 \
+SHIORI_CLUSTER_DATABASE_URL='postgres://postgres:postgres@127.0.0.1:45442/openjam_cluster_test?sslmode=disable' \
 go test -race -count=1 -v ./tests -run '^Test(Document|Review)Cluster$'
 ```
 
-`TestDocumentCluster` checks legacy write fences, submits through both APIs, compares the committed sequence and snapshot hash, and verifies rollback and reactivation. `TestReviewCluster` checks grouped edits and undo across replicas, review and mention visibility, invitation and link roles, and snapshot equality after version restore. Both create synthetic accounts and boards. Set `OPENJAM_TEST_DATABASE_URL` to the disposable PostgreSQL URL and run `go test -race -count=1 -v ./internal/document` for the schema-isolated model tests.
+`TestDocumentCluster` checks legacy write fences, submits through both APIs, compares the committed sequence and snapshot hash, and verifies rollback and reactivation. `TestReviewCluster` checks grouped edits and undo across replicas, review and mention visibility, invitation and link roles, and snapshot equality after version restore. Both create synthetic accounts and boards. Set `SHIORI_TEST_DATABASE_URL` to the disposable PostgreSQL URL and run `go test -race -count=1 -v ./internal/document` for the schema-isolated model tests.

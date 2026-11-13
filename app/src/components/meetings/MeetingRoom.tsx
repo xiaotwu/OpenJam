@@ -249,7 +249,7 @@ export default function MeetingRoom({ meetingId }: { meetingId: string }) {
     }
   }
 
-  return <main className="openjam-meeting">
+  return <main className="shiori-meeting">
     <header className="meeting-header">
       <Link to={back} className="meeting-button meeting-icon" aria-label="Back to Workshop" title="Back to Workshop"><WorkbenchIcon name="back" /></Link>
       {item && <div className="meeting-heading">

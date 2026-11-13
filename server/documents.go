@@ -9,11 +9,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/project-wb/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/document"
 )
 
 func validateDocumentArguments(args []string) error {
-	const usage = "usage: openjam-server documents inspect|migrate BOARD_ID, rollback BOARD_ID EPOCH SEQ, or export-legacy BOARD_ID EPOCH"
+	const usage = "usage: shiori-server documents inspect|migrate BOARD_ID, rollback BOARD_ID EPOCH SEQ, or export-legacy BOARD_ID EPOCH"
 	if len(args) < 2 || strings.TrimSpace(args[1]) == "" || utf8.RuneCountInString(args[1]) > 36 {
 		return fmt.Errorf("%s", usage)
 	}

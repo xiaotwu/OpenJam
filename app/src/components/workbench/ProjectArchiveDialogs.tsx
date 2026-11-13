@@ -158,7 +158,7 @@ export function RestoreProjectArchiveDialog({ label, teamId, actorId, workspaces
               event.target.value = '';
             }} />
         </label>
-        <span title={file?.name}>{file?.name ?? 'OpenJam project archive · Up to 64 MiB'}</span>
+        <span title={file?.name}>{file?.name ?? 'Shiori project archive · Up to 64 MiB'}</span>
       </div>
       {action.busy && <p role="status" className="wb-archive-note">{saving ? 'Restoring files and history…' : 'Checking the archive…'}</p>}
       {info && <>

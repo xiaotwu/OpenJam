@@ -6,7 +6,7 @@ Start with the [pilot handoff](./pilot-handoff.md) to confirm the frozen candida
 
 Record the result of each gate as Pass, Fail, Pending or N/A with its UTC time, operator and evidence. Meetings can be N/A when the pilot leaves media disabled. Keep the pilot closed if a required gate fails, if a result is missing, or if the rollback point or account access is uncertain.
 
-In the collaboration checks, A and B are the owner and editor browsers. In the recovery checks, source A and target B are separate OpenJam deployments.
+In the collaboration checks, A and B are the owner and editor browsers. In the recovery checks, source A and target B are separate Shiori deployments.
 
 | Gate | Local evidence | Pilot pass standard |
 | --- | --- | --- |
@@ -19,6 +19,8 @@ In the collaboration checks, A and B are the owner and editor browsers. In the r
 | 152-C Restore and rollback | **Passed locally on both RC2 architectures.** A → empty B → A through Caddy, with B's accepted write reconciled into A. The emulated AMD64 run reached a confirmed B write in 19.98 s and verified the switchback in 7.55 s. The [handoff](./pilot-handoff.md) has the points and timings. Earlier rehearsals covered the roughly 1 GiB scale and schema 14 to 23 upgrade and rollback. | **Pending.** Restore from the actual replica into an empty deployment and pass data, history, asset and permission checks. The operator demonstrates the selected rollback path. **RPO ≤ 24 hours and RTO ≤ 30 minutes**, including real retrieval, key access, image preparation and ingress cutover in the RTO. |
 
 ## 1. Prepare the pilot
+
+Use the frozen RC2 handoff checkout for this checklist. Its image identifiers, `OPENJAM_*` variables, and template checksums describe that candidate. Continue to record the actual pilot evidence against the same locked runtime.
 
 - Record the Docker engine architecture, the matching RC2 application and store manifest digests, the source commit, Compose project and file paths, pilot origin and proxy, storage layout and bucket, backup window, replica ID, operator and on-call contact, and the empty restore target's name and port. Record whether Meetings is enabled.
 - Prepare two separate browsers or profiles and two synthetic accounts. Give A ownership of a restricted Board in a Team Project. Invite B to the Team and grant B Editor on the Project. Use a small private PNG, a named version and a distinctive test edit. Keep B free of direct Board grants, share links or invitations that would preserve access after removal.

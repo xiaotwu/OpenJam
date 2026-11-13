@@ -5,6 +5,8 @@ server/node_modules/
 # Build outputs
 app/dist/
 openjam-server
+shiori-server
+server/shiori-server
 server/openjam-server
 server/server
 server/test-server

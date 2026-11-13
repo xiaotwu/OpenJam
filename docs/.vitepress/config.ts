@@ -1,17 +1,18 @@
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  title: 'OpenJam',
-  description: 'Real-time collaborative whiteboard for teams',
+  title: 'Shiori',
+  description: 'Self-hosted collaboration for boards, documents, spreadsheets, and presentations',
   base: '/OpenJam/',
   ignoreDeadLinks: [/^http:\/\/localhost/],
 
   head: [
-    ['link', { rel: 'icon', href: '/OpenJam/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/OpenJam/icons/favicon-light.png', media: '(prefers-color-scheme: light)' }],
+    ['link', { rel: 'icon', href: '/OpenJam/icons/favicon-dark.png', media: '(prefers-color-scheme: dark)' }],
   ],
 
   themeConfig: {
-    logo: '/logo.png',
+    logo: { light: '/icons/mark-light.svg', dark: '/icons/mark-dark.svg' },
 
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
@@ -23,7 +24,7 @@ export default defineConfig({
       {
         text: 'Introduction',
         items: [
-          { text: 'What is OpenJam?', link: '/guide/what-is-openjam' },
+          { text: 'What is Shiori?', link: '/guide/what-is-shiori' },
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Project Branches and Sync', link: '/guide/project-sync' },
           { text: 'Move a Project Between Instances', link: '/guide/project-archive' },
@@ -64,7 +65,7 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright 2024-present OpenJam Contributors',
+      copyright: 'Copyright 2024-present Shiori Contributors',
     },
 
     search: {

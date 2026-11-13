@@ -86,7 +86,7 @@ export async function downloadFileJob(jobId: string) {
   const response = await requestResponse(`${jobPath(jobId)}/artifact`, { cache: 'no-store' });
   const disposition = response.headers.get('Content-Disposition') ?? '';
   const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
-  const name = encoded ? decodeURIComponent(encoded) : /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'openjam-export';
+  const name = encoded ? decodeURIComponent(encoded) : /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'shiori-export';
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement('a');
   link.href = url;

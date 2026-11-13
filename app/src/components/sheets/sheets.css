@@ -1,4 +1,4 @@
-.openjam-sheet {
+.shiori-sheet {
   --sheet-grid-line: color-mix(in srgb, var(--text-primary) 12%, transparent);
   --sheet-hover: color-mix(in srgb, var(--text-primary) 5%, var(--surface-panel));
   --sheet-selection: color-mix(in srgb, var(--text-primary) 10%, var(--surface-panel));
@@ -66,8 +66,8 @@
   outline: none;
 }
 
-.openjam-sheet .sheet-formula textarea:focus-visible,
-.openjam-sheet .sheet-address input:focus-visible { outline: none; }
+.shiori-sheet .sheet-formula textarea:focus-visible,
+.shiori-sheet .sheet-address input:focus-visible { outline: none; }
 .sheet-address input {
   padding: 7px 8px;
   font-family: var(--font-mono, monospace);
@@ -219,8 +219,8 @@
 @media (max-width: 520px) {
   .sheet-workspace { gap: 8px; padding-top: 10px; }
   .sheet-title { padding-inline: 3px; }
-  .openjam-sheet .doc-sync[data-state='synced'] { position: relative; padding: 5px; }
-  .openjam-sheet .doc-sync[data-state='synced'] span {
+  .shiori-sheet .doc-sync[data-state='synced'] { position: relative; padding: 5px; }
+  .shiori-sheet .doc-sync[data-state='synced'] span {
     position: absolute;
     width: 1px;
     height: 1px;

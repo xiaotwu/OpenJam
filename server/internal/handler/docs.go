@@ -10,10 +10,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
-	"github.com/project-wb/server/internal/docformat"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/docformat"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 func RegisterDocsRoutes(api *gin.RouterGroup) {

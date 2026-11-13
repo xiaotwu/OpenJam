@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/project-wb/server/internal/agent"
-	"github.com/project-wb/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
 )
 
 func RegisterAgentProfileRoutes(api *gin.RouterGroup) {

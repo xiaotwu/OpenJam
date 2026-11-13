@@ -48,7 +48,7 @@ func TestFrontendDeepLinksAndMissingEndpoints(t *testing.T) {
 	r := gin.New()
 	r.RedirectTrailingSlash = false
 	mountFrontend(r, fstest.MapFS{
-		"index.html":    {Data: []byte("<!doctype html><div>OpenJam</div>")},
+		"index.html":    {Data: []byte("<!doctype html><div>Shiori</div>")},
 		"assets/app.js": {Data: []byte("export {}")},
 	})
 
@@ -57,8 +57,8 @@ func TestFrontendDeepLinksAndMissingEndpoints(t *testing.T) {
 		status       int
 		body         string
 	}{
-		{http.MethodGet, "/workplace", http.StatusOK, "OpenJam"},
-		{http.MethodGet, "/board/legacy-board", http.StatusOK, "OpenJam"},
+		{http.MethodGet, "/workplace", http.StatusOK, "Shiori"},
+		{http.MethodGet, "/board/legacy-board", http.StatusOK, "Shiori"},
 		{http.MethodHead, "/board/legacy-board", http.StatusOK, ""},
 		{http.MethodGet, "/assets/app.js", http.StatusOK, "export {}"},
 		{http.MethodGet, "/assets/missing.js", http.StatusNotFound, ""},
@@ -73,7 +73,7 @@ func TestFrontendDeepLinksAndMissingEndpoints(t *testing.T) {
 		if test.body != "" && !strings.Contains(response.Body.String(), test.body) {
 			t.Errorf("%s %s body = %q, want %q", test.method, test.path, response.Body.String(), test.body)
 		}
-		if (test.method == http.MethodHead || test.status == http.StatusNotFound) && strings.Contains(response.Body.String(), "OpenJam") {
+		if (test.method == http.MethodHead || test.status == http.StatusNotFound) && strings.Contains(response.Body.String(), "Shiori") {
 			t.Errorf("%s %s served the app shell", test.method, test.path)
 		}
 	}

@@ -1,0 +1,247 @@
+@font-face {
+  font-family: Geist;
+  src: url('../assets/home/geist.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+.shiori-home {
+  --home-gutter: clamp(22px, 5.5vw, 92px);
+  --home-shadow: 0 15px 42px rgb(36 21 39 / 7%);
+  height: 100%;
+  overflow: auto;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: Geist, var(--font-ui, system-ui, sans-serif);
+}
+
+.dark .shiori-home { --home-shadow: 0 18px 42px rgb(0 0 0 / 27%); }
+
+.home-shell {
+  width: min(1488px, calc(100% - var(--home-gutter) - var(--home-gutter)));
+  margin-inline: auto;
+}
+
+.shiori-home :is(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.home-header {
+  display: flex;
+  min-height: 94px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.home-brand,
+.home-nav,
+.home-theme-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.home-brand {
+  gap: 10px;
+  font-size: 25px;
+  font-weight: 710;
+  letter-spacing: -0.045em;
+}
+
+.home-nav {
+  gap: clamp(14px, 2.2vw, 37px);
+  font-size: 16px;
+  font-weight: 510;
+}
+
+.home-nav > a:hover,
+.home-theme-toggle:hover { color: var(--focus-ring); }
+
+.home-theme-toggle {
+  min-height: 44px;
+  padding-inline-start: clamp(14px, 2.2vw, 37px);
+  gap: 9px;
+  border-inline-start: 1px solid var(--theme-outline);
+  white-space: nowrap;
+}
+
+.home-theme-toggle svg { width: 22px; height: 22px; }
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.51fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(22px, 2.2vw, 38px);
+  padding-block: 56px clamp(75px, 8.4vw, 140px);
+}
+
+.home-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(8px, 0.7vw, 12px);
+}
+
+.home-hero h1,
+.home-features h2,
+.home-feature-copy h3 {
+  margin: 0;
+  font-weight: 720;
+  letter-spacing: -0.056em;
+  line-height: 1.04;
+}
+
+.home-hero h1 { font-size: clamp(32px, 3.09vw, 52px); }
+.home-hero h1 span { display: block; }
+.home-copy > p,
+.home-feature-copy p {
+  margin: 22px 0 0;
+  color: var(--text-secondary);
+  font-size: clamp(17px, 1.53vw, 26px);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.home-copy > p { max-width: 35ch; }
+.home-mascot {
+  position: relative;
+  width: clamp(72px, 7.2vw, 120px);
+  aspect-ratio: 1.02;
+  overflow: hidden;
+  border-radius: 0 0 22px 22px;
+}
+
+.home-mascot::before {
+  position: absolute;
+  inset: 24% 12% 3% 0;
+  border-radius: 50%;
+  background: var(--theme-portrait);
+  content: "";
+}
+
+.home-mascot img { position: relative; width: 100%; height: auto; }
+
+.home-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 19px;
+  margin-top: 32px;
+}
+
+.home-primary {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 25px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: clamp(15px, 1.22vw, 20px);
+  font-weight: 650;
+}
+
+.home-primary:hover { background: var(--accent-hover); }
+.home-entry { min-height: 44px; display: inline-flex; align-items: center; color: var(--text-secondary); font-weight: 610; }
+.home-entry:hover { color: var(--focus-ring); }
+.home-product {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--theme-outline);
+  border-radius: 22px;
+  background: var(--theme-preview);
+  box-shadow: var(--home-shadow);
+}
+
+.home-product img { width: 100%; height: auto; }
+
+.home-features { padding-block: 0 110px; scroll-margin-block-start: 30px; }
+.home-features h2 { font-size: clamp(34px, 3.55vw, 60px); }
+.home-feature-tabs {
+  display: flex;
+  gap: clamp(16px, 2.6vw, 44px);
+  margin-top: 29px;
+  border-bottom: 1px solid var(--theme-outline);
+}
+
+.home-feature-tabs button {
+  min-height: 54px;
+  padding: 0 4px 10px;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-size: clamp(15px, 1.65vw, 25px);
+  font-weight: 650;
+}
+
+.home-feature-tabs button:hover,
+.home-feature-tabs button[aria-selected="true"] { color: var(--focus-ring); }
+.home-feature-tabs button[aria-selected="true"] { border-bottom-color: var(--focus-ring); }
+
+.home-feature-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.51fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(26px, 3.2vw, 53px);
+  padding-top: clamp(30px, 4vw, 64px);
+}
+
+.home-feature-panel[hidden] { display: none; }
+.home-feature-copy { padding-top: clamp(0px, 3.3vw, 50px); }
+.home-feature-copy h3 { font-size: clamp(31px, 3.35vw, 54px); }
+.home-feature-copy p { max-width: 27ch; }
+.home-feature-mascot {
+  width: clamp(104px, 9.1vw, 148px);
+  height: auto;
+  margin-top: 26px;
+}
+
+@media (max-width: 1050px) {
+  .home-hero,
+  .home-feature-panel { grid-template-columns: 1fr; }
+  .home-hero { padding-block: 34px 68px; gap: 28px; }
+  .home-copy { max-width: 650px; }
+  .home-hero h1 { font-size: clamp(34px, 6vw, 52px); }
+  .home-heading { width: fit-content; }
+  .home-mascot { width: clamp(65px, 12vw, 110px); }
+  .home-copy > p { margin-top: 15px; }
+  .home-actions { margin-top: 20px; }
+  .home-primary { min-height: 46px; padding-inline: 19px; }
+  .home-feature-panel { gap: 16px; }
+  .home-feature-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 14px;
+    padding: 0;
+  }
+  .home-feature-mascot { width: clamp(62px, 15vw, 103px); margin-top: 0; }
+  .home-feature-copy p { margin-top: 10px; }
+  .home-features { padding-bottom: 62px; }
+}
+
+@media (max-width: 480px) {
+  .home-header { min-height: 70px; gap: 10px; }
+  .home-brand { font-size: 22px; gap: 6px; }
+  .home-brand .shiori-mark { max-width: 29px; max-height: 29px; }
+  .home-nav { font-size: 13px; gap: clamp(9px, 3vw, 14px); }
+  .home-theme-toggle { gap: 5px; padding-inline-start: 9px; }
+  .home-theme-toggle svg { width: 16px; height: 16px; }
+  .home-hero { padding-top: 24px; padding-bottom: 54px; }
+  .home-hero h1 { font-size: clamp(27px, 8.2vw, 35px); }
+  .home-mascot { width: clamp(50px, 15.8vw, 68px); }
+  .home-copy > p { font-size: 16px; }
+  .home-product { border-radius: 15px; }
+  .home-features h2 { font-size: clamp(30px, 8.2vw, 34px); }
+  .home-feature-tabs { margin-top: 14px; }
+}
+
+@media (max-width: 360px) {
+  .home-theme-toggle span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shiori-home { scroll-behavior: smooth; }
+}

@@ -16,8 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/document"
 )
 
 func TestDocumentCluster(t *testing.T) {

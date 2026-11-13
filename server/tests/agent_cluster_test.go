@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/agent"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/jobs"
+	"github.com/xiaotwu/shiori/server/internal/agent"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/jobs"
 )
 
 func TestAgentCluster(t *testing.T) {

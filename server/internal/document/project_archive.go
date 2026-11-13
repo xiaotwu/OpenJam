@@ -15,8 +15,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 const (
@@ -33,7 +33,7 @@ const projectArchiveFormat = "openjam.project"
 
 var (
 	ErrProjectArchiveLimit   = errors.New("This project exceeds the archive size or history limits.")
-	ErrProjectArchiveInvalid = errors.New("This is not a valid OpenJam project archive.")
+	ErrProjectArchiveInvalid = errors.New("This is not a valid Shiori project archive.")
 )
 
 type archiveMember struct {

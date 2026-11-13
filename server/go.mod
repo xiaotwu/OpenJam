@@ -1,4 +1,4 @@
-module github.com/project-wb/server
+module github.com/xiaotwu/shiori/server
 
 go 1.22
 

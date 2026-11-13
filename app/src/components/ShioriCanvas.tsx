@@ -123,7 +123,7 @@ interface ToolOptions {
   eraserSize: number;
 }
 
-interface OpenJamCanvasProps {
+interface ShioriCanvasProps {
   boardId: string;
   userId: string;
   username: string;
@@ -136,13 +136,13 @@ function generateStampId(): string {
   return `stamp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export default function OpenJamCanvas({
+export default function ShioriCanvas({
   boardId,
   userId,
   username,
   email,
   color,
-}: OpenJamCanvasProps) {
+}: ShioriCanvasProps) {
   // Theme
   const { isDark, theme, setTheme } = useTheme();
   const { logout } = useAuth();

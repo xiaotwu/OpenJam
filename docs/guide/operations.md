@@ -1,30 +1,30 @@
-# OpenJam operations
+# Shiori operations
 
 Run these commands from the checkout that contains the deployment's Compose file. The operations script uses Python 3.9 or later. The backup procedure covers the default Compose PostgreSQL, Redis and SeaweedFS layout. The diagnostic commands also work with configured external dependencies.
 
 ```bash
-oj_project=openjam
+oj_project=shiori
 oj_env="$PWD/.env"
 oj_url=http://127.0.0.1:8080
 oj_compose=(docker compose --project-name "$oj_project" --env-file "$oj_env")
-oj_ops=(python3 scripts/openjam-ops.py --project "$oj_project" --env-file "$oj_env")
+oj_ops=(python3 scripts/shiori-ops.py --project "$oj_project" --env-file "$oj_env")
 ```
 
-For a pilot, use a named deployment, pin the image in `OPENJAM_IMAGE`, and follow the [Docker deployment guide](./docker.md). Keep a separate, access controlled copy of the environment file, Compose files, proxy configuration, TLS material, and the application image reference or locally retained image. These are needed when rebuilding the deployment.
+For a pilot, use a named deployment, pin the image in `SHIORI_IMAGE`, and follow the [Docker deployment guide](./docker.md). Keep a separate, access controlled copy of the environment file, Compose files, proxy configuration, TLS material, and the application image reference or locally retained image. These are needed when rebuilding the deployment.
 
 Use the [pilot acceptance checklist](./pilot-acceptance.md) for the ordered XW-151 ingress and XW-152 recovery gates on the pilot host.
 
 ## Quick check and self-check
 
 ```bash
-python3 scripts/openjam-ops.py quick-check "$oj_url"
+python3 scripts/shiori-ops.py quick-check "$oj_url"
 "${oj_ops[@]}" self-check
 "${oj_ops[@]}" self-check --assets --timeout 5m
 ```
 
 The quick check verifies the HTTP responses from `/livez`, `/startupz`, `/readyz` and `/health`. The storage flag in `/health` reflects initialization at API startup. The self-check verifies that server and worker containers use the same image and tests each running server's PostgreSQL connection, migration version, Redis and current S3 read access. Both commands return a nonzero exit status on a failed check.
 
-`--assets` checks byte counts and SHA-256 for every registered private image linked from a file or project snapshot. Run it during a maintenance window or before exposing a restore so the image inventory stays fixed. Allow enough time to read the images. For a service started outside Compose, run `./openjam-server doctor --assets --timeout 5m` with the same environment as the API. These commands use no AI service.
+`--assets` checks byte counts and SHA-256 for every registered private image linked from a file or project snapshot. Run it during a maintenance window or before exposing a restore so the image inventory stays fixed. Allow enough time to read the images. For a service started outside Compose, run `./shiori-server doctor --assets --timeout 5m` with the same environment as the API. These commands use no AI service.
 
 A full smoke check also uses a signed-in account to open a project, read a named version and download a private image. Use a permitted account and an account without the grant. Queue a small Board ZIP export and confirm that the worker finishes it and that the owner can download it.
 
@@ -37,11 +37,11 @@ The backup contains a PostgreSQL custom dump, a cold copy of the SeaweedFS data 
 3. Run the backup and verify its files. A backup is usable once the final manifest exists and verification passes.
 
 ```bash
-oj_backup=/secure/backups/openjam-before-upgrade
+oj_backup=/secure/backups/shiori-before-upgrade
 "${oj_compose[@]}" stop --timeout 30 server worker
 "${oj_compose[@]}" stop --timeout 30 seaweedfs
 "${oj_ops[@]}" backup "$oj_backup"
-python3 scripts/openjam-ops.py verify-backup "$oj_backup"
+python3 scripts/shiori-ops.py verify-backup "$oj_backup"
 ```
 
 Resume with `"${oj_compose[@]}" up --no-build --wait` if the maintenance window ends here. Keep the previous image and its deployment settings with the backup. For managed PostgreSQL, MinIO or another external S3 provider, use the provider's database and object backup procedures during the same write freeze. Restore both stores to one recovery point and rehearse that procedure with the chosen provider.
@@ -50,14 +50,14 @@ Resume with `"${oj_compose[@]}" up --no-build --wait` if the maintenance window 
 
 Use this workflow for the default Compose stores on Linux or macOS. It writes to a dedicated, mounted filesystem that supports file locks, same-directory atomic renames, and file and directory sync. Use a different device from the local staging directory. For production, place the replica in a separate failure domain and rehearse a real recovery from it. A local disk image is useful for a drill.
 
-1. Install [age](https://github.com/FiloSottile/age) on the backup and recovery hosts. Generate a native identity on a recovery host with `age-keygen -o /secure/recovery/openjam.agekey` and export only its public recipient with `age-keygen -y /secure/recovery/openjam.agekey > openjam.recipients`. Keep the identity at mode `0600` and store a protected recovery copy separately from the app, replica and configuration. Confirm the identity works in a restore drill before rotating keys, and keep previous identities until their backups expire.
+1. Install [age](https://github.com/FiloSottile/age) on the backup and recovery hosts. Generate a native identity on a recovery host with `age-keygen -o /secure/recovery/shiori.agekey` and export only its public recipient with `age-keygen -y /secure/recovery/shiori.agekey > shiori.recipients`. Keep the identity at mode `0600` and store a protected recovery copy separately from the app, replica and configuration. Confirm the identity works in a restore drill before rotating keys, and keep previous identities until their backups expire.
 2. Set up an encrypted local staging directory and an empty private directory on the mounted replica, both at mode `0700`. Verify the mount before initialization. Initialize once and record the returned `repositoryId` with the deployment config:
 
    ```bash
-   oj_stage=/secure/local/openjam-offsite-stage
-   oj_replica=/mnt/replica/openjam
-   oj_public=/secure/config/openjam.recipients
-   oj_alert=/usr/local/libexec/openjam-backup-alert
+   oj_stage=/secure/local/shiori-offsite-stage
+   oj_replica=/mnt/replica/shiori
+   oj_public=/secure/config/shiori.recipients
+   oj_alert=/usr/local/libexec/shiori-backup-alert
    "${oj_ops[@]}" offsite init --replica "$oj_replica"
    oj_replica_id=REPLACE_WITH_THE_REPOSITORY_ID
    oj_store=(--replica "$oj_replica" --repository-id "$oj_replica_id")
@@ -84,7 +84,7 @@ Use this workflow for the default Compose stores on Linux or macOS. It writes to
 
 ### Run backups and retention unattended
 
-Copy `scripts/offsite-scheduling/backup.example.json` and `retention.example.json` to `/etc/openjam/offsite-backup.json` and `/etc/openjam/offsite-retention.json`. Set the deployment's replica ID and absolute paths. Give each role its own persistent local `scheduleState` directory at mode `0700`. Place both outside the replica and the capture staging directory. The backup role needs Compose access. Run retention with the identity authorized to delete expired copies on the replica.
+Copy `scripts/offsite-scheduling/backup.example.json` and `retention.example.json` to `/etc/shiori/offsite-backup.json` and `/etc/shiori/offsite-retention.json`. Set the deployment's replica ID and absolute paths. Give each role its own persistent local `scheduleState` directory at mode `0700`. Place both outside the replica and the capture staging directory. The backup role needs Compose access. Run retention with the identity authorized to delete expired copies on the replica.
 
 The OS starts a tick each minute. The backup role takes a backup every 12 hours at 01:00 and 13:00 UTC and checks replica freshness every 15 minutes. The retention role runs once per UTC day from 02:05 onward, after it verifies a backup captured in that day's schedule. Adjust the UTC backup offset and retention start for the deployment's low traffic windows.
 
@@ -95,14 +95,14 @@ Set `alertUrl` to an HTTPS receiver that accepts a JSON POST and returns HTTP 2x
 On Linux, adjust the checkout, project, Compose file and operator account in the systemd templates before installing them. Use an instance override to assign a different user to retention when needed.
 
 ```bash
-sudo install -m 0644 scripts/offsite-scheduling/openjam-offsite@.service scripts/offsite-scheduling/openjam-offsite@.timer /etc/systemd/system/
+sudo install -m 0644 scripts/offsite-scheduling/shiori-offsite@.service scripts/offsite-scheduling/shiori-offsite@.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now openjam-offsite@backup.timer openjam-offsite@retention.timer
-systemctl list-timers 'openjam-offsite@*'
-journalctl -u openjam-offsite@backup.service -u openjam-offsite@retention.service
+sudo systemctl enable --now shiori-offsite@backup.timer shiori-offsite@retention.timer
+systemctl list-timers 'shiori-offsite@*'
+journalctl -u shiori-offsite@backup.service -u shiori-offsite@retention.service
 ```
 
-On macOS, use `scripts/offsite-scheduling/com.openjam.offsite.plist` in the Docker Desktop operator's session. Make one LaunchAgent per role and give each a distinct label, config path and log paths. Set the absolute Python and checkout paths. Place the configured files in the operator's LaunchAgents directory for startup at login. Use `plutil -lint` and `launchctl bootstrap "gui/$(id -u)" /path/to/configured.plist` to validate and load each agent. Keep job logs on a protected filesystem and configure their rotation.
+On macOS, use `scripts/offsite-scheduling/com.shiori.offsite.plist` in the Docker Desktop operator's session. Make one LaunchAgent per role and give each a distinct label, config path and log paths. Set the absolute Python and checkout paths. Place the configured files in the operator's LaunchAgents directory for startup at login. Use `plutil -lint` and `launchctl bootstrap "gui/$(id -u)" /path/to/configured.plist` to validate and load each agent. Keep job logs on a protected filesystem and configure their rotation.
 
 Review `schedule_backup_verified` for the point and receipt hash, `schedule_retention` for the kept and removed points, and `schedule_alert_delivered` for the receiver's acknowledgement. A `schedule_alert_delivery_failed` entry leaves the event queued. Check mount access, receiver availability and the task's schedule state before restarting a job.
 
@@ -113,11 +113,11 @@ The XW-152 local drill on 2026-11-12 UTC checked the production 01:00 and 13:00 
 Keep the target isolated. With the **source** deployment name and replica ID, choose the exact recovery point and use the receipt SHA-256 from the trusted backup log:
 
 ```bash
-oj_recovery=/secure/recovery/fetched-openjam
+oj_recovery=/secure/recovery/fetched-shiori
 oj_point=REPLACE_WITH_POINT_ID
 oj_receipt_sha256=REPLACE_WITH_TRUSTED_RECEIPT_SHA256
 "${oj_ops[@]}" offsite fetch "${oj_store[@]}" "$oj_point" "$oj_recovery" \
-  --identity /secure/recovery/openjam.agekey --expect-receipt-sha256 "$oj_receipt_sha256"
+  --identity /secure/recovery/shiori.agekey --expect-receipt-sha256 "$oj_receipt_sha256"
 ```
 
 Choose a new destination under an encrypted private directory with space for both ciphertext and plaintext. Fetch verifies the copy's ciphertext, decrypts with age, verifies the original manifest and both backup payloads, then makes the recovered directory available. It reports transfer, decryption, and inner verification time. If the trusted job log is unavailable, document that loss of provenance before recovering without the receipt argument. Run [Restore an instance](#restore-an-instance) with `oj_backup="$oj_recovery"` and a new **target** deployment name. Keep ingress closed until signed-in read/write and permission checks pass, and reapply revocations made after the recovery point.
@@ -128,14 +128,14 @@ Set a pilot RTO target of 30 minutes. Measure from starting recovery, including 
 
 1. Keep the Compose project name and store configuration. Record the current application image ID, the schema version from `doctor` when available, and a small sample of content, named versions, attachments and grants.
 2. Build or load the candidate image. Make and verify the pre-upgrade backup with the previous image settings still available.
-3. Set `OPENJAM_IMAGE` to the candidate image in the deployment environment. Start the stores and run the explicit migration before the new server or worker accepts traffic.
+3. Set `SHIORI_IMAGE` to the candidate image in the deployment environment. Start the stores and run the explicit migration before the new server or worker accepts traffic.
 
 ```bash
 "${oj_compose[@]}" up --no-build --wait postgres redis seaweedfs
 "${oj_compose[@]}" run --rm --no-deps migrate
 "${oj_compose[@]}" up --no-build --wait
 "${oj_ops[@]}" self-check --assets --timeout 5m
-python3 scripts/openjam-ops.py quick-check "$oj_url"
+python3 scripts/shiori-ops.py quick-check "$oj_url"
 ```
 
 4. Open the recorded projects with the same accounts and verify the sample. Confirm that saved edits, history, attachments, allow and deny cases and a new worker export match expectations before reopening ingress. See [Board document migration and rollback](./document-migration.md) if some boards still use the legacy document format.
@@ -149,14 +149,14 @@ Prepare a fresh deployment with a different Compose project name and loopback po
 In a fresh shell, set the variables from the start of this guide for the destination, then run the following commands. `create` leaves SeaweedFS stopped so the archive can be copied into its new volume.
 
 ```bash
-python3 scripts/openjam-ops.py verify-backup "$oj_backup"
+python3 scripts/shiori-ops.py verify-backup "$oj_backup"
 "${oj_compose[@]}" up --no-build --wait postgres redis
 "${oj_compose[@]}" create --no-build seaweedfs
 "${oj_ops[@]}" restore "$oj_backup"
 "${oj_compose[@]}" up --no-build --wait seaweedfs
 "${oj_compose[@]}" run --rm --no-deps server doctor --assets --timeout 5m
 "${oj_compose[@]}" up --no-build --wait
-python3 scripts/openjam-ops.py quick-check "$oj_url"
+python3 scripts/shiori-ops.py quick-check "$oj_url"
 "${oj_ops[@]}" self-check --assets --timeout 5m
 ```
 

@@ -62,7 +62,7 @@ function previewVersion(document: BoardDocument) {
   return <SheetPreview key={document.defaultPageId + ':' + document.name} document={document} />;
 }
 
-export default function OpenJamSheet({ sheetId, user }: { sheetId: string; user: User }) {
+export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: User }) {
   const { theme, setTheme } = useTheme();
   const { logout } = useAuth();
   const location = useLocation();
@@ -323,7 +323,7 @@ export default function OpenJamSheet({ sheetId, user }: { sheetId: string; user:
   let suggestedTab = tabs.length + 1;
   while (tabs.some(tab => tab.name.toLowerCase() === 'sheet' + suggestedTab)) suggestedTab++;
 
-  return <main className="openjam-doc openjam-sheet" aria-label="Spreadsheet Editor">
+  return <main className="shiori-doc shiori-sheet" aria-label="Spreadsheet Editor">
     <header className="doc-header">
       <Link className="doc-icon" aria-label="Back to Workshop" title="Back to Workshop" to={returnPath}
         onClick={event => {

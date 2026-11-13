@@ -386,7 +386,7 @@ func readWordRun(decoder *xml.Decoder, start xml.StartElement) (wordRun, error) 
 					font = props.Fonts.HAnsi
 				}
 				return wordRun{Text: text.String(), Font: font, Bold: wordEnabled(props.Bold),
-					Italic: wordEnabled(props.Italic), Code: props.Style.Value == "OpenJamCodeChar"}, nil
+					Italic: wordEnabled(props.Italic), Code: props.Style.Value == "ShioriCodeChar" || props.Style.Value == "OpenJamCodeChar"}, nil
 			}
 		}
 	}
@@ -410,7 +410,7 @@ func (source wordReader) toBlock(props wordParagraphProps, runs []wordRun) (Bloc
 	style := source.styles[props.Style.Value]
 	heading := headingLevel(props.Style.Value, style.Name.Value, props.Outline.Value, style.Props.Outline.Value)
 	switch {
-	case strings.EqualFold(props.Style.Value, "OpenJamCode"):
+	case strings.EqualFold(props.Style.Value, "ShioriCode") || strings.EqualFold(props.Style.Value, "OpenJamCode"):
 		var literal strings.Builder
 		for _, run := range runs {
 			literal.WriteString(run.Text)

@@ -34,11 +34,11 @@ function Thumbnail({ page, items, images, index, active, editable, onSelect, onD
     aria-label={'Slide ' + (index + 1) + (detail ? ' · ' + detail.slice(0, 90) : '')}
     onClick={onSelect} draggable={editable} data-drop-target={target || undefined}
     onDragStart={event => {
-      event.dataTransfer.setData('application/x-openjam-slide', page.id);
+      event.dataTransfer.setData('application/x-shiori-slide', page.id);
       event.dataTransfer.effectAllowed = 'move';
     }}
     onDragOver={event => {
-      if (!editable || !event.dataTransfer.types.includes('application/x-openjam-slide')) return;
+      if (!editable || !event.dataTransfer.types.includes('application/x-shiori-slide')) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
       setTarget(true);
@@ -50,7 +50,7 @@ function Thumbnail({ page, items, images, index, active, editable, onSelect, onD
     onDrop={event => {
       event.preventDefault();
       setTarget(false);
-      const source = event.dataTransfer.getData('application/x-openjam-slide');
+      const source = event.dataTransfer.getData('application/x-shiori-slide');
       if (editable && source) onDrop(source);
     }}>
     <span className="slide-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>

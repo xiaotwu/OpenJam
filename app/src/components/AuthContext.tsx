@@ -74,7 +74,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
     const token = getToken();
     const pending = await countAccountPending(user.id).catch(() => undefined);
-    if (pending === undefined && !window.confirm('OpenJam could not check for pending edits. Sign out and keep any drafts on this device?')) return false;
+    if (pending === undefined && !window.confirm('Shiori could not check for pending edits. Sign out and keep any drafts on this device?')) return false;
     if (pending && !window.confirm(`Discard ${pending} unsynced ${pending === 1 ? 'edit' : 'edits'} on this device and sign out? Cancel to return and sync your edits first.`)) return false;
     if (getToken() !== token) return false;
 

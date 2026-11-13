@@ -29,7 +29,7 @@ Open **Assistant character** from the assistant header. The default is an animat
 
 For artwork designed in ChatGPT or another character design tool, export a square PNG or WebP. Transparent backgrounds, a centered silhouette, and no text make it readable at toolbar size. Import a character exported from Meta Muse through the same image path when its export is PNG, WebP, or JPEG.
 
-To import from ChatGPT Pets, download the pet's sprite sheet and select its PNG or WebP file. The importer recognizes the 1536×1872 and 1536×2288 layouts. It extracts six frames each for idle, working, waiting, and reviewing, and previews each state before saving. Browsers with reduced motion enabled display the first frame. The normalized appearance is stored per OpenJam account. Collaborators see the name and any selected glyph on attributed objects. Original artwork and sprite files stay outside the board document and provider requests.
+To import from ChatGPT Pets, download the pet's sprite sheet and select its PNG or WebP file. The importer recognizes the 1536×1872 and 1536×2288 layouts. It extracts six frames each for idle, working, waiting, and reviewing, and previews each state before saving. Browsers with reduced motion enabled display the first frame. The normalized appearance is stored per Shiori account. Collaborators see the name and any selected glyph on attributed objects. Original artwork and sprite files stay outside the board document and provider requests.
 
 ## Configure an external Agent or update guidance
 

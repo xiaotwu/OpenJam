@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/document"
 )
 
 var (
@@ -14,7 +14,7 @@ var (
 	ErrInvalidTheme   = errors.New("invalid render theme")
 	ErrEmptySelection = errors.New("the selected objects are no longer available")
 	ErrTooLarge       = errors.New("board file exceeds the size limit")
-	ErrInvalidFile    = errors.New("invalid OpenJam board file")
+	ErrInvalidFile    = errors.New("invalid Shiori board file")
 	ErrExternalImage  = errors.New("replace linked images with uploaded images to include them in a board file")
 )
 

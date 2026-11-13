@@ -1,11 +1,11 @@
-.openjam-workbench {
+.shiori-workbench {
   --wb-unread: #c32a45;
   --wb-unread-ink: white;
   --wb-divider: color-mix(in srgb, var(--wb-text) 9%, transparent);
   --wb-quiet-panel: color-mix(in srgb, var(--surface-panel) 38%, var(--wb-background));
 }
 
-.dark .openjam-workbench {
+.dark .shiori-workbench {
   --wb-unread: #f17889;
   --wb-unread-ink: #2e1118;
 }
@@ -314,7 +314,7 @@
     radial-gradient(ellipse at 50% 45%, var(--glass-bg-subtle), transparent 76%);
 }
 
-.openjam-workbench .wb-graph-lines {
+.shiori-workbench .wb-graph-lines {
   position: absolute;
   inset: 0;
   width: 100%;

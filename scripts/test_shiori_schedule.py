@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-import openjam_offsite as offsite
-import openjam_schedule as schedule
+import shiori_offsite as offsite
+import shiori_schedule as schedule
 
 
 NOW = datetime(2026, 11, 12, 13, 7, tzinfo=timezone.utc)

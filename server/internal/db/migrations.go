@@ -37,7 +37,7 @@ var migrations = [...]string{
 	"migrations/023_project_archives.sql",
 }
 
-// Every OpenJam migrator for the same database uses this transaction lock.
+// Every Shiori migrator for the same database uses this transaction lock.
 const migrationLock int64 = 0x4f70656e4a616d
 
 func Migrate() error {
@@ -47,7 +47,7 @@ func Migrate() error {
 func MigrateContext(ctx context.Context) error {
 	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLock); err != nil {
-			return fmt.Errorf("acquire OpenJam migration lock: %w", err)
+			return fmt.Errorf("acquire Shiori migration lock: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TABLE IF NOT EXISTS openjam_schema_migrations (
@@ -55,26 +55,26 @@ func MigrateContext(ctx context.Context) error {
 				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)
 		`); err != nil {
-			return fmt.Errorf("initialize OpenJam migration history: %w", err)
+			return fmt.Errorf("initialize Shiori migration history: %w", err)
 		}
 		current, err := schemaVersion(ctx, tx)
 		if err != nil {
 			return err
 		}
 		if current > len(migrations) {
-			return fmt.Errorf("OpenJam database schema is at version %d, binary supports %d", current, len(migrations))
+			return fmt.Errorf("Shiori database schema is at version %d, binary supports %d", current, len(migrations))
 		}
 		for index, path := range migrations[current:] {
 			version := current + index + 1
 			sql, err := migrationFiles.ReadFile(path)
 			if err != nil {
-				return fmt.Errorf("read OpenJam migration %d: %w", version, err)
+				return fmt.Errorf("read Shiori migration %d: %w", version, err)
 			}
 			if _, err := tx.Exec(ctx, string(sql)); err != nil {
-				return fmt.Errorf("apply OpenJam migration %d: %w", version, err)
+				return fmt.Errorf("apply Shiori migration %d: %w", version, err)
 			}
 			if _, err := tx.Exec(ctx, "INSERT INTO openjam_schema_migrations (version) VALUES ($1)", version); err != nil {
-				return fmt.Errorf("record OpenJam migration %d: %w", version, err)
+				return fmt.Errorf("record Shiori migration %d: %w", version, err)
 			}
 		}
 		return nil
@@ -88,7 +88,7 @@ func CheckSchema(ctx context.Context) error {
 		return err
 	}
 	if current != required {
-		return fmt.Errorf("OpenJam database schema is at version %d, binary requires %d", current, required)
+		return fmt.Errorf("Shiori database schema is at version %d, binary requires %d", current, required)
 	}
 	return nil
 }
@@ -107,10 +107,10 @@ func schemaVersion(ctx context.Context, query schemaQuerier) (int, error) {
 	var current, applied int
 	err := query.QueryRow(ctx, "SELECT COALESCE(MAX(version), 0), COUNT(*) FROM openjam_schema_migrations").Scan(&current, &applied)
 	if err != nil {
-		return 0, fmt.Errorf("read OpenJam migration history: %w", err)
+		return 0, fmt.Errorf("read Shiori migration history: %w", err)
 	}
 	if current != applied {
-		return 0, fmt.Errorf("OpenJam migration history has gaps up to version %d", current)
+		return 0, fmt.Errorf("Shiori migration history has gaps up to version %d", current)
 	}
 	return current, nil
 }

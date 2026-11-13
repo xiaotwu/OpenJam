@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/project-wb/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/db"
 )
 
 // Hub tracks upgraded connections and delivers live room messages.
@@ -149,7 +149,7 @@ func (h *Hub) CloseConnections() {
 	h.mu.Unlock()
 
 	deadline := time.Now().Add(time.Second)
-	closeMessage := websocket.FormatCloseMessage(websocket.CloseServiceRestart, "OpenJam is restarting")
+	closeMessage := websocket.FormatCloseMessage(websocket.CloseServiceRestart, "Shiori is restarting")
 	for _, client := range clients {
 		_ = client.conn.WriteControl(websocket.CloseMessage, closeMessage, deadline)
 		_ = client.conn.Close()

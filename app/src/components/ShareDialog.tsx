@@ -276,7 +276,7 @@ export default function ShareDialog({
           <div className="mt-6 flex items-center gap-2" role="toolbar" aria-label="Quick share">
             <button
               type="button"
-              onClick={() => window.open(`mailto:?subject=${encodeURIComponent(`Check out "${boardName}" on OpenJam`)}&body=${encodeURIComponent(`I'd like to share this board with you: ${shareLink}`)}`)}
+              onClick={() => window.open(`mailto:?subject=${encodeURIComponent(`Check out "${boardName}" on Shiori`)}&body=${encodeURIComponent(`I'd like to share this board with you: ${shareLink}`)}`)}
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Email"
               aria-label="Share by email"
@@ -294,7 +294,7 @@ export default function ShareDialog({
             </button>
             <button
               type="button"
-              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out "${boardName}" on OpenJam`)}&url=${encodeURIComponent(shareLink)}`, '_blank')}
+              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out "${boardName}" on Shiori`)}&url=${encodeURIComponent(shareLink)}`, '_blank')}
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Twitter/X"
               aria-label="Share on Twitter or X"

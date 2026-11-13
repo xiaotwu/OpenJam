@@ -9,14 +9,15 @@ import TeamInvitationGate from './components/TeamInvitationGate';
 import type { User } from './lib/api';
 import { useI18n } from './i18n';
 import { useAppearance } from './lib/useAppearance';
+import { useTheme } from './lib/useTheme';
 import { boardCredentialFragment, readBoardCredential } from './lib/boardSharing';
 import type { ResourceKind } from './lib/directory';
 import './App.css';
 
-const OpenJamCanvas = lazy(() => import('./components/OpenJamCanvas'));
-const OpenJamDoc = lazy(() => import('./components/docs/OpenJamDoc'));
-const OpenJamSheet = lazy(() => import('./components/sheets/OpenJamSheet'));
-const OpenJamSlides = lazy(() => import('./components/slides/OpenJamSlides'));
+const ShioriCanvas = lazy(() => import('./components/ShioriCanvas'));
+const ShioriDoc = lazy(() => import('./components/docs/ShioriDoc'));
+const ShioriSheet = lazy(() => import('./components/sheets/ShioriSheet'));
+const ShioriSlides = lazy(() => import('./components/slides/ShioriSlides'));
 const MeetingRoom = lazy(() => import('./components/meetings/MeetingRoom'));
 
 function LoadingScreen({ message }: { message: string }) {
@@ -40,6 +41,7 @@ function generateColor(): string {
 
 function AppContent() {
   const { user, isLoading, logout } = useAuth();
+  useTheme();
   const { appearance } = useAppearance(user?.id);
   useEffect(() => {
     document.documentElement.style.setProperty('--ui-text-size', appearance.textSize + 'px');
@@ -196,9 +198,9 @@ function BoardRoute({ user, fallbackColor, kind = 'board' }: {
 
   return (
     <Suspense fallback={<LoadingScreen message={kind === 'board' ? text.opening : 'Opening ' + ({ doc: 'document', sheet: 'spreadsheet', slides: 'presentation' }[kind]) + '…'} />}>
-      {kind === 'slides' ? <OpenJamSlides key={`${user.id}:${boardId}`} presentationId={boardId || ''} user={user} />
-        : kind === 'sheet' ? <OpenJamSheet key={`${user.id}:${boardId}`} sheetId={boardId || ''} user={user} />
-        : kind === 'doc' ? <OpenJamDoc key={`${user.id}:${boardId}`} docId={boardId || ''} user={user} /> : <OpenJamCanvas
+      {kind === 'slides' ? <ShioriSlides key={`${user.id}:${boardId}`} presentationId={boardId || ''} user={user} />
+        : kind === 'sheet' ? <ShioriSheet key={`${user.id}:${boardId}`} sheetId={boardId || ''} user={user} />
+        : kind === 'doc' ? <ShioriDoc key={`${user.id}:${boardId}`} docId={boardId || ''} user={user} /> : <ShioriCanvas
         key={`${user.id}:${boardId}`}
         boardId={boardId || 'default'}
         userId={user.id}

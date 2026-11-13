@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/slideformat"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/slideformat"
 )
 
 type slidePage struct {

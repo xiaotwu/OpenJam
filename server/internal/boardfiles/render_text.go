@@ -9,6 +9,8 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/xiaotwu/shiori/server/internal/config"
+
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
@@ -33,7 +35,7 @@ func (r *renderer) close() {
 
 var loadFont = sync.OnceValue(func() *opentype.Font {
 	paths := []string{
-		os.Getenv("OPENJAM_RENDER_FONT"),
+		config.Env("SHIORI_RENDER_FONT"),
 		"/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
 		"/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
 	}

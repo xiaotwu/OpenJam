@@ -62,7 +62,7 @@ func TestDOCXRoundTrip(t *testing.T) {
 	}
 	links, err := readPart(archive, "word/_rels/document.xml.rels")
 	if err != nil || !bytes.Contains(links, []byte(origin+"/board/")) {
-		t.Fatalf("relative OpenJam link was not made absolute in Word: %v", err)
+		t.Fatalf("relative Shiori link was not made absolute in Word: %v", err)
 	}
 	reopened, err := ReadDOCX(data, origin)
 	if err != nil {

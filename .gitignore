@@ -6,6 +6,8 @@
 
 # Server binaries
 server/*.exe
+shiori-server
+server/shiori-server
 server/openjam-server
 server/server
 server/test-server

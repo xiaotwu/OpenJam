@@ -1,3 +1,4 @@
+// Preserve the IndexedDB queue containing drafts from earlier versions.
 const DATABASE = 'openjam-board-sync';
 const COMMANDS = 'commands';
 const USAGE = 'usage';

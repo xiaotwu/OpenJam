@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/assets"
 	xd "golang.org/x/image/draw"
 )
 

@@ -1,4 +1,4 @@
-"""Reconcile OpenJam offsite jobs when an operating system scheduler invokes a tick."""
+"""Reconcile Shiori offsite jobs when an operating system scheduler invokes a tick."""
 
 from datetime import datetime, timezone
 import os
@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from urllib import parse, request
 import uuid
 
-import openjam_offsite as offsite
+import shiori_offsite as offsite
 
 FORMAT = "openjam-offsite-schedule-v1"
 STATE = "schedule.json"

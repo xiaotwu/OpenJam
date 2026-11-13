@@ -42,7 +42,7 @@ export async function downloadProjectArchive(project: Project, signal: AbortSign
   link.href = url;
   const name = Array.from(project.name, char => '/\\:*?"<>|'.includes(char) || char.charCodeAt(0) < 32 ? '-' : char)
     .join('').replace(/^[ .]+|[ .]+$/g, '');
-  link.download = (name || 'OpenJam') + '.openjam-project.zip';
+  link.download = (name || 'Shiori') + '.shiori-project.zip';
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

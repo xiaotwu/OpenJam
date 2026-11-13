@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
 )
 
 func RegisterProjectSyncRoutes(api *gin.RouterGroup, notify func(string, int64, int64)) {

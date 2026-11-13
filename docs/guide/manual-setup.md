@@ -1,6 +1,6 @@
 # Manual Setup
 
-Deploy OpenJam without Docker by building the frontend and backend manually.
+Deploy Shiori without Docker by building the frontend and backend manually.
 
 ## Prerequisites
 
@@ -16,35 +16,35 @@ Deploy OpenJam without Docker by building the frontend and backend manually.
 make build
 ```
 
-This embeds the frontend in `./openjam-server`.
+This embeds the frontend in `./shiori-server`.
 
 ## Deploy
 
 Configure the same [environment](/reference/configuration) for the migrator, API and worker. Take a consistent backup before migrating an existing instance.
 
 ```bash
-./openjam-server migrate
-OPENJAM_AUTO_MIGRATE=false ./openjam-server api
+./shiori-server migrate
+SHIORI_AUTO_MIGRATE=false ./shiori-server api
 ```
 
-Start `./openjam-server worker` under the process supervisor with the same database and object store configuration. Verify the HTTP endpoints and run `./openjam-server doctor`. See [Operations and Recovery](./operations.md) for checks and restore verification.
+Start `./shiori-server worker` under the process supervisor with the same database and object store configuration. Verify the HTTP endpoints and run `./shiori-server doctor`. See [Operations and Recovery](./operations.md) for checks and restore verification.
 
 ## Running with systemd
 
-Create `/etc/systemd/system/openjam.service`:
+Create `/etc/systemd/system/shiori.service`:
 
 ```ini
 [Unit]
-Description=OpenJam Whiteboard Server
+Description=Shiori Whiteboard Server
 After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=openjam
-WorkingDirectory=/opt/openjam
-ExecStart=/opt/openjam/openjam-server api
-EnvironmentFile=/opt/openjam/.env
-Environment=OPENJAM_AUTO_MIGRATE=false
+User=shiori
+WorkingDirectory=/opt/shiori
+ExecStart=/opt/shiori/shiori-server api
+EnvironmentFile=/opt/shiori/.env
+Environment=SHIORI_AUTO_MIGRATE=false
 Restart=always
 RestartSec=5
 
@@ -53,5 +53,5 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable --now openjam
+sudo systemctl enable --now shiori
 ```

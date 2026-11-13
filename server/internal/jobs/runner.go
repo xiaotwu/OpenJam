@@ -42,11 +42,11 @@ func Run(ctx context.Context, runner Runner) error {
 	for ctx.Err() == nil {
 		if time.Since(lastSweep) >= 10*time.Second {
 			if err := Sweep(ctx); err != nil && ctx.Err() == nil {
-				log.Print("OpenJam job cache sweep failed")
+				log.Print("Shiori job cache sweep failed")
 			}
 			if runner.Maintenance != nil {
 				if err := runner.Maintenance(ctx); err != nil && ctx.Err() == nil {
-					log.Print("OpenJam job maintenance deferred")
+					log.Print("Shiori job maintenance deferred")
 				}
 			}
 			lastSweep = time.Now()
@@ -57,7 +57,7 @@ func Run(ctx context.Context, runner Runner) error {
 			continue
 		}
 		if !errors.Is(err, ErrNoWork) && ctx.Err() == nil {
-			log.Print("OpenJam job claim failed")
+			log.Print("Shiori job claim failed")
 		}
 		timer := time.NewTimer(runner.PollInterval)
 		select {
@@ -112,7 +112,7 @@ func (runner Runner) process(ctx context.Context, lease Lease, handler Handler) 
 	}
 	if err != nil && !errors.Is(err, ErrLeaseLost) && ctx.Err() == nil {
 		if _, recordErr := Reject(ctx, lease, err); recordErr != nil && !errors.Is(recordErr, ErrLeaseLost) && ctx.Err() == nil {
-			log.Printf("OpenJam could not record job failure id=%s kind=%s", lease.ID, lease.Kind)
+			log.Printf("Shiori could not record job failure id=%s kind=%s", lease.ID, lease.Kind)
 		}
 	}
 }

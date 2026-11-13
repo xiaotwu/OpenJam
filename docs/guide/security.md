@@ -1,6 +1,6 @@
 # Authentication & Security
 
-OpenJam implements session-based authentication with several security measures.
+Shiori implements session-based authentication with several security measures.
 
 ## Authentication Flow
 
@@ -31,7 +31,7 @@ Private image requests and document sync each have a separate budget of 30 reque
 
 - Rooms are owned by the user who created them
 - Room list shows owned rooms and rooms where the current user is an invited member
-- Owners can invite registered OpenJam users by email with `view`, `comment`, or `edit` permission
+- Owners can invite registered Shiori users by email with `view`, `comment`, or `edit` permission
 - Owners can configure board-link permissions: `restricted`, `anyone-view`, `anyone-comment`, or `anyone-edit`
 - Public link permissions apply to authenticated users who have the board URL; unauthenticated viewers still need to sign in first
 - Room load, export, and WebSocket join flows allow owners, invited members, and authenticated link viewers

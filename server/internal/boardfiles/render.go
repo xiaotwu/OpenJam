@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/document"
 	xd "golang.org/x/image/draw"
 	"golang.org/x/image/math/f64"
 )

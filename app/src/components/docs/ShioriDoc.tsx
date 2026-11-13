@@ -116,7 +116,7 @@ function blockElement(id: string) {
   return document.getElementById('doc-block-' + id);
 }
 
-export default function OpenJamDoc({ docId, user }: { docId: string; user: User }) {
+export default function ShioriDoc({ docId, user }: { docId: string; user: User }) {
   const { theme, setTheme } = useTheme();
   const { logout } = useAuth();
   const location = useLocation();
@@ -319,7 +319,7 @@ export default function OpenJamDoc({ docId, user }: { docId: string; user: User 
     return heading ? [{ id: block.id, label: heading[2], level: heading[1].length }] : [];
   });
 
-  return <main className="openjam-doc" aria-label="Document Editor">
+  return <main className="shiori-doc" aria-label="Document Editor">
     <header className="doc-header">
       <Link className="doc-icon" aria-label="Back to Workshop" title="Back to Workshop" to={returnPath} onClick={event => {
         if (draftRef.current) {

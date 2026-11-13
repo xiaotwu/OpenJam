@@ -1,4 +1,4 @@
-"""Encrypted offsite recovery points for the default OpenJam Compose deployment."""
+"""Encrypted offsite recovery points for the default Shiori Compose deployment."""
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -631,7 +631,7 @@ def run_command(args, compose_type, backup, verify_backup, quick_check, ops_erro
         raise OffsiteError("Use --project NAME for the source deployment recorded on the replica.")
     sub = args.offsite
     if sub == "tick":
-        from openjam_schedule import tick
+        from shiori_schedule import tick
 
         def run_backup(run_args, output):
             return run_command(run_args, compose_type, backup, verify_backup, quick_check, ops_error, reporter=output)

@@ -7,7 +7,7 @@ import (
 	"slices"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/assets"
 )
 
 func validateImageRecord(ctx context.Context, tx pgx.Tx, boardID string, operation Operation, fields map[string]json.RawMessage) error {

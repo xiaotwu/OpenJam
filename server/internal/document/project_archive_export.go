@@ -11,12 +11,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
-var errArchiveLegacyImage = &ProjectFault{"PROJECT_ARCHIVE_IMAGE", "A legacy board contains an image that is not stored in OpenJam. Save it as a private image before exporting."}
+var errArchiveLegacyImage = &ProjectFault{"PROJECT_ARCHIVE_IMAGE", "A legacy board contains an image that is not stored in Shiori. Save it as a private image before exporting."}
 
 type archiveCapture struct {
 	manifest    projectArchiveManifest

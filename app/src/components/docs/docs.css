@@ -1,4 +1,4 @@
-.openjam-doc {
+.shiori-doc {
   --doc-line: var(--glass-border-strong);
   --doc-quiet: var(--text-secondary);
   position: relative;
@@ -10,9 +10,9 @@
   color: var(--text-primary);
 }
 
-.openjam-doc svg { flex: 0 0 auto; width: 17px; height: 17px; }
+.shiori-doc svg { flex: 0 0 auto; width: 17px; height: 17px; }
 
-.openjam-doc :is(button, a, input, select, textarea, summary):focus-visible {
+.shiori-doc :is(button, a, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -279,7 +279,7 @@
   line-height: 1.55;
 }
 
-.openjam-doc .doc-block-input:focus-visible { outline: 0; }
+.shiori-doc .doc-block-input:focus-visible { outline: 0; }
 .doc-block:focus-within { box-shadow: 0 0 0 1px var(--doc-line); }
 .doc-block-input::placeholder { color: var(--doc-quiet); }
 

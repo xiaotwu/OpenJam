@@ -4,7 +4,7 @@ In a personal Project, choose **Import to Team** beside the project title. Selec
 
 Open **Project Sync & Versions** and select a linked project. **Pull** brings incoming changes into the project you're viewing. **Commit & Push** sends its outgoing changes to the linked project and records the commit in both histories. You can give the commit a name.
 
-When both sides change a file since their last sync, the file shows **Conflict**. Open either copy to review it. Choose **Use Linked Copy** and then **Pull**, or **Use Current Copy** and then **Commit & Push**. You can also leave a conflict unresolved while you transfer changes to other files. If someone edits after you preview the changes, OpenJam asks you to review the updated list before trying again.
+When both sides change a file since their last sync, the file shows **Conflict**. Open either copy to review it. Choose **Use Linked Copy** and then **Pull**, or **Use Current Copy** and then **Commit & Push**. You can also leave a conflict unresolved while you transfer changes to other files. If someone edits after you preview the changes, Shiori asks you to review the updated list before trying again.
 
 Sync transfers saved file contents, names, new files, and archive state as a batch. A file deleted or moved out of one project is archived on the other side when that removal is synced. Embedded links keep their original destinations and continue to follow those destinations' permissions.
 
@@ -18,7 +18,7 @@ Project operations support up to 100 files and 32 MiB of saved document data per
 
 ## Quick Check
 
-1. Open two local OpenJam instances that share PostgreSQL, Redis, and object storage. Import a personal project to a test Team in each mode.
+1. Open two local Shiori instances that share PostgreSQL, Redis, and object storage. Import a personal project to a test Team in each mode.
 2. Edit different files on the linked copies. Pull and then commit from one instance. Confirm the other instance sees the updates, while the independent copy retains its original contents.
 3. Change the same file on both sides and check that the preview reports a conflict. Apply a resolution and confirm the previous version can still be recovered.
 4. Save a snapshot, add a file, and restore the snapshot. Confirm the new file moves to Archive. Revoke the importing member's Project role and confirm their link disappears and earlier sync requests are rejected.

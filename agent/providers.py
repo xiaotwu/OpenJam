@@ -27,7 +27,7 @@ MAX_EXTERNAL_USAGE = 10_000_000
 LOCAL_NETWORKS = tuple(ipaddress.ip_network(net) for net in (
     "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7",
 ))
-SYSTEM_PROMPT = """You create an editable OpenJam whiteboard draft. Return only the requested JSON object.
+SYSTEM_PROMPT = """You create an editable Shiori whiteboard draft. Return only the requested JSON object.
 Write in the user's language. Keep each label and note concise and avoid invented facts, owners, deadlines, and citations.
 The workflow chooses the layout. For workshop, use up to 6 groups and up to 32 notes total, at most 8 notes per group.
 For organize, sort the excerpts into useful themes and retain their meaning. Use the same group and note limits.
@@ -109,25 +109,25 @@ def parse_ollama_url(value):
             or parsed.query or parsed.fragment or parsed.path not in {"", "/"}
             or any(char.isspace() or char == "\\" for char in value)
         ):
-            raise UnsafeEndpoint("OPENJAM_OLLAMA_URL needs a local HTTP origin")
+            raise UnsafeEndpoint("SHIORI_OLLAMA_URL needs a local HTTP origin")
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
         host = parsed.hostname
     except ValueError as exc:
-        raise UnsafeEndpoint("OPENJAM_OLLAMA_URL needs a local HTTP origin") from exc
+        raise UnsafeEndpoint("SHIORI_OLLAMA_URL needs a local HTTP origin") from exc
     try:
         ipaddress.ip_address(host)
     except ValueError:
         pass
     else:
         if not is_local_address(host):
-            raise UnsafeEndpoint("OPENJAM_OLLAMA_URL needs a local HTTP origin")
+            raise UnsafeEndpoint("SHIORI_OLLAMA_URL needs a local HTTP origin")
     return Endpoint(host, port, "/api/chat", parsed.scheme == "https", True)
 
 
 def parse_external_url(value):
     if not value:
         return None
-    message = "OPENJAM_EXTERNAL_AGENT_URL needs a fixed HTTPS endpoint"
+    message = "SHIORI_EXTERNAL_AGENT_URL needs a fixed HTTPS endpoint"
     try:
         parsed = urlsplit(value)
         if (
@@ -180,17 +180,20 @@ class Config:
 
     @classmethod
     def from_env(cls, env=None):
-        env = os.environ if env is None else env
-        token = env.get("OPENJAM_AGENT_TOKEN", "")
+        env = dict(os.environ if env is None else env)
+        for key, value in tuple(env.items()):
+            if key.startswith("OPENJAM_"):
+                env.setdefault("SHIORI_" + key.removeprefix("OPENJAM_"), value)
+        token = env.get("SHIORI_AGENT_TOKEN", "")
         if not token or not token.isascii() or not token.isprintable() or any(char.isspace() for char in token):
-            raise ValueError("OPENJAM_AGENT_TOKEN needs a printable ASCII token")
-        mock = (env.get("OPENJAM_AGENT_MOCK", "") or "false").lower()
+            raise ValueError("SHIORI_AGENT_TOKEN needs a printable ASCII token")
+        mock = (env.get("SHIORI_AGENT_MOCK", "") or "false").lower()
         if mock not in {"true", "false", "1", "0"}:
             raise ValueError("Invalid OPENJAM_AGENT_MOCK")
-        external_model = env.get("OPENJAM_EXTERNAL_AGENT_MODEL", "").strip()
-        external_endpoint = parse_external_url(env.get("OPENJAM_EXTERNAL_AGENT_URL", ""))
-        external_token = env.get("OPENJAM_EXTERNAL_AGENT_TOKEN", "")
-        external_label = env.get("OPENJAM_EXTERNAL_AGENT_LABEL", "").strip() or "External Agent"
+        external_model = env.get("SHIORI_EXTERNAL_AGENT_MODEL", "").strip()
+        external_endpoint = parse_external_url(env.get("SHIORI_EXTERNAL_AGENT_URL", ""))
+        external_token = env.get("SHIORI_EXTERNAL_AGENT_TOKEN", "")
+        external_label = env.get("SHIORI_EXTERNAL_AGENT_LABEL", "").strip() or "External Agent"
         if any((external_model, external_endpoint, external_token)):
             if (
                 not MODEL_ID.fullmatch(external_model) or external_endpoint is None
@@ -201,24 +204,24 @@ class Config:
             try:
                 bounded_text(external_label, 80, required=True)
             except ValueError as exc:
-                raise ValueError("OPENJAM_EXTERNAL_AGENT_LABEL must be a single line of up to 80 characters") from exc
+                raise ValueError("SHIORI_EXTERNAL_AGENT_LABEL must be a single line of up to 80 characters") from exc
             if any(char in external_label for char in "\n\r\t\u2028\u2029"):
-                raise ValueError("OPENJAM_EXTERNAL_AGENT_LABEL must be a single line of up to 80 characters")
+                raise ValueError("SHIORI_EXTERNAL_AGENT_LABEL must be a single line of up to 80 characters")
         return cls(
             token=token,
-            openai_model=env.get("OPENJAM_OPENAI_MODEL", "").strip(),
+            openai_model=env.get("SHIORI_OPENAI_MODEL", "").strip(),
             openai_key=env.get("OPENAI_API_KEY", ""),
-            ollama_model=env.get("OPENJAM_OLLAMA_MODEL", "").strip(),
-            ollama_endpoint=parse_ollama_url(env.get("OPENJAM_OLLAMA_URL", "")),
+            ollama_model=env.get("SHIORI_OLLAMA_MODEL", "").strip(),
+            ollama_endpoint=parse_ollama_url(env.get("SHIORI_OLLAMA_URL", "")),
             external_model=external_model,
             external_label=external_label,
             external_endpoint=external_endpoint,
             external_token=external_token,
-            prompt_packs=PromptPacks(env.get("OPENJAM_AGENT_PROMPT_PACK", "")),
+            prompt_packs=PromptPacks(env.get("SHIORI_AGENT_PROMPT_PACK", "")),
             mock_enabled=mock in {"true", "1"},
-            mock_delay=configured_int(env, "OPENJAM_AGENT_MOCK_DELAY_MS", 0, 0, 30000) / 1000,
-            timeout=configured_int(env, "OPENJAM_AGENT_TIMEOUT_SECONDS", 75, 1, 90),
-            port=configured_int(env, "OPENJAM_AGENT_PORT", 8091, 1024, 65535),
+            mock_delay=configured_int(env, "SHIORI_AGENT_MOCK_DELAY_MS", 0, 0, 30000) / 1000,
+            timeout=configured_int(env, "SHIORI_AGENT_TIMEOUT_SECONDS", 75, 1, 90),
+            port=configured_int(env, "SHIORI_AGENT_PORT", 8091, 1024, 65535),
         )
 
 
@@ -471,7 +474,7 @@ def generate(config, request, transport=exchange):
     elif request.provider == "ollama" and config.ollama_endpoint and request.model == config.ollama_model:
         adapter = ollama
     else:
-        raise ProviderError(503, "PROVIDER_NOT_CONFIGURED", "This model is not configured for OpenJam.")
+        raise ProviderError(503, "PROVIDER_NOT_CONFIGURED", "This model is not configured for Shiori.")
 
     guide = config.prompt_packs.snapshot().guide(request.workflow)
     usage = {}

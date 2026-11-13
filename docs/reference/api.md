@@ -1,6 +1,6 @@
 # API Reference
 
-OpenJam exposes a REST API for authentication, room management, and board operations.
+Shiori exposes a REST API for authentication, room management, and board operations.
 
 ## Authentication
 
@@ -102,7 +102,7 @@ Update room link permission (owner only).
 Valid values: `restricted`, `anyone-view`, `anyone-comment`, `anyone-edit`.
 
 ### POST `/api/rooms/:id/invites`
-Invite an existing OpenJam user to a room by email (owner only).
+Invite an existing Shiori user to a room by email (owner only).
 
 **Request:**
 ```json

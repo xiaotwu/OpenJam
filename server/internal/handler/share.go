@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 type UpdateShareSettingsRequest struct {
@@ -152,7 +152,7 @@ func writeRoomShareError(c *gin.Context, err error, fallback string) {
 	case errors.Is(err, model.ErrRoomAccessDenied):
 		c.JSON(http.StatusForbidden, gin.H{"error": "Room access denied"})
 	case errors.Is(err, model.ErrUserNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "That user does not have an OpenJam account yet"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "That user does not have an Shiori account yet"})
 	case errors.Is(err, model.ErrRoomMemberNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "Room member not found"})
 	case errors.Is(err, model.ErrRoomMemberIsOwner):

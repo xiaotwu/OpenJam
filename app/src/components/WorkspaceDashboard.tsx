@@ -10,6 +10,7 @@ import { useTheme } from '../lib/useTheme';
 import { useAppearance } from '../lib/useAppearance';
 import { meetingPath, useWorkshopResource, workshopPath, type Inbox } from '../lib/workshop';
 import { useI18n } from '../i18n';
+import ShioriMark from './ShioriMark';
 import AccountPopover from './workbench/AccountPopover';
 import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workbench/BoardCollection';
 import BoardFilesPanel from './BoardFilesPanel';
@@ -72,12 +73,13 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 function organizationPreferenceKey(userId: string): string {
-  return `openjam-workbench-organization-v1:${userId}`;
+  return `shiori-workbench-organization-v1:${userId}`;
 }
 
 function getOrganizationPreference(userId: string): string | null {
   try {
-    return sessionStorage.getItem(organizationPreferenceKey(userId));
+    return sessionStorage.getItem(organizationPreferenceKey(userId))
+      ?? sessionStorage.getItem(`openjam-workbench-organization-v1:${userId}`);
   } catch {
     return null;
   }
@@ -519,7 +521,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const calendarScope = params.get('scope') ?? undefined;
 
   return (
-    <main className="openjam-workbench">
+    <main className="shiori-workbench">
       <aside
         className="wb-sidebar"
         id="wb-sidebar"
@@ -535,8 +537,8 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             className="wb-brand"
             onClick={() => { setQuery(''); setMobileNavOpen(false); }}
           >
-            <img src="/icons/openjam.png" alt="" width="28" height="28" />
-            <span>OpenJam</span>
+            <ShioriMark size={25} />
+            <span>Shiori</span>
           </Link>
           <button type="button" ref={mobileCloseButton} className="wb-icon-button wb-mobile-close" aria-label={text.closeNavigation} onClick={closeMobileNav}>
             <WorkbenchIcon name="close" />

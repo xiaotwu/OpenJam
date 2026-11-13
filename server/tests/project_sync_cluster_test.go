@@ -14,14 +14,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 func TestProjectSyncCluster(t *testing.T) {
 	if os.Getenv("OPENJAM_CLUSTER_PROJECT_SYNC") != "1" {
-		t.Skip("requires two isolated OpenJam API replicas with shared storage")
+		t.Skip("requires two isolated Shiori API replicas with shared storage")
 	}
 	a, b, dsn := os.Getenv("OPENJAM_CLUSTER_PRIMARY"), os.Getenv("OPENJAM_CLUSTER_SECONDARY"), os.Getenv("OPENJAM_CLUSTER_DATABASE_URL")
 	requireLocalCluster(t, a, b, dsn)

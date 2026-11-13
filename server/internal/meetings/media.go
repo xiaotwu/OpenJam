@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 	accessInterval = 2 * time.Second
 )
 
-// Media is the private LiveKit connection shared by OpenJam API replicas.
+// Media is the private LiveKit connection shared by Shiori API replicas.
 type Media struct {
 	base      *url.URL
 	key       string
@@ -60,8 +60,8 @@ func NewMedia(endpoint, key, secret string) (*Media, error) {
 
 func (m *Media) token(subject, name string, grant map[string]any) string {
 	now := time.Now()
-	// OpenJam signs the upstream request with LiveKit's HS256 access token format.
-	// The meeting link contains only the OpenJam meeting ID.
+	// Shiori signs the upstream request with LiveKit's HS256 access token format.
+	// The meeting link contains only the Shiori meeting ID.
 	claims, _ := json.Marshal(map[string]any{
 		"iss": m.key, "sub": subject, "name": name,
 		"nbf": now.Add(-5 * time.Second).Unix(), "exp": now.Add(time.Minute).Unix(), "video": grant,

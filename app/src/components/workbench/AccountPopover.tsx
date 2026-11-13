@@ -40,7 +40,7 @@ export default function AccountPopover({
   const editButton = useRef<HTMLButtonElement>(null);
   const id = useId();
   const name = user?.displayName.trim();
-  const initial = name ? Array.from(name)[0].toUpperCase() : 'O';
+  const initial = name ? Array.from(name)[0].toUpperCase() : 'S';
   const label = user ? text.title : text.appearance;
 
   useEffect(() => {

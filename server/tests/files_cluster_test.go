@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/jobs"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/jobs"
 )
 
 func TestFilesCluster(t *testing.T) {

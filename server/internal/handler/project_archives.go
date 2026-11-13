@@ -14,9 +14,9 @@ import (
 	"unicode"
 
 	"github.com/gin-gonic/gin"
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/document"
-	"github.com/project-wb/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
 )
 
 const archiveOptionsLimit = 160 << 10
@@ -65,9 +65,9 @@ func RegisterProjectArchiveRoutes(api *gin.RouterGroup) {
 			return r
 		}, name), " .")
 		if name == "" {
-			name = "OpenJam"
+			name = "Shiori"
 		}
-		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name + ".openjam-project.zip"}))
+		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name + ".shiori-project.zip"}))
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Data(http.StatusOK, "application/zip", data)
 	})

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 const MaxCommandBytes = 25 * 1024 * 1024

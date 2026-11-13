@@ -8,14 +8,14 @@ import (
 	"io"
 	"time"
 
-	"github.com/project-wb/server/internal/assets"
-	"github.com/project-wb/server/internal/config"
-	"github.com/project-wb/server/internal/db"
-	"github.com/project-wb/server/internal/storage"
+	"github.com/xiaotwu/shiori/server/internal/assets"
+	"github.com/xiaotwu/shiori/server/internal/config"
+	"github.com/xiaotwu/shiori/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/storage"
 )
 
 func runDoctor(ctx context.Context, args []string, out io.Writer) error {
-	flags := flag.NewFlagSet("openjam doctor", flag.ContinueOnError)
+	flags := flag.NewFlagSet("shiori doctor", flag.ContinueOnError)
 	flags.SetOutput(out)
 	audit := flags.Bool("assets", false, "read and hash registered private images")
 	timeout := flags.Duration("timeout", 30*time.Second, "time limit for all checks")
@@ -26,7 +26,7 @@ func runDoctor(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	if flags.NArg() != 0 || *timeout <= 0 {
-		return errors.New("usage: openjam doctor [--assets] [--timeout 30s]")
+		return errors.New("usage: shiori doctor [--assets] [--timeout 30s]")
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -94,7 +94,7 @@ func runDoctor(ctx context.Context, args []string, out io.Writer) error {
 		}
 	}
 	if failed {
-		return errors.New("OpenJam self-check failed")
+		return errors.New("Shiori self-check failed")
 	}
 	return nil
 }

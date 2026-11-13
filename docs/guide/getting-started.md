@@ -1,12 +1,12 @@
 # Getting Started
 
-The fastest way to run OpenJam is with Docker Compose.
+The fastest way to run Shiori is with Docker Compose.
 
 ## Quick Start (Docker)
 
 ```bash
-git clone https://github.com/xiaotwu/openjam.git
-cd openjam
+git clone https://github.com/xiaotwu/OpenJam.git shiori
+cd shiori
 docker compose up --build -d
 ```
 
@@ -28,14 +28,14 @@ For local development, you'll run the backend and frontend separately.
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-This starts PostgreSQL, Redis, and MinIO.
+This starts PostgreSQL, Redis, and SeaweedFS.
 
 ### 2. Start the backend
 
 ```bash
 cd server
 cp .env.example .env
-go run main.go
+go run .
 ```
 
 ### 3. Start the frontend
@@ -60,7 +60,7 @@ npm run dev
 
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - Backend API: [http://localhost:8080](http://localhost:8080)
-- MinIO Console: [http://localhost:9001](http://localhost:9001)
+- SeaweedFS S3 endpoint: [http://localhost:8333](http://localhost:8333)
 
 ## Workshop
 
@@ -80,23 +80,23 @@ In a Team project, open **Project Access** to grant roles to current Team member
 
 Use **Import to Team** in a personal Project to create a linked Team copy or an independent branch. [Project Branches and Sync](./project-sync.md) explains transfers, conflict resolution, and snapshots.
 
-Use [Project Archives](./project-archive.md) to move the contents and version history of a project between OpenJam instances.
+Use [Project Archives](./project-archive.md) to move the contents and version history of a project between Shiori instances.
 
 ## Docs
 
 Create a document in a personal or Team project with **New → New Document**. The editor saves blocks as you type. Select a block to edit its text, choose its style, or set its font. Enter splits a block and Shift+Enter inserts a line break inside it. Use **Preview** to read the rendered Markdown.
 
-Editors can work in different blocks at the same time. If two edits change the same block, OpenJam keeps the queued edit for review and lets you download a copy. Use **Document History** to name the saved version and preview older text. The owner can restore a version, and editors can copy a saved version into personal Drafts. Sharing and block comments use the same permissions as boards.
+Editors can work in different blocks at the same time. If two edits change the same block, Shiori keeps the queued edit for review and lets you download a copy. Use **Document History** to name the saved version and preview older text. The owner can restore a version, and editors can copy a saved version into personal Drafts. Sharing and block comments use the same permissions as boards.
 
-From a project, choose **Import → Markdown or DOCX** to create a document from a file. In the editor, **Export Document** downloads the saved content as Markdown or Word. Word conversion supports paragraphs, headings, lists, bold, italics, links, quotes, and code. It uses the chosen block fonts when Word has them installed. OpenJam links in a Word export use the address of the exporting instance. Markdown carries the text and formatting syntax. Word tables are linearized to text, and images, comments, track changes markup, and page layout are outside the conversion. Imports accept up to 4 MiB, and a document supports up to 400 blocks and 1 MiB of text.
+From a project, choose **Import → Markdown or DOCX** to create a document from a file. In the editor, **Export Document** downloads the saved content as Markdown or Word. Word conversion supports paragraphs, headings, lists, bold, italics, links, quotes, and code. It uses the chosen block fonts when Word has them installed. Shiori links in a Word export use the address of the exporting instance. Markdown carries the text and formatting syntax. Word tables are linearized to text, and images, comments, track changes markup, and page layout are outside the conversion. Imports accept up to 4 MiB, and a document supports up to 400 blocks and 1 MiB of text.
 
 ## Sheets
 
 In a personal or Team project, choose **New → New Spreadsheet**. Select a cell, then type, press Enter, or double-click to edit it in the formula bar. Enter saves the edit and moves down. Escape cancels it. Use **Go to Cell** to jump to an address and **Copy Cell Link** to share that location with someone who already has access.
 
-Start formulas with an equals sign. Use arithmetic, cell and range references, and `SUM`, `AVERAGE`, `MIN`, `MAX`, or `COUNT`. For example, `=SUM(B2:B8)` adds a range and `='April Plan'!B2*2` reads a cell on another worksheet. Prefix a value with an apostrophe to enter it as text. Formula results recalculate after sync. Editors can change different cells at the same time. If a cell has changed since you started editing it, OpenJam keeps the attempted edit for review. Use **Spreadsheet History** to preview, name, copy, or restore versions according to your existing permissions.
+Start formulas with an equals sign. Use arithmetic, cell and range references, and `SUM`, `AVERAGE`, `MIN`, `MAX`, or `COUNT`. For example, `=SUM(B2:B8)` adds a range and `='April Plan'!B2*2` reads a cell on another worksheet. Prefix a value with an apostrophe to enter it as text. Formula results recalculate after sync. Editors can change different cells at the same time. If a cell has changed since you started editing it, Shiori keeps the attempted edit for review. Use **Spreadsheet History** to preview, name, copy, or restore versions according to your existing permissions.
 
-Choose **Import → CSV or XLSX** in a project to create a spreadsheet. CSV imports UTF-8 data into one worksheet and exports the current worksheet’s displayed values. Formula-like CSV text receives a protective apostrophe on export. XLSX carries worksheets, cell values, and supported formulas. Unsupported formulas appear as errors in OpenJam and export as text. Formatting, charts, merged cells, and date display formats are outside the conversion.
+Choose **Import → CSV or XLSX** in a project to create a spreadsheet. CSV imports UTF-8 data into one worksheet and exports the current worksheet’s displayed values. Formula-like CSV text receives a protective apostrophe on export. XLSX carries worksheets, cell values, and supported formulas. Unsupported formulas appear as errors in Shiori and export as text. Formatting, charts, merged cells, and date display formats are outside the conversion.
 
 Workbooks support up to eight worksheets with addresses from A1 through AZ1000, 6,000 filled cells, 512 formulas, and 1 MiB of cell text. Each cell supports 1,024 bytes of text, and imports accept files up to 4 MiB.
 
@@ -128,11 +128,11 @@ Removing a Project role removes access inherited from the project. An independen
 
 ### Verify a local upgrade
 
-With two local OpenJam API instances connected to the same disposable PostgreSQL, Redis, and object storage, grant a test user view access to a Team project. Edit searchable text and a board reference through one instance. Confirm the other instance finds the new text, opens its source, and shows the updated reference. Then revoke the Project grant and Team membership in turn. Confirm the other instance hides the Project’s results and rejects requests for the former Team.
+With two local Shiori API instances connected to the same disposable PostgreSQL, Redis, and object storage, grant a test user view access to a Team project. Edit searchable text and a board reference through one instance. Confirm the other instance finds the new text, opens its source, and shows the updated reference. Then revoke the Project grant and Team membership in turn. Confirm the other instance hides the Project’s results and rejects requests for the former Team.
 
-Run the same checks against a local test database named `openjam_cluster_test` from the `server` directory. Set `OPENJAM_CLUSTER_PRIMARY` and `OPENJAM_CLUSTER_SECONDARY` to the loopback API URLs, and `OPENJAM_CLUSTER_DATABASE_URL` to the disposable database URL.
+Run the same checks against a local test database named `openjam_cluster_test` from the `server` directory. Set `SHIORI_CLUSTER_PRIMARY` and `SHIORI_CLUSTER_SECONDARY` to the loopback API URLs, and `SHIORI_CLUSTER_DATABASE_URL` to the disposable database URL.
 
 ```bash
-OPENJAM_CLUSTER_WORKSHOP=1 OPENJAM_CLUSTER_DOCS=1 OPENJAM_CLUSTER_SHEETS=1 OPENJAM_CLUSTER_SLIDES=1 \
+SHIORI_CLUSTER_WORKSHOP=1 SHIORI_CLUSTER_DOCS=1 SHIORI_CLUSTER_SHEETS=1 SHIORI_CLUSTER_SLIDES=1 \
   go test -race -count=1 -v ./tests -run '^Test(Workshop|Docs|Sheets|Slides)Cluster$'
 ```
