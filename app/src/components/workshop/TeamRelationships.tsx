@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from '
 import { Link } from 'react-router-dom';
 import { resourceIcon } from '../../lib/directory';
 import { useWorkshopResource, workshopPath, type GraphNode, type TeamGraph } from '../../lib/workshop';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 
 const relationshipLabels = {
   owns: ['Owns', 'Owned by'],
@@ -151,23 +151,23 @@ export default function TeamRelationships({ teamId }: { teamId: string }) {
     physics.current?.alphaTarget(0);
   }
 
-  return <section className="wb-surface wb-network" aria-label="Team Relationships">
-    <div className="wb-section-head wb-network-heading">
-      <h2><WorkbenchIcon name="graph" />Relationships</h2>
-      <div className="wb-inline-actions">
-        {selected && <button type="button" className="wb-icon-button" aria-label="Clear Selection" title="Clear Selection"
-          onClick={() => setSelectedId(undefined)}><WorkbenchIcon name="close" /></button>}
-        {!!nodes.length && <button type="button" className="wb-icon-button" aria-label="Reset Network Layout" title="Reset Layout"
-          onClick={() => setFit(value => value + 1)}><WorkbenchIcon name="expand" /></button>}
+  return <section className="workshop-surface workshop-network" aria-label="Team Relationships">
+    <div className="workshop-section-head workshop-network-heading">
+      <h2><WorkshopIcon name="graph" />Relationships</h2>
+      <div className="workshop-inline-actions">
+        {selected && <button type="button" className="workshop-icon-button" aria-label="Clear Selection" title="Clear Selection"
+          onClick={() => setSelectedId(undefined)}><WorkshopIcon name="close" /></button>}
+        {!!nodes.length && <button type="button" className="workshop-icon-button" aria-label="Reset Network Layout" title="Reset Layout"
+          onClick={() => setFit(value => value + 1)}><WorkshopIcon name="expand" /></button>}
       </div>
     </div>
-    {result.loading && <p role="status" className="wb-inline-empty">Loading relationships…</p>}
-    {result.error && <p role="alert" className="wb-inline-empty">{result.error}</p>}
-    {result.data && !nodes.length && <p className="wb-inline-empty">No visible relationships.</p>}
-    {!!nodes.length && <div ref={stage} className="wb-network-stage" style={{ height }} data-dense={nodes.length > 32}>
-      <svg className="wb-graph-lines" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+    {result.loading && <p role="status" className="workshop-inline-empty">Loading relationships…</p>}
+    {result.error && <p role="alert" className="workshop-inline-empty">{result.error}</p>}
+    {result.data && !nodes.length && <p className="workshop-inline-empty">No visible relationships.</p>}
+    {!!nodes.length && <div ref={stage} className="workshop-network-stage" style={{ height }} data-dense={nodes.length > 32}>
+      <svg className="workshop-graph-lines" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
         <defs><marker id={marker} markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
-          <polygon points="0,0 6,3 0,6" fill="var(--wb-graph-reference)" />
+          <polygon points="0,0 6,3 0,6" fill="var(--workshop-graph-reference)" />
         </marker></defs>
         {edges.map(edge => {
           const from = lookup.get(edge.from);
@@ -186,7 +186,7 @@ export default function TeamRelationships({ teamId }: { teamId: string }) {
       {nodes.map(node => {
         const position = positions.get(node.id);
         if (!position) return null;
-        return <button type="button" className="wb-network-node" key={node.id}
+        return <button type="button" className="workshop-network-node" key={node.id}
           aria-label={node.title} aria-pressed={selected?.id === node.id} title={node.title + ' · ' + kindLabel[node.kind]}
           data-kind={node.kind} data-muted={Boolean(selected && selected.id !== node.id && !connected.has(node.id))}
           style={{ left: position.x / width * 100 + '%', top: position.y + 'px', width: radius(node) * 2, height: radius(node) * 2 }}
@@ -197,25 +197,25 @@ export default function TeamRelationships({ teamId }: { teamId: string }) {
             setSelectedId(selected?.id === node.id ? undefined : node.id);
           }}>
           {node.kind === 'member'
-            ? <span className="wb-network-avatar" style={{ backgroundColor: node.color }}>{Array.from(node.title)[0]?.toUpperCase()}</span>
-            : <WorkbenchIcon name={icon(node)} />}
-          <span className="wb-network-name">{node.title}</span>
+            ? <span className="workshop-network-avatar" style={{ backgroundColor: node.color }}>{Array.from(node.title)[0]?.toUpperCase()}</span>
+            : <WorkshopIcon name={icon(node)} />}
+          <span className="workshop-network-name">{node.title}</span>
         </button>;
       })}
     </div>}
-    {selected && <div className="wb-network-selection">
-      <Link className="wb-link" to={selected.url}><span>{selected.title}</span><WorkbenchIcon name="arrow" /></Link>
-      {!!related.length && <ul className="wb-graph-connections" aria-label="Selected Relationships">
+    {selected && <div className="workshop-network-selection">
+      <Link className="workshop-link" to={selected.url}><span>{selected.title}</span><WorkshopIcon name="arrow" /></Link>
+      {!!related.length && <ul className="workshop-graph-connections" aria-label="Selected Relationships">
         {related.map(edge => {
           const outgoing = edge.from === selected.id;
           const node = lookup.get(outgoing ? edge.to : edge.from);
           return node && <li key={edge.kind + ':' + node.id}>
             <span>{relationshipLabels[edge.kind][outgoing ? 0 : 1]}</span>
-            <Link className="wb-link" to={node.url}><span>{node.title}</span><WorkbenchIcon name="arrow" /></Link>
+            <Link className="workshop-link" to={node.url}><span>{node.title}</span><WorkshopIcon name="arrow" /></Link>
           </li>;
         })}
       </ul>}
     </div>}
-    {truncated && <p className="wb-inline-empty">Showing part of this network. Search to find a specific file or member.</p>}
+    {truncated && <p className="workshop-inline-empty">Showing part of this network. Search to find a specific file or member.</p>}
   </section>;
 }

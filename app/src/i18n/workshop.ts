@@ -1,4 +1,4 @@
-export const workbench = {
+export const workshop = {
   app: {
     loading: 'Loading Shiori…',
     opening: 'Opening board…',

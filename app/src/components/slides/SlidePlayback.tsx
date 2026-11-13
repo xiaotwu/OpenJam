@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { SlideObject, SlidePage } from '../../lib/slides';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import SlideSurface from './SlideSurface';
 
 export default function SlidePlayback({ page, items, images, index, count, onGo, onExit }: {
@@ -29,12 +29,12 @@ export default function SlidePlayback({ page, items, images, index, count, onGo,
     <SlideSurface page={page} items={items} images={images} label={'Presenting Slide ' + (index + 1)} />
     <div className="slide-playback-controls" aria-label="Slideshow Controls">
       <button type="button" className="doc-tool" aria-label="Previous Slide" title="Previous Slide" disabled={index === 0}
-        onClick={() => onGo(index - 1)}><WorkbenchIcon name="previous" /></button>
+        onClick={() => onGo(index - 1)}><WorkshopIcon name="previous" /></button>
       <span role="status">{index + 1} / {count}</span>
       <button type="button" className="doc-tool" aria-label="Next Slide" title="Next Slide" disabled={index === count - 1}
-        onClick={() => onGo(index + 1)}><WorkbenchIcon name="next" /></button>
+        onClick={() => onGo(index + 1)}><WorkshopIcon name="next" /></button>
       <button type="button" className="doc-tool" aria-label="Exit Slideshow" title="Exit Slideshow"
-        onClick={onExit}><WorkbenchIcon name="close" /></button>
+        onClick={onExit}><WorkshopIcon name="close" /></button>
     </div>
   </div>;
 }

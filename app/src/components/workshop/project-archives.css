@@ -1,0 +1,75 @@
+.workshop-archive-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 15px 17px 10px;
+  padding: 13px;
+  border: 1px solid var(--workshop-border);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-subtle);
+}
+.workshop-archive-intro p { margin: 3px 0 0; color: var(--workshop-muted); }
+.workshop-archive-icon {
+  display: grid;
+  flex: 0 0 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--workshop-active);
+}
+.workshop-archive-note { margin: 9px 17px 14px; color: var(--workshop-muted); font-size: 0.86rem; }
+.workshop-archive-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 17px;
+}
+.workshop-archive-select > span { min-width: 0; overflow-wrap: anywhere; color: var(--workshop-muted); font-size: 0.86rem; }
+.workshop-archive-picker { position: relative; flex: none; cursor: pointer; }
+.workshop-archive-picker:focus-within { outline: 2px solid var(--workshop-accent); outline-offset: 2px; }
+.workshop-archive-picker[data-disabled='true'] { opacity: 0.6; cursor: default; }
+.workshop-archive-picker input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: inherit; }
+.workshop-archive-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 17px;
+  padding: 10px;
+  border: 1px solid var(--workshop-border);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-subtle);
+}
+.workshop-archive-summary span { padding: 2px 7px; font-size: 0.78rem; color: var(--workshop-muted); }
+.workshop-archive-summary strong { display: block; color: var(--workshop-text); font-size: 1.13rem; font-variant-numeric: tabular-nums; }
+.workshop-archive-destination { display: flex; margin: 0 17px; gap: 10px; }
+.workshop-archive-destination .workshop-field { flex: 1; min-width: 0; margin-inline: 0; }
+.workshop-archive-mapping {
+  margin: 0 17px 12px;
+  border: 1px solid var(--workshop-border);
+  border-radius: var(--panel-radius);
+  background: var(--glass-bg-subtle);
+}
+.workshop-archive-mapping summary { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 11px 12px; }
+.workshop-archive-mapping summary::-webkit-details-marker { display: none; }
+.workshop-archive-mapping summary > span { margin-inline-start: auto; font-size: 0.78rem; color: var(--workshop-muted); }
+.workshop-archive-mapping p { margin: 0 12px 10px; color: var(--workshop-muted); font-size: 0.86rem; }
+.workshop-archive-people { overflow: auto; max-height: min(33vh, 260px); padding: 0 10px 8px; }
+.workshop-archive-person { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 6px 0; }
+.workshop-archive-person + .workshop-archive-person { border-top: 1px solid var(--workshop-divider); }
+.workshop-archive-person > div { flex: 1 1 112px; min-width: 0; overflow-wrap: anywhere; }
+.workshop-archive-person small { display: block; color: var(--workshop-muted); }
+.workshop-archive-person select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--workshop-border);
+  border-radius: var(--control-radius);
+  background: var(--workshop-field);
+  color: var(--workshop-text);
+}
+.workshop-archive-person select:first-of-type { flex: 1 1 135px; }
+@media (max-width: 430px) {
+  .workshop-archive-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 7px; }
+  .workshop-archive-destination { display: grid; gap: 0; }
+  .workshop-archive-destination .workshop-field + .workshop-field { margin-top: 0; }
+}

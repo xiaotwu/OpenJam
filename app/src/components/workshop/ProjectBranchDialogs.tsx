@@ -10,7 +10,7 @@ import {
   type ProjectVersionList, type SyncDirection,
 } from '../../lib/projectSync';
 import { useWorkshopResource } from '../../lib/workshop';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 import './project-branches.css';
 
 export function BranchDialog({ title, context, busy, onClose, children }: {
@@ -27,12 +27,12 @@ export function BranchDialog({ title, context, busy, onClose, children }: {
       if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
     };
   }, []);
-  return <dialog ref={ref} className="wb-dialog wb-branch-dialog" aria-labelledby={heading}
+  return <dialog ref={ref} className="workshop-dialog workshop-branch-dialog" aria-labelledby={heading}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header className="wb-dialog-heading">
-      <div className="wb-branch-heading"><h2 id={heading}>{title}</h2><span>{context}</span></div>
-      <button type="button" className="wb-icon-button" title="Close" aria-label="Close" disabled={busy} onClick={onClose}>
-        <WorkbenchIcon name="close" />
+    <header className="workshop-dialog-heading">
+      <div className="workshop-branch-heading"><h2 id={heading}>{title}</h2><span>{context}</span></div>
+      <button type="button" className="workshop-icon-button" title="Close" aria-label="Close" disabled={busy} onClick={onClose}>
+        <WorkshopIcon name="close" />
       </button>
     </header>
     {children}
@@ -82,15 +82,15 @@ export function ImportProjectDialog({ project, workspaces, onClose, onImported }
         if (result.organizationId) onImported(result.projectId, result.organizationId);
       });
     }}>
-      <label className="wb-field">Team Workspace
+      <label className="workshop-field">Team Workspace
         <select required value={workspaceId} disabled={action.busy} onChange={event => setWorkspace(event.target.value)}>
           {workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.label}</option>)}
         </select>
       </label>
-      <label className="wb-field">Project Name
+      <label className="workshop-field">Project Name
         <input required maxLength={240} value={name} disabled={action.busy} onChange={event => setName(event.target.value)} />
       </label>
-      <fieldset className="wb-branch-modes">
+      <fieldset className="workshop-branch-modes">
         <legend>Import Mode</legend>
         <label><input type="radio" name="project-import-mode" value="linked" checked={mode === 'linked'} disabled={action.busy} onChange={() => setMode('linked')} />
           <span><strong>Keep in Sync</strong><small>Pull and commit changes between the personal and Team copies.</small></span>
@@ -99,10 +99,10 @@ export function ImportProjectDialog({ project, workspaces, onClose, onImported }
           <span><strong>Independent Branch</strong><small>Start a Team project from the files as they are today.</small></span>
         </label>
       </fieldset>
-      {action.error && <p role="alert" className="wb-error-text">{action.error}</p>}
-      <footer className="wb-dialog-actions">
-        <button type="submit" className="wb-button wb-button-primary" disabled={!valid || action.busy}>
-          <WorkbenchIcon name="branch" />{action.busy ? 'Importing…' : 'Import Project'}
+      {action.error && <p role="alert" className="workshop-error-text">{action.error}</p>}
+      <footer className="workshop-dialog-actions">
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={!valid || action.busy}>
+          <WorkshopIcon name="branch" />{action.busy ? 'Importing…' : 'Import Project'}
         </button>
       </footer>
     </form>
@@ -112,7 +112,7 @@ export function ImportProjectDialog({ project, workspaces, onClose, onImported }
 function Side({ file, kind, label }: { file?: ProjectFileSummary; kind: ProjectDifference['kind']; label: string }) {
   const location = useLocation();
   const name = file ? file.name + (file.archived ? ' (Archived)' : '') : 'Missing';
-  return <span className="wb-branch-side">
+  return <span className="workshop-branch-side">
     <small>{label}</small>{file?.id ? <Link to={resourcePath(kind, file.id)}
       state={{ workshop: location.pathname + location.search }}>{name}</Link> : <span>{name}</span>}
   </span>;
@@ -146,35 +146,35 @@ function SyncChanges({ project, busy, onSync }: {
   }
 
   return <>
-    <div className="wb-branch-target">
-      <label className="wb-field">Linked Project
+    <div className="workshop-branch-target">
+      <label className="workshop-field">Linked Project
         <select value={link?.projectId ?? ''} onChange={event => setSelection(event.target.value)} disabled={!link || busy}>
           {!link && <option value="">Choose a linked project</option>}
           {links.data?.links.map(item => <option key={item.projectId} value={item.projectId}>{item.organizationName} / {item.projectName}</option>)}
         </select>
       </label>
-      <button type="button" className="wb-icon-button wb-glass-control" title="Refresh Changes" aria-label="Refresh Changes"
-        disabled={busy} onClick={() => { links.refresh(); preview.refresh(); }}><WorkbenchIcon name="sync" /></button>
+      <button type="button" className="workshop-icon-button workshop-glass-control" title="Refresh Changes" aria-label="Refresh Changes"
+        disabled={busy} onClick={() => { links.refresh(); preview.refresh(); }}><WorkshopIcon name="sync" /></button>
     </div>
-    {(links.loading || preview.loading) && <p className="wb-branch-empty" role="status">Checking changes…</p>}
-    {(links.error || preview.error) && <p className="wb-error-text" role="alert">{links.error || preview.error}</p>}
-    {links.data && !link && <p className="wb-branch-empty">No linked project is available to your account.</p>}
-    {preview.data && !changes.length && <p className="wb-branch-empty" role="status">The linked copies are up to date.</p>}
-    {ordered.length > 0 && <ul className="wb-branch-list" aria-label="File Changes">
-      {ordered.map(item => <li key={item.key} className="wb-branch-change" data-conflict={item.state === 'conflict'}>
-        <div className="wb-branch-row-title">
-          <span className="wb-result-icon"><WorkbenchIcon name={resourceIcon(item.kind)} /></span>
+    {(links.loading || preview.loading) && <p className="workshop-branch-empty" role="status">Checking changes…</p>}
+    {(links.error || preview.error) && <p className="workshop-error-text" role="alert">{links.error || preview.error}</p>}
+    {links.data && !link && <p className="workshop-branch-empty">No linked project is available to your account.</p>}
+    {preview.data && !changes.length && <p className="workshop-branch-empty" role="status">The linked copies are up to date.</p>}
+    {ordered.length > 0 && <ul className="workshop-branch-list" aria-label="File Changes">
+      {ordered.map(item => <li key={item.key} className="workshop-branch-change" data-conflict={item.state === 'conflict'}>
+        <div className="workshop-branch-row-title">
+          <span className="workshop-result-icon"><WorkshopIcon name={resourceIcon(item.kind)} /></span>
           <strong>{item.current?.name ?? item.linked?.name}</strong>
-          <span className="wb-branch-status" data-state={item.state}>
+          <span className="workshop-branch-status" data-state={item.state}>
             {item.state === 'conflict' ? 'Conflict' : item.state === 'incoming' ? 'Incoming' : 'Outgoing'}
           </span>
         </div>
-        {(item.state === 'conflict' || item.current?.name !== item.linked?.name || item.current?.archived !== item.linked?.archived) && <div className="wb-branch-sides">
+        {(item.state === 'conflict' || item.current?.name !== item.linked?.name || item.current?.archived !== item.linked?.archived) && <div className="workshop-branch-sides">
           <Side file={item.current} kind={item.kind} label="Current Copy" />
           <Side file={item.linked} kind={item.kind} label="Linked Copy" />
-          {item.state === 'conflict' && <label className="wb-branch-side">
+          {item.state === 'conflict' && <label className="workshop-branch-side">
             <small>Resolution</small>
-            <select className="wb-select" aria-label={'Resolve ' + (item.current?.name ?? item.linked?.name)}
+            <select className="workshop-select" aria-label={'Resolve ' + (item.current?.name ?? item.linked?.name)}
               value={selected?.[item.key] ?? ''} disabled={busy} onChange={event => {
                 if (token) setChoices({ token, values: { ...selected, [item.key]: event.target.value as SyncDirection | '' } });
               }}>
@@ -186,15 +186,15 @@ function SyncChanges({ project, busy, onSync }: {
         </div>}
       </li>)}
     </ul>}
-    {push.length > 0 && <label className="wb-field">Commit Message
+    {push.length > 0 && <label className="workshop-field">Commit Message
       <input value={commitName} maxLength={120} disabled={busy} placeholder="Project commit" onChange={event => setCommitName(event.target.value)} />
     </label>}
-    {preview.data && changes.length > 0 && <footer className="wb-dialog-actions wb-branch-actions">
-      <button type="button" className="wb-button wb-button-secondary" disabled={busy || !pull.length} onClick={() => submit('pull')}>
-        <WorkbenchIcon name="download" />Pull{pull.length ? ` (${pull.length})` : ''}
+    {preview.data && changes.length > 0 && <footer className="workshop-dialog-actions workshop-branch-actions">
+      <button type="button" className="workshop-button workshop-button-secondary" disabled={busy || !pull.length} onClick={() => submit('pull')}>
+        <WorkshopIcon name="download" />Pull{pull.length ? ` (${pull.length})` : ''}
       </button>
-      <button type="button" className="wb-button wb-button-primary" disabled={busy || !push.length} onClick={() => submit('push')}>
-        <WorkbenchIcon name="up" />Commit &amp; Push{push.length ? ` (${push.length})` : ''}
+      <button type="button" className="workshop-button workshop-button-primary" disabled={busy || !push.length} onClick={() => submit('push')}>
+        <WorkshopIcon name="up" />Commit &amp; Push{push.length ? ` (${push.length})` : ''}
       </button>
     </footer>}
   </>;
@@ -217,54 +217,54 @@ function ProjectHistory({ project, busy, onWrite }: {
     history.refresh();
   }
   return <>
-    {!version && <form className="wb-branch-snapshot-form" onSubmit={event => {
+    {!version && <form className="workshop-branch-snapshot-form" onSubmit={event => {
       event.preventDefault();
       if (name.trim()) onWrite(path, { name: name.trim() }, refreshHistory, () => setName(''));
     }}>
-      <label className="wb-field">Snapshot Name
+      <label className="workshop-field">Snapshot Name
         <input required maxLength={120} disabled={busy} value={name} onChange={event => setName(event.target.value)} placeholder="Milestone" />
       </label>
-      <button type="submit" className="wb-button wb-button-primary" disabled={busy || !name.trim()}>
-        <WorkbenchIcon name="plus" />Save Snapshot
+      <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !name.trim()}>
+        <WorkshopIcon name="plus" />Save Snapshot
       </button>
     </form>}
-    {(history.loading || restore.loading) && <p className="wb-branch-empty" role="status">Loading versions…</p>}
-    {(history.error || restore.error) && <p className="wb-error-text" role="alert">{history.error || restore.error}</p>}
-    {version ? <section aria-label="Restore Preview" className="wb-branch-restore">
-      <div className="wb-branch-section-title">
-        <button type="button" className="wb-icon-button" aria-label="Back to Versions" disabled={busy} onClick={() => setVersion(undefined)}><WorkbenchIcon name="back" /></button>
+    {(history.loading || restore.loading) && <p className="workshop-branch-empty" role="status">Loading versions…</p>}
+    {(history.error || restore.error) && <p className="workshop-error-text" role="alert">{history.error || restore.error}</p>}
+    {version ? <section aria-label="Restore Preview" className="workshop-branch-restore">
+      <div className="workshop-branch-section-title">
+        <button type="button" className="workshop-icon-button" aria-label="Back to Versions" disabled={busy} onClick={() => setVersion(undefined)}><WorkshopIcon name="back" /></button>
         <h3>{version.name}</h3>
       </div>
-      {restore.data && (restore.data.changes.length ? <ul className="wb-branch-list">
-        {restore.data.changes.map(file => <li key={file.key} className="wb-branch-row-title">
-          <span className="wb-result-icon"><WorkbenchIcon name={resourceIcon(file.kind)} /></span><strong>{file.name}</strong>
-          <span className="wb-branch-status">{{ restore: 'Restore', recreate: 'Recreate', archive: 'Archive' }[file.action]}</span>
+      {restore.data && (restore.data.changes.length ? <ul className="workshop-branch-list">
+        {restore.data.changes.map(file => <li key={file.key} className="workshop-branch-row-title">
+          <span className="workshop-result-icon"><WorkshopIcon name={resourceIcon(file.kind)} /></span><strong>{file.name}</strong>
+          <span className="workshop-branch-status">{{ restore: 'Restore', recreate: 'Recreate', archive: 'Archive' }[file.action]}</span>
         </li>)}
-      </ul> : <p className="wb-branch-empty">The project already matches this snapshot.</p>)}
-      <footer className="wb-dialog-actions">
-        <button type="button" className="wb-button wb-button-primary" disabled={busy || !restore.data?.changes.length}
+      </ul> : <p className="workshop-branch-empty">The project already matches this snapshot.</p>)}
+      <footer className="workshop-dialog-actions">
+        <button type="button" className="workshop-button workshop-button-primary" disabled={busy || !restore.data?.changes.length}
           onClick={() => {
             if (restorePath && restore.data) onWrite(restorePath, { token: restore.data.token }, restore.refresh, () => {
               setVersion(undefined);
               refreshHistory();
             });
-          }}><WorkbenchIcon name="restore" />Restore Project</button>
+          }}><WorkshopIcon name="restore" />Restore Project</button>
       </footer>
     </section> : <>
-      {history.data && !history.data.versions.length && <p className="wb-branch-empty">No snapshots yet.</p>}
-      {!!history.data?.versions.length && <ul className="wb-branch-list" aria-label="Project Snapshots">
-        {history.data.versions.map(item => <li className="wb-branch-row-title" key={item.id}>
-          <span className="wb-result-icon"><WorkbenchIcon name="recent" /></span>
-          <span className="wb-branch-version"><strong>{item.name}</strong>
+      {history.data && !history.data.versions.length && <p className="workshop-branch-empty">No snapshots yet.</p>}
+      {!!history.data?.versions.length && <ul className="workshop-branch-list" aria-label="Project Snapshots">
+        {history.data.versions.map(item => <li className="workshop-branch-row-title" key={item.id}>
+          <span className="workshop-result-icon"><WorkshopIcon name="recent" /></span>
+          <span className="workshop-branch-version"><strong>{item.name}</strong>
             <small>{formatDate(item.createdAt, 'compact')} · {item.files} {item.files === 1 ? 'file' : 'files'}{item.author && ' · ' + item.author}</small>
           </span>
-          {project.role === 'manager' && <button type="button" className="wb-icon-button" aria-label={'Preview Restore ' + item.name}
-            title="Preview Restore" disabled={busy} onClick={() => setVersion(item)}><WorkbenchIcon name="restore" /></button>}
+          {project.role === 'manager' && <button type="button" className="workshop-icon-button" aria-label={'Preview Restore ' + item.name}
+            title="Preview Restore" disabled={busy} onClick={() => setVersion(item)}><WorkshopIcon name="restore" /></button>}
         </li>)}
       </ul>}
-      {(before || history.data?.next) && <footer className="wb-dialog-actions">
-        {before && <button type="button" className="wb-button wb-button-secondary" disabled={busy} onClick={() => setBefore(undefined)}>Newest</button>}
-        {history.data?.next && <button type="button" className="wb-button wb-button-secondary" disabled={busy} onClick={() => setBefore(history.data?.next)}>Earlier</button>}
+      {(before || history.data?.next) && <footer className="workshop-dialog-actions">
+        {before && <button type="button" className="workshop-button workshop-button-secondary" disabled={busy} onClick={() => setBefore(undefined)}>Newest</button>}
+        {history.data?.next && <button type="button" className="workshop-button workshop-button-secondary" disabled={busy} onClick={() => setBefore(history.data?.next)}>Earlier</button>}
       </footer>}
     </>}
   </>;
@@ -278,14 +278,14 @@ export function ProjectBranchDialog({ project, onClose, onChange }: {
   const [status, setStatus] = useState('');
   const action = useProjectWrite();
   return <BranchDialog title={manager ? 'Project Sync & Versions' : 'Project Versions'} context={project.name} busy={action.busy} onClose={onClose}>
-    {manager && <div className="wb-branch-tabs">
-      <div className="wb-segmented" role="group" aria-label="Project View">
+    {manager && <div className="workshop-branch-tabs">
+      <div className="workshop-segmented" role="group" aria-label="Project View">
         {(['sync', 'history'] as const).map(tab => <button type="button" key={tab} disabled={action.busy} aria-pressed={view === tab}
           onClick={() => { action.clear(); setStatus(''); setView(tab); }}>{tab === 'sync' ? 'Sync' : 'History'}</button>)}
       </div>
     </div>}
-    {action.error && <p className="wb-error-text" role="alert">{action.error}</p>}
-    {status && <p className="wb-branch-feedback" role="status">{status}</p>}
+    {action.error && <p className="workshop-error-text" role="alert">{action.error}</p>}
+    {status && <p className="workshop-branch-feedback" role="status">{status}</p>}
     {view === 'sync' && manager ? <SyncChanges project={project} busy={action.busy} onSync={(path, payload, refresh) => {
       setStatus('');
       void action.run(path, payload, result => {

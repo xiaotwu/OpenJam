@@ -4,7 +4,7 @@ import type { Organization, Project } from '../../lib/directory';
 import { agendaPath, meetingPath, useWorkshopResource, writeWorkshop, type AgendaDraft, type AgendaItem } from '../../lib/workshop';
 import { useI18n } from '../../i18n';
 import { newRequestId } from '../../lib/requestId';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 import MeetingEditor from './MeetingEditor';
 
 interface Scope {
@@ -69,24 +69,24 @@ export function AgendaOverview() {
   const upcoming = items.filter(item => new Date(item.startsAt) >= upcomingFrom);
 
   function rows(entries: AgendaItem[], empty: string, dates: boolean) {
-    if (!entries.length) return <p className="wb-muted">{empty}</p>;
-    return <ul className="wb-agenda-summary">
+    if (!entries.length) return <p className="workshop-muted">{empty}</p>;
+    return <ul className="workshop-agenda-summary">
       {entries.slice(0, 8).map(item => <li key={item.id}>
         <Link to={item.kind === 'meeting' ? meetingPath(item.id) : agendaURL(dates ? new Date(item.startsAt) : today, item)}>
-          <WorkbenchIcon name={item.kind === 'meeting' ? 'camera' : item.kind === 'task' ? 'task' : 'calendar'} />
+          <WorkshopIcon name={item.kind === 'meeting' ? 'camera' : item.kind === 'task' ? 'task' : 'calendar'} />
           <span><strong>{item.title}</strong>{dates && <small>{formatDate(item.startsAt, 'compact')}</small>}</span>
         </Link>
       </li>)}
     </ul>;
   }
 
-  return <aside className="wb-surface wb-agenda-overview" aria-label="Agenda Overview">
-    <div className="wb-section-head">
+  return <aside className="workshop-surface workshop-agenda-overview" aria-label="Agenda Overview">
+    <div className="workshop-section-head">
       <h2>Today</h2>
-      <Link className="wb-icon-button" to={agendaURL(today)} title="Open Calendar" aria-label="Open Calendar"><WorkbenchIcon name="calendar" /></Link>
+      <Link className="workshop-icon-button" to={agendaURL(today)} title="Open Calendar" aria-label="Open Calendar"><WorkshopIcon name="calendar" /></Link>
     </div>
-    {result.loading && <p role="status" className="wb-muted">Loading agenda…</p>}
-    {result.error && <p role="alert" className="wb-error-text">{result.error}</p>}
+    {result.loading && <p role="status" className="workshop-muted">Loading agenda…</p>}
+    {result.error && <p role="alert" className="workshop-error-text">{result.error}</p>}
     {result.data && <>
       {rows(todayItems, 'Nothing scheduled today.', false)}
       <h2>Next 7 Days</h2>
@@ -159,36 +159,36 @@ function AgendaEditor({ selectedDate, item, scopes, initialScope, onClose, onSav
   }
 
   const heading = item ? 'Edit ' + (item.kind === 'task' ? 'Task' : 'Event') : 'New Item';
-  return <dialog className="wb-dialog wb-agenda-dialog" ref={ref} aria-label={heading}
+  return <dialog className="workshop-dialog workshop-agenda-dialog" ref={ref} aria-label={heading}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header className="wb-dialog-heading">
+    <header className="workshop-dialog-heading">
       <h2>{heading}</h2>
-      <button type="button" className="wb-icon-button" onClick={onClose} aria-label="Close" disabled={busy}><WorkbenchIcon name="close" /></button>
+      <button type="button" className="workshop-icon-button" onClick={onClose} aria-label="Close" disabled={busy}><WorkshopIcon name="close" /></button>
     </header>
     <form onSubmit={event => { event.preventDefault(); void mutate(false); }}>
-      <div className="wb-form-grid">
-        <label className="wb-field">Type<select aria-label="Type" value={kind} onChange={event => setKind(event.target.value as AgendaDraft['kind'])}>
+      <div className="workshop-form-grid">
+        <label className="workshop-field">Type<select aria-label="Type" value={kind} onChange={event => setKind(event.target.value as AgendaDraft['kind'])}>
           <option value="event">Event</option><option value="task">Task</option>
         </select></label>
-        <label className="wb-field">Calendar<select aria-label="Calendar" value={scope} disabled={Boolean(item)} onChange={event => setScope(event.target.value)}>
+        <label className="workshop-field">Calendar<select aria-label="Calendar" value={scope} disabled={Boolean(item)} onChange={event => setScope(event.target.value)}>
           {scopes.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}
         </select></label>
       </div>
-      <label className="wb-field">Title<input required value={title} maxLength={140} onChange={event => setTitle(event.target.value)} /></label>
-      <div className="wb-form-grid">
-        <label className="wb-field">{kind === 'task' ? 'Due' : 'Starts'}<input type="datetime-local" required value={startsAt}
+      <label className="workshop-field">Title<input required value={title} maxLength={140} onChange={event => setTitle(event.target.value)} /></label>
+      <div className="workshop-form-grid">
+        <label className="workshop-field">{kind === 'task' ? 'Due' : 'Starts'}<input type="datetime-local" required value={startsAt}
           onChange={event => setStartsAt(event.target.value)} /></label>
-        {kind === 'event' && <label className="wb-field">Ends<input type="datetime-local" required value={endsAt}
+        {kind === 'event' && <label className="workshop-field">Ends<input type="datetime-local" required value={endsAt}
           onChange={event => setEndsAt(event.target.value)} /></label>}
       </div>
-      <label className="wb-field">Notes<textarea value={notes} maxLength={3600} rows={3} onChange={event => setNotes(event.target.value)} /></label>
-      {kind === 'task' && <label className="wb-check-row"><input type="checkbox" checked={completed} onChange={event => setCompleted(event.target.checked)} />Completed</label>}
-      {error && <p className="wb-error-text" role="alert">{error}</p>}
-      <footer className="wb-dialog-actions">
-        {item && <button type="button" className="wb-button wb-button-secondary" disabled={busy}
-          onClick={() => confirmDelete ? void mutate(true) : setConfirmDelete(true)}><WorkbenchIcon name="trash" />
+      <label className="workshop-field">Notes<textarea value={notes} maxLength={3600} rows={3} onChange={event => setNotes(event.target.value)} /></label>
+      {kind === 'task' && <label className="workshop-check-row"><input type="checkbox" checked={completed} onChange={event => setCompleted(event.target.checked)} />Completed</label>}
+      {error && <p className="workshop-error-text" role="alert">{error}</p>}
+      <footer className="workshop-dialog-actions">
+        {item && <button type="button" className="workshop-button workshop-button-secondary" disabled={busy}
+          onClick={() => confirmDelete ? void mutate(true) : setConfirmDelete(true)}><WorkshopIcon name="trash" />
           {confirmDelete ? 'Confirm Delete' : 'Delete'}</button>}
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !title.trim()}><WorkbenchIcon name="check" />Save</button>
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !title.trim()}><WorkshopIcon name="check" />Save</button>
       </footer>
     </form>
   </dialog>;
@@ -221,57 +221,57 @@ export function WorkshopCalendar({ initialDate, initialItem, initialScope, teams
   const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' });
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
 
-  return <div className="wb-calendar-layout">
-    <section className="wb-surface wb-calendar" aria-label="Month">
-      <div className="wb-section-head wb-calendar-header">
-        <div className="wb-inline-actions">
-          <button type="button" className="wb-icon-button" title="Previous Month" aria-label="Previous Month"
-            onClick={() => setSelected(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><WorkbenchIcon name="previous" /></button>
+  return <div className="workshop-calendar-layout">
+    <section className="workshop-surface workshop-calendar" aria-label="Month">
+      <div className="workshop-section-head workshop-calendar-header">
+        <div className="workshop-inline-actions">
+          <button type="button" className="workshop-icon-button" title="Previous Month" aria-label="Previous Month"
+            onClick={() => setSelected(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><WorkshopIcon name="previous" /></button>
           <h2>{monthLabel}</h2>
-          <button type="button" className="wb-icon-button" title="Next Month" aria-label="Next Month"
-            onClick={() => setSelected(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><WorkbenchIcon name="next" /></button>
+          <button type="button" className="workshop-icon-button" title="Next Month" aria-label="Next Month"
+            onClick={() => setSelected(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><WorkshopIcon name="next" /></button>
         </div>
-        <div className="wb-inline-actions">
-          <select className="wb-select" aria-label="Calendar Filter" value={filter} onChange={event => setFilter(event.target.value)}>
+        <div className="workshop-inline-actions">
+          <select className="workshop-select" aria-label="Calendar Filter" value={filter} onChange={event => setFilter(event.target.value)}>
             <option value="all">All Calendars</option>
             {scopes.map(scope => <option value={scope.value} key={scope.value}>{scope.label}</option>)}
           </select>
-          <button type="button" className="wb-button wb-button-secondary" onClick={() => setSelected(today)}>Today</button>
-          {meetingScopes.length > 0 && <button type="button" className="wb-icon-button wb-glass-control"
-            title="Schedule Meeting" aria-label="Schedule Meeting" onClick={() => setNewMeeting(true)}><WorkbenchIcon name="camera" /></button>}
-          <button type="button" className="wb-icon-button wb-accent-action" onClick={() => setEditing('new')} title="New Event or Task" aria-label="New Event or Task">
-            <WorkbenchIcon name="plus" />
+          <button type="button" className="workshop-button workshop-button-secondary" onClick={() => setSelected(today)}>Today</button>
+          {meetingScopes.length > 0 && <button type="button" className="workshop-icon-button workshop-glass-control"
+            title="Schedule Meeting" aria-label="Schedule Meeting" onClick={() => setNewMeeting(true)}><WorkshopIcon name="camera" /></button>}
+          <button type="button" className="workshop-icon-button workshop-accent-action" onClick={() => setEditing('new')} title="New Event or Task" aria-label="New Event or Task">
+            <WorkshopIcon name="plus" />
           </button>
         </div>
       </div>
-      <div className="wb-calendar-weekdays" aria-hidden="true">{days.slice(0, 7).map(day => <span key={dateKey(day)}>{weekday.format(day)}</span>)}</div>
-      <div className="wb-calendar-grid">{days.map(day => {
+      <div className="workshop-calendar-weekdays" aria-hidden="true">{days.slice(0, 7).map(day => <span key={dateKey(day)}>{weekday.format(day)}</span>)}</div>
+      <div className="workshop-calendar-grid">{days.map(day => {
         const entries = itemsOnDay(items, day);
-        return <button type="button" className="wb-calendar-day" key={dateKey(day)}
+        return <button type="button" className="workshop-calendar-day" key={dateKey(day)}
           aria-label={labelDay.format(day) + (entries.length ? ', ' + entries.length + ' items' : '')}
           data-outside={day.getMonth() !== month.getMonth()} data-today={dateKey(day) === dateKey(today)}
           aria-pressed={dateKey(day) === dateKey(selected)} onClick={() => setSelected(day)}>
-          <span className="wb-day-number">{day.getDate()}</span>
-          {entries.slice(0, 2).map(entry => <span className="wb-day-entry" data-kind={entry.kind} key={entry.id}>{entry.title}</span>)}
+          <span className="workshop-day-number">{day.getDate()}</span>
+          {entries.slice(0, 2).map(entry => <span className="workshop-day-entry" data-kind={entry.kind} key={entry.id}>{entry.title}</span>)}
           {entries.length > 2 && <small>+{entries.length - 2}</small>}
         </button>;
       })}</div>
-      {result.error && <p className="wb-inline-empty" role="alert">{result.error}</p>}
+      {result.error && <p className="workshop-inline-empty" role="alert">{result.error}</p>}
     </section>
-    <section className="wb-surface wb-day-agenda" aria-label="Selected Day">
-      <div className="wb-section-head"><h2>{labelDay.format(selected)}</h2></div>
-      {result.loading && <p className="wb-inline-empty" role="status">Loading agenda…</p>}
-      {result.data && !selectedItems.length && <p className="wb-inline-empty">Nothing scheduled.</p>}
-      <ul className="wb-result-list">{selectedItems.map(item => (
-        <li key={item.id} className="wb-agenda-item" data-focused={initialItem === item.id}>
-          <div className="wb-result-row">
-            <span className="wb-result-icon"><WorkbenchIcon name={item.kind === 'meeting' ? 'camera' : item.kind === 'task' ? 'task' : 'calendar'} /></span>
-            <span className="wb-row-content"><strong data-complete={item.completed}>{item.title}</strong>
+    <section className="workshop-surface workshop-day-agenda" aria-label="Selected Day">
+      <div className="workshop-section-head"><h2>{labelDay.format(selected)}</h2></div>
+      {result.loading && <p className="workshop-inline-empty" role="status">Loading agenda…</p>}
+      {result.data && !selectedItems.length && <p className="workshop-inline-empty">Nothing scheduled.</p>}
+      <ul className="workshop-result-list">{selectedItems.map(item => (
+        <li key={item.id} className="workshop-agenda-item" data-focused={initialItem === item.id}>
+          <div className="workshop-result-row">
+            <span className="workshop-result-icon"><WorkshopIcon name={item.kind === 'meeting' ? 'camera' : item.kind === 'task' ? 'task' : 'calendar'} /></span>
+            <span className="workshop-row-content"><strong data-complete={item.completed}>{item.title}</strong>
               <span>{time.format(new Date(item.startsAt))}{item.scopeName ? ' · ' + item.scopeName : ''}</span></span>
-            {item.kind === 'meeting' ? <Link className="wb-icon-button" to={meetingPath(item.id)}
-              state={{ workshop: agendaURL(selected, item) }} aria-label={'Open ' + item.title} title="Open Meeting"><WorkbenchIcon name="arrow" /></Link>
-              : item.editable && <button type="button" className="wb-icon-button" aria-label={'Edit ' + item.title}
-                onClick={() => setEditing({ ...item, kind: item.kind === 'task' ? 'task' : 'event' })}><WorkbenchIcon name="pencil" /></button>}
+            {item.kind === 'meeting' ? <Link className="workshop-icon-button" to={meetingPath(item.id)}
+              state={{ workshop: agendaURL(selected, item) }} aria-label={'Open ' + item.title} title="Open Meeting"><WorkshopIcon name="arrow" /></Link>
+              : item.editable && <button type="button" className="workshop-icon-button" aria-label={'Edit ' + item.title}
+                onClick={() => setEditing({ ...item, kind: item.kind === 'task' ? 'task' : 'event' })}><WorkshopIcon name="pencil" /></button>}
           </div>
           {item.meetingStatus === 'ended' && <p>Ended</p>}
           {item.notes && <p>{item.notes}</p>}

@@ -8,7 +8,7 @@ import {
   type ReviewLocation, type ReviewNotification, type ReviewPerson, type ReviewThread,
   type ReviewThreadDetail, type ReviewThreadPage,
 } from '../../lib/boardReview';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 
 interface BoardReviewPanelProps {
   open: boolean;
@@ -304,7 +304,7 @@ export default function BoardReviewPanel({
             setThreadId(undefined);
             setComposing(false);
           }}>{text.notifications(listing?.unreadCount ? formatNumber(listing.unreadCount) : undefined)}</button>
-          <button ref={closeButton} type="button" className="board-action-button" aria-label={text.close} onClick={onClose}><span className="size-4"><WorkbenchIcon name="close" /></span></button>
+          <button ref={closeButton} type="button" className="board-action-button" aria-label={text.close} onClick={onClose}><span className="size-4"><WorkshopIcon name="close" /></span></button>
         </div>
       </header>
       {!online && <p role="status" className="border-b px-3 py-2 text-xs" style={{ borderColor: 'var(--glass-border-strong)', color: 'var(--text-secondary)' }}>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { BoardDocument } from '../../lib/boardSync';
 import { slideItems, slidePages } from '../../lib/slides';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import SlideSurface from './SlideSurface';
 import { useSlideMedia } from './useSlideMedia';
 
@@ -17,10 +17,10 @@ export default function SlideVersionPreview({ document, deckId }: { document: Bo
     <SlideSurface page={page} items={items} images={images} label={'Version Slide ' + (selected + 1)} />
     <div className="slide-preview-actions">
       <button type="button" className="doc-tool" aria-label="Previous Version Slide" disabled={selected === 0}
-        onClick={() => setIndex(selected - 1)}><WorkbenchIcon name="previous" /></button>
+        onClick={() => setIndex(selected - 1)}><WorkshopIcon name="previous" /></button>
       <span>{selected + 1} / {pages.length}</span>
       <button type="button" className="doc-tool" aria-label="Next Version Slide" disabled={selected === pages.length - 1}
-        onClick={() => setIndex(selected + 1)}><WorkbenchIcon name="next" /></button>
+        onClick={() => setIndex(selected + 1)}><WorkshopIcon name="next" /></button>
     </div>
   </section>;
 }

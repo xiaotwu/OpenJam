@@ -65,9 +65,9 @@ const paths = {
   sun: 'M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1.5 1.5 M17.5 17.5 19 19 M5 19l1.5-1.5 M17.5 6.5 19 5 M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z',
 } as const;
 
-export type WorkbenchIconName = keyof typeof paths;
+export type WorkshopIconName = keyof typeof paths;
 
-export default function WorkbenchIcon({ name, filled = false }: { name: WorkbenchIconName; filled?: boolean }) {
+export default function WorkshopIcon({ name, filled = false }: { name: WorkshopIconName; filled?: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"

@@ -4,7 +4,7 @@ import { ConnectionState, DefaultReconnectPolicy, DisconnectReason, Room, RoomEv
 import { useI18n } from '../../i18n';
 import { useTheme } from '../../lib/useTheme';
 import { meetingEndpoint, meetingPath, meetingSignalURL, useWorkshopResource, workshopPath, writeWorkshop, type MeetingDetail } from '../../lib/workshop';
-import WorkbenchIcon, { type WorkbenchIconName } from '../workbench/WorkbenchIcon';
+import WorkshopIcon, { type WorkshopIconName } from '../workshop/WorkshopIcon';
 import './meetings.css';
 
 const refreshEvents = [
@@ -122,7 +122,7 @@ function ParticipantTile({ participant, local, screen }: { participant: Particip
     {screen || camera ? <Video track={(screen ?? camera)!} /> : <span className="meeting-avatar" aria-hidden="true">{initials}</span>}
     <figcaption>
       <span>{name}{local && participant.name ? ' (You)' : ''}{screen ? ' · Screen' : ''}</span>
-      {!screen && !participant.isMicrophoneEnabled && <span aria-label="Muted"><WorkbenchIcon name="microphoneOff" /></span>}
+      {!screen && !participant.isMicrophoneEnabled && <span aria-label="Muted"><WorkshopIcon name="microphoneOff" /></span>}
     </figcaption>
   </figure>;
 }
@@ -142,7 +142,7 @@ function Call({ room, leave }: { room: Room; leave: () => void }) {
       ? [{ id: publication.trackSid, track: publication.track }] : []));
   const ready = room.state === ConnectionState.Connected;
   const reconnecting = room.state === ConnectionState.Reconnecting || room.state === ConnectionState.SignalReconnecting;
-  const controls: { icon: WorkbenchIconName; name: string; source: Track.Source; pressed: boolean; toggle: () => Promise<unknown> }[] = [
+  const controls: { icon: WorkshopIconName; name: string; source: Track.Source; pressed: boolean; toggle: () => Promise<unknown> }[] = [
     { icon: local.isMicrophoneEnabled ? 'microphone' : 'microphoneOff', name: 'Microphone', source: Track.Source.Microphone,
       pressed: local.isMicrophoneEnabled, toggle: () => local.setMicrophoneEnabled(!local.isMicrophoneEnabled) },
     { icon: local.isCameraEnabled ? 'camera' : 'cameraOff', name: 'Camera', source: Track.Source.Camera,
@@ -184,13 +184,13 @@ function Call({ room, leave }: { room: Room; leave: () => void }) {
       {error && <p className="meeting-error" role="alert">{error}</p>}
       {ready && !room.canPlaybackAudio && <button type="button" className="meeting-button" onClick={() => {
         void room.startAudio().catch(() => setError('Allow audio playback in your browser.'));
-      }}><WorkbenchIcon name="volume" />Enable Sound</button>}
+      }}><WorkshopIcon name="volume" />Enable Sound</button>}
       <div className="meeting-controls" role="group" aria-label="Call Controls">
         {controls.map(control => <button key={control.source} type="button" className="meeting-button meeting-icon"
           aria-label={control.name} aria-pressed={control.pressed} title={control.name}
-          disabled={!ready || Boolean(changing)} onClick={() => void toggle(control)}><WorkbenchIcon name={control.icon} /></button>)}
+          disabled={!ready || Boolean(changing)} onClick={() => void toggle(control)}><WorkshopIcon name={control.icon} /></button>)}
         <span className="meeting-control-divider" aria-hidden="true" />
-        <button type="button" className="meeting-button meeting-leave" onClick={leave}><WorkbenchIcon name="phoneOff" />Leave</button>
+        <button type="button" className="meeting-button meeting-leave" onClick={leave}><WorkshopIcon name="phoneOff" />Leave</button>
       </div>
     </div>
   </section>;
@@ -251,14 +251,14 @@ export default function MeetingRoom({ meetingId }: { meetingId: string }) {
 
   return <main className="shiori-meeting">
     <header className="meeting-header">
-      <Link to={back} className="meeting-button meeting-icon" aria-label="Back to Workshop" title="Back to Workshop"><WorkbenchIcon name="back" /></Link>
+      <Link to={back} className="meeting-button meeting-icon" aria-label="Back to Workshop" title="Back to Workshop"><WorkshopIcon name="back" /></Link>
       {item && <div className="meeting-heading">
         {call.room && <h1>{item.title}</h1>}
-        <span><WorkbenchIcon name="camera" />{item.scopeName}</span>
+        <span><WorkshopIcon name="camera" />{item.scopeName}</span>
       </div>}
       {item && item.status !== 'ended' && <div className="meeting-header-actions">
         <button type="button" className="meeting-button meeting-icon" aria-label="Copy Meeting Link" title={copy === 'copied' ? 'Link Copied' : 'Copy Meeting Link'}
-          onClick={() => void copyLink()}><WorkbenchIcon name={copy === 'copied' ? 'check' : 'link'} /></button>
+          onClick={() => void copyLink()}><WorkshopIcon name={copy === 'copied' ? 'check' : 'link'} /></button>
         {item.canEnd && <button type="button" className="meeting-button" disabled={ending} aria-expanded={confirmEnd}
           onClick={() => setConfirmEnd(!confirmEnd)}>{item.status === 'scheduled' ? 'Cancel Meeting' : 'End Meeting'}</button>}
       </div>}
@@ -275,7 +275,7 @@ export default function MeetingRoom({ meetingId }: { meetingId: string }) {
     </div>}
     {call.room ? <Call room={call.room} leave={call.leave} /> : <div className="meeting-lobby">
       <section className="meeting-lobby-card" aria-label="Meeting Lobby">
-        <span className="meeting-lobby-icon"><WorkbenchIcon name="camera" /></span>
+        <span className="meeting-lobby-icon"><WorkshopIcon name="camera" /></span>
         {item ? <>
           <h1>{item.title}</h1>
           <p><time dateTime={item.startsAt}>{formatDate(item.startsAt)}</time>{item.organizer && ' · ' + item.organizer}</p>
@@ -286,7 +286,7 @@ export default function MeetingRoom({ meetingId }: { meetingId: string }) {
                   : <><button type="button" className="meeting-button meeting-primary" onClick={() => {
                     setInCall(result.data);
                     void call.join();
-                  }}><WorkbenchIcon name="camera" />Join Meeting</button>
+                  }}><WorkshopIcon name="camera" />Join Meeting</button>
                   <p className="meeting-device-note">Microphone and camera start off.</p></>}
         </> : <>
           <h1>{result.loading ? 'Opening Meeting…' : 'Meeting Unavailable'}</h1>

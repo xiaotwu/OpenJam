@@ -19,9 +19,9 @@ import ImageUploadDialog, { type ImageUploadResult } from '../ImageUploadDialog'
 import BoardReviewPanel from '../collaboration/BoardReviewPanel';
 import BoardSyncNotice from '../collaboration/BoardSyncNotice';
 import BoardVersionsPanel from '../collaboration/BoardVersionsPanel';
-import AccountPopover from '../workbench/AccountPopover';
-import WorkbenchDialog from '../workbench/WorkbenchDialog';
-import WorkbenchIcon, { type WorkbenchIconName } from '../workbench/WorkbenchIcon';
+import AccountPopover from '../workshop/AccountPopover';
+import WorkshopDialog from '../workshop/WorkshopDialog';
+import WorkshopIcon, { type WorkshopIconName } from '../workshop/WorkshopIcon';
 import SlidePlayback from './SlidePlayback';
 import SlideRail from './SlideRail';
 import SlideSurface from './SlideSurface';
@@ -440,7 +440,7 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
   const status = sync.status === 'synced' ? 'Saved' : sync.status === 'offline' ? 'Offline'
     : sync.status === 'conflict' ? 'Review Needed' : sync.status === 'error' ? 'Unavailable' : 'Syncing…';
   const playbackOpen = canShow && playback;
-  const fileActions: { label: string; icon: WorkbenchIconName; run: () => void; active?: boolean; disabled?: boolean }[] = [
+  const fileActions: { label: string; icon: WorkshopIconName; run: () => void; active?: boolean; disabled?: boolean }[] = [
     { label: 'Comments', icon: 'message', run: () => setPanel(panel === 'comments' ? null : 'comments'), active: panel === 'comments' },
     { label: 'Presentation History', icon: 'recent', run: () => setPanel(panel === 'history' ? null : 'history'), active: panel === 'history' },
     { label: 'Export PowerPoint', icon: 'download', run: () => void exportFile(), disabled: sync.status !== 'synced' || dirty || exporting },
@@ -456,9 +456,9 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
             if (!draftRef.current) return;
             event.preventDefault();
             void finishDraft().then(saved => { if (saved) navigate(returnPath); });
-          }}><WorkbenchIcon name="back" /></Link>
+          }}><WorkshopIcon name="back" /></Link>
         <div className="doc-crumb">
-          <WorkbenchIcon name="slides" />
+          <WorkshopIcon name="slides" />
           {canWrite ? <button type="button" className="slide-title" aria-label="Rename Presentation" title="Rename Presentation"
             onClick={event => setRename(event.currentTarget)}>{title}</button> : <span>{title}</span>}
         </div>
@@ -476,7 +476,7 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
           <div className="doc-top-actions slide-desktop-actions">
             {fileActions.map(action => <button type="button" key={action.label} className="doc-icon" aria-label={action.label}
               title={action.label} aria-pressed={action.active} disabled={action.disabled} onClick={action.run}>
-              <WorkbenchIcon name={action.icon} />
+              <WorkshopIcon name={action.icon} />
             </button>)}
           </div>
           <details className="doc-dropdown slide-compact-actions" onKeyDown={event => {
@@ -484,16 +484,16 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
             event.currentTarget.open = false;
             event.currentTarget.querySelector('summary')?.focus();
           }}>
-            <summary className="doc-icon" aria-label="Presentation Actions" title="Presentation Actions"><WorkbenchIcon name="more" /></summary>
+            <summary className="doc-icon" aria-label="Presentation Actions" title="Presentation Actions"><WorkshopIcon name="more" /></summary>
             <div className="doc-menu">
               {fileActions.map(action => <button type="button" key={action.label} disabled={action.disabled} onClick={event => {
                 event.currentTarget.closest('details')?.removeAttribute('open');
                 action.run();
-              }}><WorkbenchIcon name={action.icon} />{action.label}</button>)}
+              }}><WorkshopIcon name={action.icon} />{action.label}</button>)}
             </div>
           </details>
           <button ref={presentButton} type="button" className="slide-present" aria-label="Present" title="Present"
-            disabled={dirty} onClick={beginPlayback}><WorkbenchIcon name="play" /><span>Present</span></button>
+            disabled={dirty} onClick={beginPlayback}><WorkshopIcon name="play" /><span>Present</span></button>
         </>}
         <AccountPopover user={user} theme={theme} setTheme={setTheme}
           onLogout={async () => {
@@ -521,7 +521,7 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
             onCopyLink={() => void copyLink()} />
           {warnings.length > 0 && <div className="slide-import-warning" role="status">
             <span>{warnings.join(' ')}</span>
-            <button type="button" className="doc-tool" aria-label="Dismiss Import Notice" onClick={() => setWarnings([])}><WorkbenchIcon name="close" /></button>
+            <button type="button" className="doc-tool" aria-label="Dismiss Import Notice" onClick={() => setWarnings([])}><WorkshopIcon name="close" /></button>
           </div>}
           {draftNeedsReview && draft && <div className="doc-draft-review" role="alert">
             <p>The presentation changed while you were editing. Your draft is still available to copy.</p>
@@ -560,7 +560,7 @@ export default function ShioriSlides({ presentationId, user }: { presentationId:
         onClose={() => setPanel(null)} />}
       {canShow && imageRequest && <ImageUploadDialog isOpen boardId={presentationId}
         presentation={imageRequest.replace ? 'replace' : 'insert'} onClose={() => setImageRequest(undefined)} onUpload={applyImage} />}
-      {canShow && rename && <WorkbenchDialog title="Rename Presentation" submitLabel="Save"
+      {canShow && rename && <WorkshopDialog title="Rename Presentation" submitLabel="Save"
         field={{ label: 'Presentation Name', value: title, maxLength: 255 }} busy={false} error={null} returnFocus={rename}
         onClose={() => setRename(undefined)} onSubmit={name => {
           if (name !== title) void sync.enqueue([{ kind: 'rename', value: name, expected: { name: title } }]);

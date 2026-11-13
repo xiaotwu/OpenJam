@@ -11,7 +11,7 @@ import { ApiError } from '../lib/api';
 import type { DocumentAck } from '../lib/boardSyncProtocol';
 import { newCommandId } from '../lib/boardSyncSession';
 import AgentConversation, { type ObservedAgentStage } from './agent/AgentConversation';
-import WorkbenchIcon from './workbench/WorkbenchIcon';
+import WorkshopIcon from './workshop/WorkshopIcon';
 
 interface BoardAgentPanelProps {
   boardId: string;
@@ -304,7 +304,7 @@ function PrivateAgentPanel({
           <div className="flex items-center justify-between gap-3">
             <p role="status" className={'text-sm ' + muted}>{loadError}</p>
             <button className="board-action-button" type="button" aria-label={text.refresh} title={text.refreshTitle} onClick={reload}>
-              <span className="size-4"><WorkbenchIcon name="restore" /></span>
+              <span className="size-4"><WorkshopIcon name="restore" /></span>
             </button>
           </div>
         )}
@@ -501,11 +501,11 @@ function AgentPanelFrame({ title, visual, readOnly, onEditIdentity, onClose, chi
         <div className="flex items-center">
           {onEditIdentity && (
             <button type="button" className="board-action-button" aria-label={text.identity} title={text.identity} onClick={onEditIdentity}>
-              <span className="size-4"><WorkbenchIcon name="pencil" /></span>
+              <span className="size-4"><WorkshopIcon name="pencil" /></span>
             </button>
           )}
           <button ref={closeButton} type="button" className="board-action-button" aria-label={text.close} title={text.closeTitle} onClick={onClose}>
-            <span className="size-4"><WorkbenchIcon name="close" /></span>
+            <span className="size-4"><WorkshopIcon name="close" /></span>
           </button>
         </div>
       </header>
@@ -598,7 +598,7 @@ function RunDetails({
           {inProgress(run) && <RunControl icon="stop" label={text.stop} disabled={disabled} onClick={() => onChange('cancel')} />}
           {canRetry && (
             <button type="button" className="board-action-button" disabled={disabled} onClick={() => onChange('retry')} aria-label={text.retry} title={text.retryTitle}>
-              <span className="size-4"><WorkbenchIcon name="restore" /></span>
+              <span className="size-4"><WorkshopIcon name="restore" /></span>
             </button>
           )}
         </div>
@@ -631,7 +631,7 @@ function RunDetails({
       )}
       {onUndo && (
         <button className={action} type="button" disabled={disabled} onClick={onUndo}>
-          <span className="size-4"><WorkbenchIcon name="restore" /></span>
+          <span className="size-4"><WorkshopIcon name="restore" /></span>
           {busy === 'undo' ? text.undoing : text.undo}
         </button>
       )}

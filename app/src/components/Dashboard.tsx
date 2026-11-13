@@ -14,8 +14,8 @@ import type { User } from '../lib/api';
 import { useTheme } from '../lib/useTheme';
 import AuthPage from './AuthPage';
 import ShioriMark from './ShioriMark';
-import AccountPopover from './workbench/AccountPopover';
-import WorkbenchIcon from './workbench/WorkbenchIcon';
+import AccountPopover from './workshop/AccountPopover';
+import WorkshopIcon from './workshop/WorkshopIcon';
 import './home.css';
 
 type AuthMode = 'login' | 'register';
@@ -36,7 +36,7 @@ const features = [
 ] as const;
 
 function HomeFeatures() {
-  const { messages: { workbench: { home: text } } } = useI18n();
+  const { messages: { workshop: { home: text } } } = useI18n();
   const [selected, setSelected] = useState<number>(0);
   const tabs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -103,7 +103,7 @@ function HomeFeatures() {
 
 function AuthDialog({ mode, onClose, onSuccess }: { mode: AuthMode; onClose: () => void; onSuccess: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const { messages: { workbench: { auth: text } } } = useI18n();
+  const { messages: { workshop: { auth: text } } } = useI18n();
 
   useEffect(() => {
     const element = dialog.current;
@@ -125,7 +125,7 @@ function AuthDialog({ mode, onClose, onSuccess }: { mode: AuthMode; onClose: () 
       onCancel={event => { event.preventDefault(); onClose(); }}
     >
       <button type="button" className="shell-icon-button home-auth-close" onClick={onClose} aria-label={text.close}>
-        <WorkbenchIcon name="close" />
+        <WorkshopIcon name="close" />
       </button>
       <AuthPage variant="modal" initialMode={mode} onSuccess={onSuccess} />
     </dialog>
@@ -137,7 +137,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [authMode, setAuthMode] = useState<AuthMode | null>(initialMode);
   const { theme, setTheme, isDark } = useTheme();
-  const { messages: { workbench: { home: text } } } = useI18n();
+  const { messages: { workshop: { home: text } } } = useI18n();
   const home = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setAuthMode(initialMode); }, [initialMode]);
@@ -157,7 +157,7 @@ export default function Dashboard({
           <a href="#features">{text.featuresLink}</a>
           <button className="home-theme-toggle" type="button" aria-label={isDark ? text.lightMode : text.darkMode}
             onClick={() => setTheme(isDark ? 'light' : 'dark')}>
-            <WorkbenchIcon name={isDark ? 'sun' : 'moon'} />
+            <WorkshopIcon name={isDark ? 'sun' : 'moon'} />
             <span>{isDark ? text.lightMode : text.darkMode}</span>
           </button>
           {user && <AccountPopover user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} />}

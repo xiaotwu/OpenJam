@@ -3,7 +3,7 @@ import { useI18n } from '../../i18n';
 import type { AgentPreview } from '../../lib/boardAgent';
 import type { Element } from '../../lib/elements';
 import { ElementRenderer } from '../elements';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import { elementBounds } from './boardObjects';
 
 const noInteraction = () => {};
@@ -55,7 +55,7 @@ export default function AgentCanvasPreview({ preview }: { preview: AgentPreview 
       <figcaption>
         <span>{text.preview}</span>
         <button type="button" className="board-action-button" aria-label={text.replay} title={text.replay} onClick={() => setReplay(value => value + 1)}>
-          <span className="size-4"><WorkbenchIcon name="restore" /></span>
+          <span className="size-4"><WorkshopIcon name="restore" /></span>
         </button>
       </figcaption>
       <div className="agent-preview-viewport" ref={container} style={{ height }}>

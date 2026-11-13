@@ -1,6 +1,6 @@
 import { boardFonts } from '../../lib/boardFonts';
 import type { SlideObject } from '../../lib/slides';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 
 const sizes = [16, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 72, 80, 96, 120];
 
@@ -34,23 +34,23 @@ export default function SlideToolbar({
   return <div className="slide-toolbar" aria-label="Presentation Tools">
     <div className="slide-tool-group">
       {editable && <>
-        <button type="button" className="doc-tool" aria-label="Undo" title="Undo" onClick={onUndo} disabled={!canUndo}><WorkbenchIcon name="undo" /></button>
-        <button type="button" className="doc-tool" aria-label="Redo" title="Redo" onClick={onRedo} disabled={!canRedo}><WorkbenchIcon name="redo" /></button>
+        <button type="button" className="doc-tool" aria-label="Undo" title="Undo" onClick={onUndo} disabled={!canUndo}><WorkshopIcon name="undo" /></button>
+        <button type="button" className="doc-tool" aria-label="Redo" title="Redo" onClick={onRedo} disabled={!canRedo}><WorkshopIcon name="redo" /></button>
         <span className="doc-tools-divider" />
         <button type="button" className="doc-tool" aria-label="Add Text Box" title="Add Text Box" onClick={onAddText}
-          disabled={!canInsert}><WorkbenchIcon name="text" /></button>
+          disabled={!canInsert}><WorkshopIcon name="text" /></button>
         <button type="button" className="doc-tool" aria-label="Add Image" title="Add Image" onClick={onAddImage}
-          disabled={!canInsert}><WorkbenchIcon name="image" /></button>
+          disabled={!canInsert}><WorkshopIcon name="image" /></button>
         <label className="slide-color" title="Slide Background">
           <input type="color" aria-label="Slide Background" value={background} onChange={event => onBackground(event.target.value)} />
         </label>
         <span className="doc-tools-divider" />
       </>}
-      <button type="button" className="doc-tool" aria-label="Copy Slide Link" title="Copy Slide Link" onClick={onCopyLink}><WorkbenchIcon name="link" /></button>
+      <button type="button" className="doc-tool" aria-label="Copy Slide Link" title="Copy Slide Link" onClick={onCopyLink}><WorkshopIcon name="link" /></button>
     </div>
     {editable && selected && <div className="slide-tool-group" aria-label="Selected Object Tools">
       {text ? <>
-        <button type="button" className="doc-tool" aria-label="Edit Text" title="Edit Text" onClick={onEditText}><WorkbenchIcon name="pencil" /></button>
+        <button type="button" className="doc-tool" aria-label="Edit Text" title="Edit Text" onClick={onEditText}><WorkshopIcon name="pencil" /></button>
         <select className="doc-select" aria-label="Font Family" value={text.fontFamily} onChange={event => onPatch({ fontFamily: event.target.value })}>
           {fontOptions.map(font => <option key={font.family} value={font.family}>{font.label}</option>)}
         </select>
@@ -59,9 +59,9 @@ export default function SlideToolbar({
           {fontSizes.map(size => <option key={size} value={size}>{Math.round(size)} px</option>)}
         </select>
         <button type="button" className="doc-tool" aria-label="Bold" title="Bold" aria-pressed={text.fontWeight === 'bold'}
-          onClick={() => onPatch({ fontWeight: text.fontWeight === 'bold' ? 'normal' : 'bold' })}><WorkbenchIcon name="bold" /></button>
+          onClick={() => onPatch({ fontWeight: text.fontWeight === 'bold' ? 'normal' : 'bold' })}><WorkshopIcon name="bold" /></button>
         <button type="button" className="doc-tool" aria-label="Italic" title="Italic" aria-pressed={text.fontStyle === 'italic'}
-          onClick={() => onPatch({ fontStyle: text.fontStyle === 'italic' ? 'normal' : 'italic' })}><WorkbenchIcon name="italic" /></button>
+          onClick={() => onPatch({ fontStyle: text.fontStyle === 'italic' ? 'normal' : 'italic' })}><WorkshopIcon name="italic" /></button>
         <select className="doc-select slide-align" aria-label="Text Alignment" value={text.textAlign}
           onChange={event => onPatch({ textAlign: event.target.value })}>
           <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
@@ -70,9 +70,9 @@ export default function SlideToolbar({
           <input type="color" aria-label="Text Color" value={text.color} onChange={event => onPatch({ color: event.target.value })} />
         </label>
       </> : <button type="button" className="doc-edit-action" onClick={onReplaceImage} title="Replace Image">
-        <WorkbenchIcon name="restore" /><span>Replace</span>
+        <WorkshopIcon name="restore" /><span>Replace</span>
       </button>}
-      <button type="button" className="doc-tool" aria-label="Delete Object" title="Delete Object" onClick={onDelete}><WorkbenchIcon name="trash" /></button>
+      <button type="button" className="doc-tool" aria-label="Delete Object" title="Delete Object" onClick={onDelete}><WorkshopIcon name="trash" /></button>
     </div>}
   </div>;
 }

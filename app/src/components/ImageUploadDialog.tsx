@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { uploadBoardAsset } from '../lib/boardFiles';
-import WorkbenchIcon from './workbench/WorkbenchIcon';
+import WorkshopIcon from './workshop/WorkshopIcon';
 
 export interface ImageUploadResult {
   assetId?: string;
@@ -145,7 +145,7 @@ function ImageUploadForm({ boardId, presentation, onClose, onUpload }: Omit<Imag
       <header className="flex items-center justify-between gap-3 border-b border-[var(--glass-border-strong)] px-5 py-3">
         <h2 id={titleId} className="text-base font-semibold">{presentation === 'replace' ? 'Replace Image' : text.add}</h2>
         <button type="button" onClick={close} className="board-action-button grid place-items-center" aria-label={text.close}>
-          <span className="size-4"><WorkbenchIcon name="close" /></span>
+          <span className="size-4"><WorkshopIcon name="close" /></span>
         </button>
       </header>
 

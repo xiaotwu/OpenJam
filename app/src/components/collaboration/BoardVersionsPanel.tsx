@@ -5,7 +5,7 @@ import { ApiError, request } from '../../lib/api';
 import type { BoardDocument, BoardElement, DocumentPermission } from '../../lib/boardSyncProtocol';
 import { newCommandId } from '../../lib/boardSyncSession';
 import { resourceNames, type ResourceKind } from '../../lib/directory';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 
 interface VersionSummary {
   id: string;
@@ -298,7 +298,7 @@ export default function BoardVersionsPanel({
     >
       <header className={`flex items-center justify-between gap-3 border-b ${sectionBorder} px-4 py-3`}>
         <h2 id={titleId} className="font-semibold">{resourceKind === 'board' ? text.title : noun + ' History'}</h2>
-        <button ref={closeButton} type="button" aria-label={text.close} onClick={onClose} disabled={busy} className="board-action-button"><span className="size-4"><WorkbenchIcon name="close" /></span></button>
+        <button ref={closeButton} type="button" aria-label={text.close} onClick={onClose} disabled={busy} className="board-action-button"><span className="size-4"><WorkshopIcon name="close" /></span></button>
       </header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
         {!canEdit && <p className="text-sm">{text.access}</p>}

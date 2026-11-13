@@ -1,16 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { agentGlyphs, normalizeAgentArtwork, saveAgentProfile, type AgentProfile } from '../../lib/agentIdentity';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import AgentCharacter from './AgentCharacter';
-import '../workbench/workbench.css';
+import '../workshop/workshop.css';
 
 export default function AgentProfileDialog({ profile, onClose, onSave }: {
   profile: AgentProfile;
   onClose: () => void;
   onSave: (value: AgentProfile) => void;
 }) {
-  const { messages: { agentIdentity: text, workbench: { dialog } } } = useI18n();
+  const { messages: { agentIdentity: text, workshop: { dialog } } } = useI18n();
   const [draft, setDraft] = useState(profile);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -62,13 +62,13 @@ export default function AgentProfileDialog({ profile, onClose, onSave }: {
   }
 
   return (
-    <dialog ref={dialogRef} className="wb-dialog agent-profile-dialog" aria-labelledby={title} onCancel={event => {
+    <dialog ref={dialogRef} className="workshop-dialog agent-profile-dialog" aria-labelledby={title} onCancel={event => {
       event.preventDefault();
       if (!busy) onClose();
     }}>
-      <div className="wb-dialog-heading">
+      <div className="workshop-dialog-heading">
         <h2 id={title}>{text.title}</h2>
-        <button type="button" className="wb-icon-button" disabled={busy} onClick={onClose} aria-label={dialog.close}><WorkbenchIcon name="close" /></button>
+        <button type="button" className="workshop-icon-button" disabled={busy} onClick={onClose} aria-label={dialog.close}><WorkshopIcon name="close" /></button>
       </div>
       <form onSubmit={event => { event.preventDefault(); if (!busy && validName) void save(); }}>
         <div className="agent-profile-poses" aria-hidden="true">
@@ -76,7 +76,7 @@ export default function AgentProfileDialog({ profile, onClose, onSave }: {
             <div key={pose}><AgentCharacter profile={draft} pose={pose} /><span>{text[pose]}</span></div>
           ))}
         </div>
-        <label className="wb-field">
+        <label className="workshop-field">
           {text.name}
           <input value={draft.name} disabled={busy} placeholder={text.defaultName} maxLength={96} aria-invalid={!validName || undefined}
             onChange={event => setDraft({ ...draft, name: event.currentTarget.value })} />
@@ -90,7 +90,7 @@ export default function AgentProfileDialog({ profile, onClose, onSave }: {
               aria-pressed={draft.kind === 'glyph' && draft.glyph === glyph} disabled={busy}
               onClick={() => setDraft({ name: draft.name, kind: 'glyph', glyph })}><AgentCharacter profile={{ name: '', kind: 'glyph', glyph }} /></button>)}
           </div>
-          <label className="wb-field">
+          <label className="workshop-field">
             {text.importArt}
             <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => {
               void importArtwork(event.currentTarget.files?.[0]);
@@ -99,10 +99,10 @@ export default function AgentProfileDialog({ profile, onClose, onSave }: {
           </label>
           <p className="text-xs text-[var(--text-secondary)]">{text.formats}</p>
         </fieldset>
-        {error && <p className="wb-error-text" role="alert">{error}</p>}
-        <div className="wb-dialog-actions">
-          <button type="button" className="wb-button wb-button-secondary" disabled={busy} onClick={onClose}>{dialog.cancel}</button>
-          <button type="submit" className="wb-button wb-button-primary" disabled={busy || !validName}>{busy ? dialog.saving : text.save}</button>
+        {error && <p className="workshop-error-text" role="alert">{error}</p>}
+        <div className="workshop-dialog-actions">
+          <button type="button" className="workshop-button workshop-button-secondary" disabled={busy} onClick={onClose}>{dialog.cancel}</button>
+          <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !validName}>{busy ? dialog.saving : text.save}</button>
         </div>
       </form>
     </dialog>

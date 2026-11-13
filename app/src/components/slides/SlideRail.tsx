@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SlideObject, SlidePage } from '../../lib/slides';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import SlideSurface from './SlideSurface';
 
 const empty: SlideObject[] = [];
@@ -77,7 +77,7 @@ export default function SlideRail({ pages, layers, images, active, editable, can
   return <aside className="slide-rail" aria-label="Slides">
     <div className="slide-rail-head"><span>Slides</span>
       {editable && <button type="button" className="doc-tool" aria-label="Add Slide" title="Add Slide" onClick={onAdd}
-        disabled={!canAdd}><WorkbenchIcon name="plus" /></button>}
+        disabled={!canAdd}><WorkshopIcon name="plus" /></button>}
     </div>
     <nav className="slide-thumbnails" aria-label="Slide Order">
       {pages.map((page, index) => <Thumbnail key={page.id} page={page} items={layers.get(page.id) ?? empty} images={images}
@@ -86,11 +86,11 @@ export default function SlideRail({ pages, layers, images, active, editable, can
     </nav>
     {editable && <div className="slide-rail-actions" aria-label="Arrange Slides">
       <button type="button" className="doc-tool" aria-label="Move Slide Earlier" title="Move Earlier" disabled={active <= 0}
-        onClick={() => onReorder(pages[active].id, active - 1)}><WorkbenchIcon name="up" /></button>
+        onClick={() => onReorder(pages[active].id, active - 1)}><WorkshopIcon name="up" /></button>
       <button type="button" className="doc-tool" aria-label="Move Slide Later" title="Move Later" disabled={active >= pages.length - 1}
-        onClick={() => onReorder(pages[active].id, active + 1)}><WorkbenchIcon name="down" /></button>
+        onClick={() => onReorder(pages[active].id, active + 1)}><WorkshopIcon name="down" /></button>
       <button type="button" className="doc-tool" aria-label="Delete Slide" title="Delete Slide" disabled={pages.length <= 1}
-        onClick={onDelete}><WorkbenchIcon name="trash" /></button>
+        onClick={onDelete}><WorkshopIcon name="trash" /></button>
     </div>}
   </aside>;
 }

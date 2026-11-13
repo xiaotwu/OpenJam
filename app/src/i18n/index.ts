@@ -6,9 +6,9 @@ import { files } from './files';
 import { images } from './images';
 import { review } from './review';
 import { versions } from './versions';
-import { workbench } from './workbench';
+import { workshop } from './workshop';
 
-const english = { agent, agentIdentity, board, files, images, review, versions, workbench };
+const english = { agent, agentIdentity, board, files, images, review, versions, workshop };
 export type MessageCatalog = typeof english;
 
 const catalogs = { en: english } satisfies Record<string, MessageCatalog>;

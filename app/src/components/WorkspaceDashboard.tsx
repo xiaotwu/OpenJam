@@ -11,24 +11,24 @@ import { useAppearance } from '../lib/useAppearance';
 import { meetingPath, useWorkshopResource, workshopPath, type Inbox } from '../lib/workshop';
 import { useI18n } from '../i18n';
 import ShioriMark from './ShioriMark';
-import AccountPopover from './workbench/AccountPopover';
-import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workbench/BoardCollection';
+import AccountPopover from './workshop/AccountPopover';
+import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workshop/BoardCollection';
 import BoardFilesPanel from './BoardFilesPanel';
-import ProjectImportDialog from './workbench/ProjectImportDialog';
-import ProjectFilesActions from './workbench/ProjectFilesActions';
-import { ImportProjectDialog, ProjectBranchDialog } from './workbench/ProjectBranchDialogs';
-import { ExportProjectArchiveDialog, RestoreProjectArchiveDialog } from './workbench/ProjectArchiveDialogs';
-import MeetingEditor from './workbench/MeetingEditor';
-import WorkbenchDialog, { type DialogField, type DialogSelection } from './workbench/WorkbenchDialog';
-import { ProjectAccess, ProjectList, TeamMembers } from './workbench/TeamDirectoryPanels';
-import { WorkshopRecents, WorkshopSearch } from './workbench/DiscoveryPanels';
-import TeamRelationships from './workbench/TeamRelationships';
-import { WorkshopCalendar } from './workbench/WorkshopCalendar';
-import WorkshopInbox from './workbench/WorkshopInbox';
-import WorkshopNavigation, { type WorkshopView } from './workbench/WorkshopNavigation';
-import WorkbenchIcon, { type WorkbenchIconName } from './workbench/WorkbenchIcon';
-import './workbench/workbench.css';
-import './workbench/workshop.css';
+import ProjectImportDialog from './workshop/ProjectImportDialog';
+import ProjectFilesActions from './workshop/ProjectFilesActions';
+import { ImportProjectDialog, ProjectBranchDialog } from './workshop/ProjectBranchDialogs';
+import { ExportProjectArchiveDialog, RestoreProjectArchiveDialog } from './workshop/ProjectArchiveDialogs';
+import MeetingEditor from './workshop/MeetingEditor';
+import WorkshopDialog, { type DialogField, type DialogSelection } from './workshop/WorkshopDialog';
+import { ProjectAccess, ProjectList, TeamMembers } from './workshop/TeamDirectoryPanels';
+import { WorkshopRecents, WorkshopSearch } from './workshop/DiscoveryPanels';
+import TeamRelationships from './workshop/TeamRelationships';
+import { WorkshopCalendar } from './workshop/WorkshopCalendar';
+import WorkshopInbox from './workshop/WorkshopInbox';
+import WorkshopNavigation, { type WorkshopView } from './workshop/WorkshopNavigation';
+import WorkshopIcon, { type WorkshopIconName } from './workshop/WorkshopIcon';
+import './workshop/workshop.css';
+import './workshop/workshop-panels.css';
 
 interface WorkspaceDashboardProps {
   user: User;
@@ -38,7 +38,7 @@ interface WorkspaceDashboardProps {
 type CollectionView = 'recent' | 'favorites' | 'shared' | 'archive';
 type Sort = 'updated' | 'name';
 
-const collectionIcons: Record<CollectionView, WorkbenchIconName> = {
+const collectionIcons: Record<CollectionView, WorkshopIconName> = {
   recent: 'board', favorites: 'star', shared: 'shared', archive: 'archive',
 };
 
@@ -121,7 +121,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const { theme, setTheme, isDark } = useTheme();
   const { appearance } = useAppearance(user.id);
   const inbox = useWorkshopResource<Inbox>(workshopPath + '/inbox', 8_000);
-  const { locale, formatNumber, messages: { workbench: { directory: text, teams: teamText } } } = useI18n();
+  const { locale, formatNumber, messages: { workshop: { directory: text, teams: teamText } } } = useI18n();
   const collator = useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }), [locale]);
 
   const key = `${user.id}:${attempt}`;
@@ -160,7 +160,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   useEffect(() => {
     if (!menuId) return;
     const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Element && !event.target.closest('[data-wb-board-menu]')) setMenuId(null);
+      if (event.target instanceof Element && !event.target.closest('[data-workshop-board-menu]')) setMenuId(null);
     };
     document.addEventListener('pointerdown', closeOutside);
     return () => document.removeEventListener('pointerdown', closeOutside);
@@ -339,7 +339,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
 
   function openModal(settings: ModalSettings) {
     const focused = document.activeElement;
-    const trigger = focused?.closest('[data-wb-board-menu]')?.querySelector<HTMLElement>('[data-wb-menu-trigger]');
+    const trigger = focused?.closest('[data-workshop-board-menu]')?.querySelector<HTMLElement>('[data-workshop-menu-trigger]');
     setMenuId(null);
     setDialogError(null);
     setModal({ ...settings, returnFocus: trigger ?? (focused instanceof HTMLElement ? focused : null) });
@@ -533,31 +533,31 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
   const calendarScope = params.get('scope') ?? undefined;
 
   return (
-    <main className="shiori-workbench">
+    <main className="shiori-workshop">
       <aside
-        className="wb-sidebar"
-        id="wb-sidebar"
+        className="workshop-sidebar"
+        id="workshop-sidebar"
         data-open={mobileNavOpen}
         aria-label={text.sidebar}
         onKeyDown={(event) => {
           if (mobileNavOpen && event.key === 'Escape') closeMobileNav();
         }}
       >
-        <div className="wb-sidebar-top">
+        <div className="workshop-sidebar-top">
           <Link
             to="/workplace"
-            className="wb-brand"
+            className="workshop-brand"
             onClick={() => { setQuery(''); setMobileNavOpen(false); }}
           >
             <ShioriMark size={25} />
             <span>Shiori</span>
           </Link>
-          <button type="button" ref={mobileCloseButton} className="wb-icon-button wb-mobile-close" aria-label={text.closeNavigation} onClick={closeMobileNav}>
-            <WorkbenchIcon name="close" />
+          <button type="button" ref={mobileCloseButton} className="workshop-icon-button workshop-mobile-close" aria-label={text.closeNavigation} onClick={closeMobileNav}>
+            <WorkshopIcon name="close" />
           </button>
         </div>
 
-        <div className="wb-sidebar-scroll">
+        <div className="workshop-sidebar-scroll">
           <WorkshopNavigation activeView={search ? undefined : view} personalProjects={personalProjects} teams={teams}
             projectsByTeam={projectsByTeam} activeTeam={teamMode && view === 'recent' ? activeOrganizationId : undefined}
             activeProject={!search ? activeProject?.id : undefined} personalOpen={!teamMode && view === 'recent' && !search}
@@ -566,84 +566,84 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             onTeam={selectDestination} onProject={selectProject} onNewTeam={addOrganization} />
         </div>
 
-        <div className="wb-profile">
+        <div className="workshop-profile">
           <AccountPopover user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} side="above" expanded />
         </div>
       </aside>
-      {mobileNavOpen && <button type="button" tabIndex={-1} className="wb-navigation-scrim" onClick={closeMobileNav} aria-label={text.closeNavigation} />}
+      {mobileNavOpen && <button type="button" tabIndex={-1} className="workshop-navigation-scrim" onClick={closeMobileNav} aria-label={text.closeNavigation} />}
 
-      <section className="wb-main" aria-label={text.name}>
-        <header className="wb-toolbar">
+      <section className="workshop-main" aria-label={text.name}>
+        <header className="workshop-toolbar">
           <button
             type="button"
             ref={mobileMenuButton}
-            className="shell-island wb-mobile-menu"
+            className="shell-island workshop-mobile-menu"
             aria-label={mobileNavOpen ? text.closeNavigation : text.showNavigation}
             aria-expanded={mobileNavOpen}
-            aria-controls="wb-sidebar"
+            aria-controls="workshop-sidebar"
             onClick={() => setMobileNavOpen((open) => !open)}
           >
-            <WorkbenchIcon name="menu" />
+            <WorkshopIcon name="menu" />
           </button>
-          <div className="wb-search" role="search">
-            <WorkbenchIcon name="search" />
+          <div className="workshop-search" role="search">
+            <WorkshopIcon name="search" />
             <input type="search" aria-label={text.search} placeholder={text.searchPlaceholder} value={query} maxLength={120}
               onChange={event => setQuery(event.target.value)}
               onKeyDown={event => { if (event.key === 'Escape') setQuery(''); }} />
-            {query && <button type="button" className="wb-icon-button" aria-label={text.clearSearch} onClick={() => setQuery('')}>
-              <WorkbenchIcon name="close" />
+            {query && <button type="button" className="workshop-icon-button" aria-label={text.clearSearch} onClick={() => setQuery('')}>
+              <WorkshopIcon name="close" />
             </button>}
           </div>
           {directory && showBoardTools && (
-            <div className="shell-island wb-toolbar-actions">
-              {scheduleScope && view === 'recent' && <Link className="wb-icon-button" aria-label="Open Calendar" title="Open Calendar"
-                to={'/workplace?' + new URLSearchParams({ view: 'calendar', scope: scheduleScope })}><WorkbenchIcon name="calendar" /></Link>}
-              {scheduleScope && canCreateMeeting && view === 'recent' && <button type="button" className="wb-icon-button wb-glass-control"
+            <div className="shell-island workshop-toolbar-actions">
+              {scheduleScope && view === 'recent' && <Link className="workshop-icon-button" aria-label="Open Calendar" title="Open Calendar"
+                to={'/workplace?' + new URLSearchParams({ view: 'calendar', scope: scheduleScope })}><WorkshopIcon name="calendar" /></Link>}
+              {scheduleScope && canCreateMeeting && view === 'recent' && <button type="button" className="workshop-icon-button workshop-glass-control"
                 aria-label="New Meeting" title="New Meeting" onClick={() => setMeetingScope({
                   value: scheduleScope, label: activeProject?.name ?? organization?.name ?? '',
-                })}><WorkbenchIcon name="camera" /></button>}
-              {showAreaHome && organization && firstWorkspace && <button type="button" className="wb-icon-button wb-glass-control"
+                })}><WorkshopIcon name="camera" /></button>}
+              {showAreaHome && organization && firstWorkspace && <button type="button" className="workshop-icon-button workshop-glass-control"
                 aria-label="Restore Project Archive" title="Restore Project Archive"
-                onClick={() => setArchiveDialog({ scope: organization.id, mode: 'restore' })}><WorkbenchIcon name="restore" /></button>}
-              {showTeamWorkspaceAction && <button type="button" className="wb-icon-button" aria-label={text.newWorkspace}
-                title={text.newWorkspace} onClick={addWorkspace}><WorkbenchIcon name="folder" /></button>}
+                onClick={() => setArchiveDialog({ scope: organization.id, mode: 'restore' })}><WorkshopIcon name="restore" /></button>}
+              {showTeamWorkspaceAction && <button type="button" className="workshop-icon-button" aria-label={text.newWorkspace}
+                title={text.newWorkspace} onClick={addWorkspace}><WorkshopIcon name="folder" /></button>}
               {activeProject && defaultProject && view === 'recent' && <ProjectFilesActions
                 onNewBoard={() => addResource('board')} onNewDoc={() => addResource('doc')} onNewSheet={() => addResource('sheet')}
                 onNewPresentation={() => addResource('slides')}
                 onImportBoard={() => setShowImport(true)} onImportDoc={() => setImportTarget({ kind: 'doc', project: activeProject })}
                 onImportSheet={() => setImportTarget({ kind: 'sheet', project: activeProject })}
                 onImportPresentation={() => setImportTarget({ kind: 'slides', project: activeProject })} />}
-              {!activeProject && (!showAreaHome || !teamMode) && <button type="button" className="wb-icon-button" aria-label={text.importBoard}
-                title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}><WorkbenchIcon name="import" /></button>}
-              {primaryAction && view === 'recent' && <button type="button" className="wb-button wb-button-primary" onClick={primaryAction.run}
-                aria-label={primaryAction.label} title={primaryAction.label}><WorkbenchIcon name="plus" /><span>{primaryAction.label}</span></button>}
+              {!activeProject && (!showAreaHome || !teamMode) && <button type="button" className="workshop-icon-button" aria-label={text.importBoard}
+                title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}><WorkshopIcon name="import" /></button>}
+              {primaryAction && view === 'recent' && <button type="button" className="workshop-button workshop-button-primary" onClick={primaryAction.run}
+                aria-label={primaryAction.label} title={primaryAction.label}><WorkshopIcon name="plus" /><span>{primaryAction.label}</span></button>}
             </div>
           )}
         </header>
 
-        <div className="wb-content">
-          <header className="wb-page-heading">
+        <div className="workshop-content">
+          <header className="workshop-page-heading">
             {scope && <p>{scope}</p>}
             <h1>{title}</h1>
-            {activeProject && defaultProject && !search && view === 'recent' && <div className="shell-island wb-project-branch-actions"
+            {activeProject && defaultProject && !search && view === 'recent' && <div className="shell-island workshop-project-branch-actions"
               role="group" aria-label="Project Actions">
-              {organization?.kind === 'personal' && teamWorkspaces.length > 0 && <button type="button" className="wb-icon-button wb-glass-control"
+              {organization?.kind === 'personal' && teamWorkspaces.length > 0 && <button type="button" className="workshop-icon-button workshop-glass-control"
                 aria-label="Import to Team" title="Import to Team" onClick={() => setProjectDialog({ id: activeProject.id, mode: 'import' })}>
-                <WorkbenchIcon name="branch" />
+                <WorkshopIcon name="branch" />
               </button>}
-              <button type="button" className="wb-icon-button wb-glass-control" aria-label="Project Sync & Versions" title="Project Sync & Versions"
-                onClick={() => setProjectDialog({ id: activeProject.id, mode: 'sync' })}><WorkbenchIcon name="sync" /></button>
-              {activeProject.role === 'manager' && <button type="button" className="wb-icon-button wb-glass-control"
+              <button type="button" className="workshop-icon-button workshop-glass-control" aria-label="Project Sync & Versions" title="Project Sync & Versions"
+                onClick={() => setProjectDialog({ id: activeProject.id, mode: 'sync' })}><WorkshopIcon name="sync" /></button>
+              {activeProject.role === 'manager' && <button type="button" className="workshop-icon-button workshop-glass-control"
                 aria-label="Export Project Archive" title="Export Project Archive"
-                onClick={() => setArchiveDialog({ scope: activeProject.id, mode: 'export' })}><WorkbenchIcon name="download" /></button>}
+                onClick={() => setArchiveDialog({ scope: activeProject.id, mode: 'export' })}><WorkshopIcon name="download" /></button>}
             </div>}
           </header>
 
           {actionError && (
-            <div className="wb-message wb-message-error" role="alert">
+            <div className="workshop-message workshop-message-error" role="alert">
               <p>{actionError}</p>
-              <button type="button" className="wb-icon-button" aria-label={text.dismissError} onClick={() => setActionError(null)}>
-                <WorkbenchIcon name="close" />
+              <button type="button" className="workshop-icon-button" aria-label={text.dismissError} onClick={() => setActionError(null)}>
+                <WorkshopIcon name="close" />
               </button>
             </div>
           )}
@@ -658,47 +658,47 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
             <WorkshopCalendar key={[calendarDate, calendarItem, calendarScope].join(':')} teams={teams}
               projects={directory?.projects ?? noProjects} initialDate={calendarDate} initialItem={calendarItem} initialScope={calendarScope} />
           ) : view === 'recents' ? <WorkshopRecents /> : loading ? (
-            <div className="wb-loading" role="status">
+            <div className="workshop-loading" role="status">
               <p>{text.loading}</p>
-              <div className="wb-skeletons" aria-hidden="true"><span /><span /><span /></div>
+              <div className="workshop-skeletons" aria-hidden="true"><span /><span /><span /></div>
             </div>
           ) : loadError ? (
-            <div className="wb-message wb-message-error" role="alert">
+            <div className="workshop-message workshop-message-error" role="alert">
               <div><strong>{text.loadError}</strong><p>{loadError}</p></div>
-              <button type="button" className="wb-button wb-button-secondary" onClick={() => setAttempt((current) => current + 1)}>{text.retry}</button>
+              <button type="button" className="workshop-button workshop-button-secondary" onClick={() => setAttempt((current) => current + 1)}>{text.retry}</button>
             </div>
           ) : showAreaHome && teamMode ? (
             organization ? <>
-              <div className="wb-team-overview">
+              <div className="workshop-team-overview">
                 <TeamRelationships key={organization.id} teamId={organization.id} />
-                <div className="wb-team-details">
+                <div className="workshop-team-details">
                   <ProjectList projects={organizationProjects} onOpen={selectProject} />
                   <TeamMembers key={organization.id} team={organization} currentUserId={user.id} focusedMember={params.get('member')}
                     onLeave={() => { selectView('inbox'); setAttempt(current => current + 1); }} />
                 </div>
               </div>
-            </> : <p className="wb-inline-empty">{organizationId ? 'This team is unavailable.' : 'Create a team or accept an invitation.'}</p>
+            </> : <p className="workshop-inline-empty">{organizationId ? 'This team is unavailable.' : 'Create a team or accept an invitation.'}</p>
           ) : (
             <>
               {showAreaHome && organization && <ProjectList projects={organizationProjects} onOpen={selectProject} />}
               {teamMode && organization && activeProject?.role === 'manager' && <ProjectAccess key={activeProject.id}
                 project={activeProject} teamId={organization.id} currentUserId={user.id}
                 onChange={() => setAttempt(current => current + 1)} />}
-              <div className="wb-collection-bar">
+              <div className="workshop-collection-bar">
                 <p role="status">{formatNumber(entries.length)} {entries.length === 1 ? 'file' : 'files'}</p>
-                <div className="wb-collection-controls">
-                  <label className="wb-sort">
+                <div className="workshop-collection-controls">
+                  <label className="workshop-sort">
                     <select aria-label={text.sort} value={sort} onChange={(event) => setSort(event.target.value === 'name' ? 'name' : 'updated')}>
                       <option value="updated">{text.updated}</option>
                       <option value="name">{text.nameSort}</option>
                     </select>
                   </label>
-                  <div className="shell-island wb-layout-toggle" role="group" aria-label={text.layout}>
-                    <button type="button" className="wb-icon-button" aria-label={text.grid} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>
-                      <WorkbenchIcon name="grid" />
+                  <div className="shell-island workshop-layout-toggle" role="group" aria-label={text.layout}>
+                    <button type="button" className="workshop-icon-button" aria-label={text.grid} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>
+                      <WorkshopIcon name="grid" />
                     </button>
-                    <button type="button" className="wb-icon-button" aria-label={text.list} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>
-                      <WorkbenchIcon name="list" />
+                    <button type="button" className="workshop-icon-button" aria-label={text.list} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>
+                      <WorkshopIcon name="list" />
                     </button>
                   </div>
                 </div>
@@ -706,13 +706,13 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
               {entries.length > 0 ? (
                 <BoardCollection entries={entries} theme={isDark ? 'dark' : 'light'} layout={layout} busyBoards={busyBoards} menuId={menuId} onMenuChange={setMenuId} onAction={handleBoardAction} />
               ) : (
-                <div className="wb-empty">
-                  <span className="wb-empty-icon" aria-hidden="true"><WorkbenchIcon name={activeProject ? 'board' : collectionIcons[collectionView]} /></span>
+                <div className="workshop-empty">
+                  <span className="workshop-empty-icon" aria-hidden="true"><WorkshopIcon name={activeProject ? 'board' : collectionIcons[collectionView]} /></span>
                   <h2>{activeProject ? 'No files yet' : empty.title}</h2>
                   <p>{activeProject && defaultProject ? 'Create or import a file in this project.' : activeProject ? 'Project files will appear here.' : empty.description}</p>
                   {primaryAction && (activeProject || view === 'recent') && (
-                    <button type="button" className="wb-button wb-button-secondary" onClick={primaryAction.run}>
-                      <WorkbenchIcon name="plus" /> {primaryAction.label}
+                    <button type="button" className="workshop-button workshop-button-secondary" onClick={primaryAction.run}>
+                      <WorkshopIcon name="plus" /> {primaryAction.label}
                     </button>
                   )}
                 </div>
@@ -722,7 +722,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
         </div>
       </section>
 
-      {notice && <div className="wb-toast" role="status"><WorkbenchIcon name="check" /> {notice}</div>}
+      {notice && <div className="workshop-toast" role="status"><WorkshopIcon name="check" /> {notice}</div>}
       {dialogProject && projectDialog?.mode === 'import' && <ImportProjectDialog key={dialogProject.id} project={dialogProject} workspaces={teamWorkspaces}
         onClose={() => setProjectDialog(undefined)} onImported={(id, organizationId) => {
           setProjectDialog(undefined);
@@ -756,7 +756,7 @@ export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboar
         onClose={() => setImportTarget(undefined)} onImported={(id, warnings) => { setImportTarget(undefined); openResource(importTarget.kind, id, warnings); }} />}
       {showImport && <BoardFilesPanel onClose={() => setShowImport(false)} onOpenBoard={id => navigate(`/board/${encodeURIComponent(id)}`)} />}
       {modal && (
-        <WorkbenchDialog
+        <WorkshopDialog
           title={modal.title}
           submitLabel={modal.submitLabel}
           field={modal.field}

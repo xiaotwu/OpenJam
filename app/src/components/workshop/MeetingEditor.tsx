@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { newRequestId } from '../../lib/requestId';
 import { meetingEndpoint, writeWorkshop, type MeetingDraft } from '../../lib/workshop';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 
 interface MeetingScope {
   value: string;
@@ -73,28 +73,28 @@ export default function MeetingEditor({ scopes, initialScope, date, onClose, onC
     }
   }
 
-  return <dialog ref={dialog} className="wb-dialog wb-agenda-dialog" aria-labelledby="meeting-editor-title"
+  return <dialog ref={dialog} className="workshop-dialog workshop-agenda-dialog" aria-labelledby="meeting-editor-title"
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header className="wb-dialog-heading">
+    <header className="workshop-dialog-heading">
       <h2 id="meeting-editor-title">New Meeting</h2>
-      <button type="button" className="wb-icon-button" aria-label="Close" onClick={onClose} disabled={busy}><WorkbenchIcon name="close" /></button>
+      <button type="button" className="workshop-icon-button" aria-label="Close" onClick={onClose} disabled={busy}><WorkshopIcon name="close" /></button>
     </header>
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
-      <div className="wb-meeting-mode">
-        <div className="wb-segmented" role="group" aria-label="Meeting Time">
+      <div className="workshop-meeting-mode">
+        <div className="workshop-segmented" role="group" aria-label="Meeting Time">
           <button type="button" aria-pressed={when === 'now'} disabled={busy} onClick={() => setWhen('now')}>Meet Now</button>
           <button type="button" aria-pressed={when === 'schedule'} disabled={busy} onClick={() => setWhen('schedule')}>Schedule</button>
         </div>
       </div>
-      <label className="wb-field">Title<input autoFocus required value={title} maxLength={140}
+      <label className="workshop-field">Title<input autoFocus required value={title} maxLength={140}
         onChange={event => setTitle(event.target.value)} disabled={busy} /></label>
-      {scopes.length === 1 ? <p className="wb-meeting-scope"><WorkbenchIcon name="calendar" />{scope?.label}</p> :
-        <label className="wb-field">Calendar<select value={scope?.value ?? ''} required disabled={busy}
+      {scopes.length === 1 ? <p className="workshop-meeting-scope"><WorkshopIcon name="calendar" />{scope?.label}</p> :
+        <label className="workshop-field">Calendar<select value={scope?.value ?? ''} required disabled={busy}
           onChange={event => setScope(scopes.find(option => option.value === event.target.value))}>
           {scopes.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select></label>}
-      {when === 'schedule' && <div className="wb-form-grid">
-        <label className="wb-field">Starts<input type="datetime-local" required disabled={busy} value={start}
+      {when === 'schedule' && <div className="workshop-form-grid">
+        <label className="workshop-field">Starts<input type="datetime-local" required disabled={busy} value={start}
           onChange={event => {
             const value = event.target.value;
             setStart(value);
@@ -103,13 +103,13 @@ export default function MeetingEditor({ scopes, initialScope, date, onClose, onC
               setEnd(localInput(new Date(timestamp + 30 * 60_000)));
             }
           }} /></label>
-        <label className="wb-field">Ends<input type="datetime-local" required disabled={busy} value={end}
+        <label className="workshop-field">Ends<input type="datetime-local" required disabled={busy} value={end}
           onChange={event => setEnd(event.target.value)} /></label>
       </div>}
-      {error && <p className="wb-error-text" role="alert">{error}</p>}
-      <footer className="wb-dialog-actions">
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !scope || !title.trim()}>
-          <WorkbenchIcon name={when === 'now' ? 'camera' : 'calendar'} />{when === 'now' ? 'Start Meeting' : 'Schedule Meeting'}
+      {error && <p className="workshop-error-text" role="alert">{error}</p>}
+      <footer className="workshop-dialog-actions">
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !scope || !title.trim()}>
+          <WorkshopIcon name={when === 'now' ? 'camera' : 'calendar'} />{when === 'now' ? 'Start Meeting' : 'Schedule Meeting'}
         </button>
       </footer>
     </form>

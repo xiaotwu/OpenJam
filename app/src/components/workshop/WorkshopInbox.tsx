@@ -10,7 +10,7 @@ import {
   type Conversation, type Inbox, type ThreadPage, type WorkshopMessage,
 } from '../../lib/workshop';
 import { AgendaOverview } from './WorkshopCalendar';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 
 const tabs = ['All', 'Teams', 'Direct', 'Mentions', 'Meetings'] as const;
 type Tab = typeof tabs[number];
@@ -67,29 +67,29 @@ function Compose({ teams, user, onClose, onSent }: {
   }
 
   const currentRoster = roster?.team === team ? roster : undefined;
-  return <dialog className="wb-dialog wb-compose-dialog" ref={dialog} aria-label="New Conversation"
+  return <dialog className="workshop-dialog workshop-compose-dialog" ref={dialog} aria-label="New Conversation"
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header className="wb-dialog-heading">
+    <header className="workshop-dialog-heading">
       <h2>New Conversation</h2>
-      <button type="button" className="wb-icon-button" onClick={onClose} aria-label="Close" disabled={busy}><WorkbenchIcon name="close" /></button>
+      <button type="button" className="workshop-icon-button" onClick={onClose} aria-label="Close" disabled={busy}><WorkshopIcon name="close" /></button>
     </header>
     <form onSubmit={event => { event.preventDefault(); void send(); }}>
-      <div className="wb-form-grid">
-        <label className="wb-field">Team<select value={team} onChange={event => { setTeam(event.target.value); setRecipient(''); }} required>
+      <div className="workshop-form-grid">
+        <label className="workshop-field">Team<select value={team} onChange={event => { setTeam(event.target.value); setRecipient(''); }} required>
           {teams.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
         </select></label>
-        <label className="wb-field">To<select value={recipient} disabled={!currentRoster?.members} onChange={event => setRecipient(event.target.value)}>
+        <label className="workshop-field">To<select value={recipient} disabled={!currentRoster?.members} onChange={event => setRecipient(event.target.value)}>
           <option value="">Team Discussion</option>
           {currentRoster?.members?.map(member => <option key={member.userId} value={member.userId}>{member.displayName}</option>)}
         </select></label>
       </div>
-      <label className="wb-field">Subject<input value={subject} required maxLength={140} onChange={event => setSubject(event.target.value)} /></label>
-      <label className="wb-field">Message<textarea value={body} rows={5} required maxLength={6000} onChange={event => setBody(event.target.value)} /></label>
-      {currentRoster?.error && <p className="wb-muted" role="status">{currentRoster.error}</p>}
-      {error && <p className="wb-error-text" role="alert">{error}</p>}
-      <footer className="wb-dialog-actions">
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !team || !subject.trim() || !body.trim()}>
-          <WorkbenchIcon name="send" />Send
+      <label className="workshop-field">Subject<input value={subject} required maxLength={140} onChange={event => setSubject(event.target.value)} /></label>
+      <label className="workshop-field">Message<textarea value={body} rows={5} required maxLength={6000} onChange={event => setBody(event.target.value)} /></label>
+      {currentRoster?.error && <p className="workshop-muted" role="status">{currentRoster.error}</p>}
+      {error && <p className="workshop-error-text" role="alert">{error}</p>}
+      <footer className="workshop-dialog-actions">
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !team || !subject.trim() || !body.trim()}>
+          <WorkshopIcon name="send" />Send
         </button>
       </footer>
     </form>
@@ -187,33 +187,33 @@ function ThreadReader({ id, summary, onBack, onChange }: {
     }
   }
 
-  return <section className="wb-thread-reader" aria-label="Conversation">
-    <header className="wb-section-head wb-thread-heading">
-      <button type="button" className="wb-icon-button" onClick={onBack} aria-label="Close Conversation" title="Close Conversation">
-        <WorkbenchIcon name="previous" />
+  return <section className="workshop-thread-reader" aria-label="Conversation">
+    <header className="workshop-section-head workshop-thread-heading">
+      <button type="button" className="workshop-icon-button" onClick={onBack} aria-label="Close Conversation" title="Close Conversation">
+        <WorkshopIcon name="previous" />
       </button>
-      <div className="wb-row-content">
+      <div className="workshop-row-content">
         <h2>{summary?.subject ?? 'Conversation'}</h2>
         {summary && <p>{summary.teamName}{summary.contact ? ' · ' + summary.contact : ''}</p>}
       </div>
     </header>
-    {loading && <p className="wb-inline-empty" role="status">Loading conversation…</p>}
-    {loadError && <p className="wb-inline-empty wb-error-text" role="alert">{loadError}</p>}
+    {loading && <p className="workshop-inline-empty" role="status">Loading conversation…</p>}
+    {loadError && <p className="workshop-inline-empty workshop-error-text" role="alert">{loadError}</p>}
     {data && <>
-      <div className="wb-thread-scroll" ref={scroll} onScroll={({ currentTarget }) => {
+      <div className="workshop-thread-scroll" ref={scroll} onScroll={({ currentTarget }) => {
         follow.current = currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight < 48;
       }}>
-        {nextBefore !== undefined && <button type="button" className="wb-button wb-button-secondary wb-load-earlier" onClick={() => void earlier()} disabled={paging}>Earlier Messages</button>}
-        <ol className="wb-message-list">{messages.map((message, index) => {
+        {nextBefore !== undefined && <button type="button" className="workshop-button workshop-button-secondary workshop-load-earlier" onClick={() => void earlier()} disabled={paging}>Earlier Messages</button>}
+        <ol className="workshop-message-list">{messages.map((message, index) => {
           const prior = messages[index - 1];
           const grouped = prior && message.authorId && prior.authorId === message.authorId &&
             Date.parse(message.createdAt) - Date.parse(prior.createdAt) < 300_000;
           const author = message.author || 'Former Member';
           return <li key={message.id} data-mine={message.mine} data-grouped={Boolean(grouped)}>
-            {!message.mine && <span aria-hidden="true" className="wb-chat-avatar"
+            {!message.mine && <span aria-hidden="true" className="workshop-chat-avatar"
               style={{ backgroundColor: message.avatarColor }}>{Array.from(author)[0]?.toUpperCase()}</span>}
-            <div className="wb-message-bubble">
-              {!grouped && <div className="wb-message-byline">
+            <div className="workshop-message-bubble">
+              {!grouped && <div className="workshop-message-byline">
                 <strong>{message.mine ? 'You' : author}</strong><time dateTime={message.createdAt}>{formatDate(message.createdAt, 'compact')}</time>
               </div>}
               {grouped && <time className="sr-only" dateTime={message.createdAt}>{formatDate(message.createdAt, 'compact')}</time>}
@@ -222,16 +222,16 @@ function ThreadReader({ id, summary, onBack, onChange }: {
           </li>;
         })}</ol>
       </div>
-      <form className="wb-reply" data-sending={busy} onSubmit={event => { event.preventDefault(); void reply(); }}>
-        <label className="wb-field"><span className="sr-only">Reply</span>
+      <form className="workshop-reply" data-sending={busy} onSubmit={event => { event.preventDefault(); void reply(); }}>
+        <label className="workshop-field"><span className="sr-only">Reply</span>
           <textarea rows={1} value={body} maxLength={6000} placeholder="Reply…" disabled={busy} onChange={event => setBody(event.target.value)} />
         </label>
-        <button type="submit" className="wb-icon-button wb-accent-action" aria-label="Send Reply" title="Send Reply" disabled={busy || !body.trim()}>
-          <WorkbenchIcon name="send" />
+        <button type="submit" className="workshop-icon-button workshop-accent-action" aria-label="Send Reply" title="Send Reply" disabled={busy || !body.trim()}>
+          <WorkshopIcon name="send" />
         </button>
       </form>
     </>}
-    {error && <p className="wb-inline-empty wb-error-text" role="alert">{error}</p>}
+    {error && <p className="workshop-inline-empty workshop-error-text" role="alert">{error}</p>}
   </section>;
 }
 
@@ -271,68 +271,68 @@ export default function WorkshopInbox({ user, teams, data, loading, error, selec
     }
   }
 
-  return <div className="wb-inbox-layout">
-    <section className="wb-surface wb-inbox" aria-label="Inbox" data-reading={Boolean(selected)}>
-      <div className="wb-inbox-list">
-        <div className="wb-section-head wb-inbox-actions">
-          <div className="wb-segmented" role="group" aria-label="Inbox Filters">
+  return <div className="workshop-inbox-layout">
+    <section className="workshop-surface workshop-inbox" aria-label="Inbox" data-reading={Boolean(selected)}>
+      <div className="workshop-inbox-list">
+        <div className="workshop-section-head workshop-inbox-actions">
+          <div className="workshop-segmented" role="group" aria-label="Inbox Filters">
             {tabs.map(name => <button type="button" key={name} aria-pressed={tab === name}
               onClick={() => { setTab(name); if (name === 'Mentions' || name === 'Meetings') onSelect(); }}>
-              {name}{name === 'Mentions' && unreadMentions > 0 && <span className="wb-mention-dot" aria-label={unreadMentions + ' unread'} />}
-              {name === 'Meetings' && unreadMeetings > 0 && <span className="wb-mention-dot" aria-label={unreadMeetings + ' unread'} />}
+              {name}{name === 'Mentions' && unreadMentions > 0 && <span className="workshop-mention-dot" aria-label={unreadMentions + ' unread'} />}
+              {name === 'Meetings' && unreadMeetings > 0 && <span className="workshop-mention-dot" aria-label={unreadMeetings + ' unread'} />}
             </button>)}
           </div>
-          <button type="button" className="wb-icon-button wb-accent-action" onClick={() => setCompose(true)}
-            aria-label="New Conversation" title="New Conversation" disabled={!teams.length}><WorkbenchIcon name="pencil" /></button>
+          <button type="button" className="workshop-icon-button workshop-accent-action" onClick={() => setCompose(true)}
+            aria-label="New Conversation" title="New Conversation" disabled={!teams.length}><WorkshopIcon name="pencil" /></button>
         </div>
-        {loading && <p className="wb-inline-empty" role="status">Loading inbox…</p>}
-        {(error || pinError) && <p className="wb-inline-empty wb-error-text" role="alert">{error || pinError}</p>}
+        {loading && <p className="workshop-inline-empty" role="status">Loading inbox…</p>}
+        {(error || pinError) && <p className="workshop-inline-empty workshop-error-text" role="alert">{error || pinError}</p>}
         {data && tab === 'Mentions' && <>
-          {!data.mentions.length && <p className="wb-inline-empty">No mentions yet.</p>}
-          <ul className="wb-result-list">{data.mentions.map(item => <li key={item.commentId}>
-            <Link className="wb-result-row wb-inbox-row" to={item.url} data-unread={item.unread}
+          {!data.mentions.length && <p className="workshop-inline-empty">No mentions yet.</p>}
+          <ul className="workshop-result-list">{data.mentions.map(item => <li key={item.commentId}>
+            <Link className="workshop-result-row workshop-inbox-row" to={item.url} data-unread={item.unread}
               onClick={() => { if (item.unread) void boardReviewAPI(item.boardId).markRead(item.commentId).then(onChange, () => undefined); }}>
-              <span className="wb-result-icon"><WorkbenchIcon name="bell" /></span>
-              <span className="wb-row-content"><strong>{item.boardName}</strong><span>{item.author} · {item.preview}</span></span>
-              <WorkbenchIcon name="arrow" />
+              <span className="workshop-result-icon"><WorkshopIcon name="bell" /></span>
+              <span className="workshop-row-content"><strong>{item.boardName}</strong><span>{item.author} · {item.preview}</span></span>
+              <WorkshopIcon name="arrow" />
             </Link>
           </li>)}</ul>
         </>}
         {data && tab === 'Meetings' && <>
-          {!data.meetings?.length && <p className="wb-inline-empty">No open or upcoming meetings.</p>}
-          <ul className="wb-result-list">{data.meetings?.map(item => <li key={item.id}>
-            <Link className="wb-result-row wb-inbox-row" to={meetingPath(item.id)} state={{ workshop: '/workplace?view=inbox' }} data-unread={item.unread}>
-              <span className="wb-result-icon"><WorkbenchIcon name="camera" /></span>
-              <span className="wb-row-content"><strong>{item.title}</strong>
+          {!data.meetings?.length && <p className="workshop-inline-empty">No open or upcoming meetings.</p>}
+          <ul className="workshop-result-list">{data.meetings?.map(item => <li key={item.id}>
+            <Link className="workshop-result-row workshop-inbox-row" to={meetingPath(item.id)} state={{ workshop: '/workplace?view=inbox' }} data-unread={item.unread}>
+              <span className="workshop-result-icon"><WorkshopIcon name="camera" /></span>
+              <span className="workshop-row-content"><strong>{item.title}</strong>
                 <span>{item.scopeName} · {item.status === 'open' ? 'Open Now' : formatDate(item.startsAt, 'compact')}</span></span>
-              <WorkbenchIcon name="arrow" />
+              <WorkshopIcon name="arrow" />
             </Link>
           </li>)}</ul>
         </>}
         {data && tab !== 'Mentions' && tab !== 'Meetings' && <>
-          {!conversations.length && <p className="wb-inline-empty">{teams.length ? 'No conversations yet.' : 'Join or create a team to start a conversation.'}</p>}
-          <ul className="wb-result-list">{conversations.map(thread => <li key={thread.id} className="wb-conversation-row" data-selected={selected === thread.id}>
-            <button type="button" className="wb-result-row wb-inbox-row" onClick={() => onSelect(thread.id)} data-unread={thread.unread > 0}
+          {!conversations.length && <p className="workshop-inline-empty">{teams.length ? 'No conversations yet.' : 'Join or create a team to start a conversation.'}</p>}
+          <ul className="workshop-result-list">{conversations.map(thread => <li key={thread.id} className="workshop-conversation-row" data-selected={selected === thread.id}>
+            <button type="button" className="workshop-result-row workshop-inbox-row" onClick={() => onSelect(thread.id)} data-unread={thread.unread > 0}
               aria-current={selected === thread.id ? 'true' : undefined}>
-              <span className="wb-result-icon"><WorkbenchIcon name={thread.kind === 'team' ? 'organization' : 'message'} /></span>
-              <span className="wb-row-content">
+              <span className="workshop-result-icon"><WorkshopIcon name={thread.kind === 'team' ? 'organization' : 'message'} /></span>
+              <span className="workshop-row-content">
                 <strong>{thread.subject}</strong>
                 <span>{thread.contact || thread.teamName}{thread.startedByMe && thread.kind === 'direct' ? ' · Sent' : ''}</span>
                 <span>{thread.preview}</span>
               </span>
-              <span className="wb-inbox-row-end"><time dateTime={thread.updatedAt}>{formatDate(thread.updatedAt, 'compact')}</time>
-                {thread.unread > 0 && <span className="wb-unread-badge">{formatNumber(thread.unread)}</span>}
+              <span className="workshop-inbox-row-end"><time dateTime={thread.updatedAt}>{formatDate(thread.updatedAt, 'compact')}</time>
+                {thread.unread > 0 && <span className="workshop-unread-badge">{formatNumber(thread.unread)}</span>}
               </span>
             </button>
-            <button type="button" className="wb-icon-button wb-pin" aria-label={'Pin ' + thread.subject} aria-pressed={thread.pinned}
+            <button type="button" className="workshop-icon-button workshop-pin" aria-label={'Pin ' + thread.subject} aria-pressed={thread.pinned}
               title={thread.pinned ? 'Unpin' : 'Pin'} disabled={Boolean(pendingPin)} onClick={() => void togglePin(thread)}>
-              <WorkbenchIcon name="pin" filled={thread.pinned} />
+              <WorkshopIcon name="pin" filled={thread.pinned} />
             </button>
           </li>)}</ul>
         </>}
       </div>
       {selected ? <ThreadReader key={selected} id={selected} summary={current} onBack={() => onSelect()} onChange={onChange} />
-        : <div className="wb-thread-placeholder"><WorkbenchIcon name={tab === 'Mentions' ? 'bell' : tab === 'Meetings' ? 'camera' : 'message'} />
+        : <div className="workshop-thread-placeholder"><WorkshopIcon name={tab === 'Mentions' ? 'bell' : tab === 'Meetings' ? 'camera' : 'message'} />
           <p>{tab === 'Mentions' ? 'Open a mention to view its source.' : tab === 'Meetings' ? 'Select a meeting.' : 'Select a conversation.'}</p></div>}
     </section>
     <AgendaOverview />

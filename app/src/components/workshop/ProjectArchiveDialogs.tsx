@@ -4,7 +4,7 @@ import { downloadProjectArchive, inspectProjectArchive, projectArchiveLimit, res
   type ProjectArchiveInfo, type ProjectArchiveMapping } from '../../lib/projectArchives';
 import { newRequestId } from '../../lib/requestId';
 import { BranchDialog } from './ProjectBranchDialogs';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 import './project-archives.css';
 
 const roleLabels: Record<ProjectRole, string> = { manager: 'Manager', edit: 'Can Edit', comment: 'Can Comment', view: 'Can View' };
@@ -47,23 +47,23 @@ export function ExportProjectArchiveDialog({ project, onClose, onExported }: {
 }) {
   const action = useArchiveAction();
   return <BranchDialog title="Export Project Archive" context={project.name} busy={action.busy} onClose={onClose}>
-    <div className="wb-archive-intro">
-      <span className="wb-archive-icon"><WorkbenchIcon name="archive" /></span>
+    <div className="workshop-archive-intro">
+      <span className="workshop-archive-icon"><WorkshopIcon name="archive" /></span>
       <div>
         <strong>One package for your project</strong>
         <p>Includes Boards, Docs, Sheets, Slides, private images, file versions, and project snapshots.</p>
       </div>
     </div>
-    <p className="wb-archive-note">Keep the ZIP private. Team membership, share links, and invitations aren’t carried over.</p>
-    {action.busy && <p className="wb-archive-note" role="status">Preparing your project archive…</p>}
-    {action.error && <p role="alert" className="wb-error-text">{action.error}</p>}
-    <footer className="wb-dialog-actions">
-      <button type="button" className="wb-button wb-button-primary" disabled={action.busy}
+    <p className="workshop-archive-note">Keep the ZIP private. Team membership, share links, and invitations aren’t carried over.</p>
+    {action.busy && <p className="workshop-archive-note" role="status">Preparing your project archive…</p>}
+    {action.error && <p role="alert" className="workshop-error-text">{action.error}</p>}
+    <footer className="workshop-dialog-actions">
+      <button type="button" className="workshop-button workshop-button-primary" disabled={action.busy}
         onClick={() => void action.run(async signal => {
           await downloadProjectArchive(project, signal);
           if (!signal.aborted) onExported();
         }, 'Could not download the project archive.')}>
-        <WorkbenchIcon name="download" />Download
+        <WorkshopIcon name="download" />Download
       </button>
     </footer>
   </BranchDialog>;
@@ -149,9 +149,9 @@ export function RestoreProjectArchiveDialog({ label, teamId, actorId, workspaces
 
   return <BranchDialog title="Restore Project Archive" context={label} busy={action.busy} onClose={onClose}>
     <form onSubmit={event => { event.preventDefault(); restore(); }}>
-      <div className="wb-archive-select">
-        <label className="wb-button wb-button-secondary wb-archive-picker" data-disabled={action.busy}>
-          <WorkbenchIcon name="import" />{file ? 'Change ZIP' : 'Choose ZIP'}
+      <div className="workshop-archive-select">
+        <label className="workshop-button workshop-button-secondary workshop-archive-picker" data-disabled={action.busy}>
+          <WorkshopIcon name="import" />{file ? 'Change ZIP' : 'Choose ZIP'}
           <input type="file" aria-label="Project ZIP" accept=".zip,application/zip" disabled={action.busy}
             onChange={event => {
               if (event.target.files?.[0]) selectArchive(event.target.files[0]);
@@ -160,40 +160,40 @@ export function RestoreProjectArchiveDialog({ label, teamId, actorId, workspaces
         </label>
         <span title={file?.name}>{file?.name ?? 'Shiori project archive · Up to 64 MiB'}</span>
       </div>
-      {action.busy && <p role="status" className="wb-archive-note">{saving ? 'Restoring files and history…' : 'Checking the archive…'}</p>}
+      {action.busy && <p role="status" className="workshop-archive-note">{saving ? 'Restoring files and history…' : 'Checking the archive…'}</p>}
       {info && <>
-        <div className="wb-archive-summary" aria-label="Archive contents">
+        <div className="workshop-archive-summary" aria-label="Archive contents">
           <span><strong>{info.files}</strong> Files</span>
           <span><strong>{info.fileVersions}</strong> File Versions</span>
           <span><strong>{info.projectVersions}</strong> Project Snapshots</span>
           <span><strong>{info.images}</strong> Private Images</span>
         </div>
-        <div className="wb-archive-destination">
-          <label className="wb-field">Project Name
+        <div className="workshop-archive-destination">
+          <label className="workshop-field">Project Name
             <input required maxLength={240} value={name} disabled={action.busy} onChange={event => setName(event.target.value)} />
           </label>
-          {workspaces.length > 1 && <label className="wb-field">Workspace
+          {workspaces.length > 1 && <label className="workshop-field">Workspace
             <select value={workspaceId} disabled={action.busy} onChange={event => setWorkspaceId(event.target.value)}>
               {workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
             </select>
           </label>}
         </div>
-        {teamId && info.members.length > 0 && <details className="wb-archive-mapping">
-          <summary><WorkbenchIcon name="shared" /><strong>Map Members</strong>
+        {teamId && info.members.length > 0 && <details className="workshop-archive-mapping">
+          <summary><WorkshopIcon name="shared" /><strong>Map Members</strong>
             <span>{picks.length ? `${picks.length} mapped` : 'Optional'}</span>
           </summary>
           <p>Only selected Team members receive a project role. The Team owner and you keep manager access.</p>
-          {roster?.error ? <p role="status">{roster.error} <button type="button" className="wb-button wb-button-secondary" disabled={action.busy}
+          {roster?.error ? <p role="status">{roster.error} <button type="button" className="workshop-button workshop-button-secondary" disabled={action.busy}
             onClick={() => { setRoster(undefined); setRosterRetry(value => value + 1); }}>Retry</button></p>
             : !roster ? <p role="status">Loading Team members…</p>
               : roster.members.length === 0 ? <p>No other Team members to map.</p>
-                : <div className="wb-archive-people">
+                : <div className="workshop-archive-people">
                   {info.members.map(source => {
                     const pick = mappings[source.id];
                     const available = roster.members.filter(member => member.userId === pick?.targetUserId || !assigned.has(member.userId));
                     const sourceLabel = (source.name || 'Unnamed Member') + ((sourceNames.get(source.name) ?? 0) > 1
                       ? ` · ${source.id.slice(0, 8)}` : '');
-                    return <div className="wb-archive-person" key={source.id}>
+                    return <div className="workshop-archive-person" key={source.id}>
                       <div><strong>{sourceLabel}</strong><small>{roleLabels[source.role]}</small></div>
                       <select aria-label={`Destination for ${sourceLabel}`} value={pick?.targetUserId ?? ''} disabled={action.busy}
                         onChange={event => setTarget(source.id, event.target.value)}>
@@ -212,12 +212,12 @@ export function RestoreProjectArchiveDialog({ label, teamId, actorId, workspaces
                   })}
                 </div>}
         </details>}
-        <p className="wb-archive-note">Creates a new project. Internal file links point to the restored copies.</p>
+        <p className="workshop-archive-note">Creates a new project. Internal file links point to the restored copies.</p>
       </>}
-      {action.error && <p role="alert" className="wb-error-text">{action.error}</p>}
-      <footer className="wb-dialog-actions">
-        <button type="submit" className="wb-button wb-button-primary" disabled={!valid || action.busy}>
-          <WorkbenchIcon name="restore" />Restore
+      {action.error && <p role="alert" className="workshop-error-text">{action.error}</p>}
+      <footer className="workshop-dialog-actions">
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={!valid || action.busy}>
+          <WorkshopIcon name="restore" />Restore
         </button>
       </footer>
     </form>

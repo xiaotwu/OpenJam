@@ -5,7 +5,7 @@ import {
   changeProjectMember, changeTeamMember, getProjectMembers, getTeamMembers, inviteTeamMember,
   type AssignableTeamRole, type Organization, type Project, type ProjectMember, type ProjectRole, type TeamMember,
 } from '../../lib/directory';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 
 const projectRoles: ProjectRole[] = ['view', 'comment', 'edit', 'manager'];
 
@@ -29,24 +29,24 @@ function usePanelAction(fallback: string) {
 }
 
 export function ProjectList({ projects, onOpen }: { projects: Project[]; onOpen: (id: string) => void }) {
-  const { messages: { workbench: { teams: text } } } = useI18n();
+  const { messages: { workshop: { teams: text } } } = useI18n();
   return (
-    <section className="wb-team-panel" aria-label={text.projects}>
+    <section className="workshop-team-panel" aria-label={text.projects}>
       <h2>{text.projects}</h2>
-      {projects.length ? <ul className="wb-team-list">
+      {projects.length ? <ul className="workshop-team-list">
         {projects.map(project => <li key={project.id}>
-          <button type="button" className="wb-team-link" onClick={() => onOpen(project.id)}>
-            <WorkbenchIcon name="folder" /> <span>{project.name}</span>
+          <button type="button" className="workshop-team-link" onClick={() => onOpen(project.id)}>
+            <WorkshopIcon name="folder" /> <span>{project.name}</span>
           </button>
-          {!!project.people?.length && <div className="wb-project-avatars" aria-label="Project People">
+          {!!project.people?.length && <div className="workshop-project-avatars" aria-label="Project People">
             {project.people.map(person => {
               const label = person.displayName + ' · ' + (person.isOwner ? 'Owner' : 'Participant');
-              return <span className="wb-team-avatar" key={person.userId} data-owner={person.isOwner}
+              return <span className="workshop-team-avatar" key={person.userId} data-owner={person.isOwner}
                 aria-label={label} role="img" title={label} style={{ backgroundColor: person.avatarColor }}>
                 {Array.from(person.displayName)[0]?.toUpperCase()}
               </span>;
             })}
-            {(project.peopleCount ?? 0) > project.people.length && <span className="wb-avatar-overflow"
+            {(project.peopleCount ?? 0) > project.people.length && <span className="workshop-avatar-overflow"
               aria-label={String(project.peopleCount! - project.people.length) + ' more participants'}>
               +{project.peopleCount! - project.people.length}
             </span>}
@@ -65,7 +65,7 @@ interface TeamMembersProps {
 }
 
 export function TeamMembers({ team, currentUserId, focusedMember, onLeave }: TeamMembersProps) {
-  const { formatDate, messages: { workbench: { teams: text } } } = useI18n();
+  const { formatDate, messages: { workshop: { teams: text } } } = useI18n();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -96,23 +96,23 @@ export function TeamMembers({ team, currentUserId, focusedMember, onLeave }: Tea
   const canInvite = isOwner || team.role === 'admin';
 
   return (
-    <section className="wb-team-panel" aria-label={text.members}>
+    <section className="workshop-team-panel" aria-label={text.members}>
       <h2>{text.members}</h2>
       {!loaded && <p role="status">{text.loadingMembers}</p>}
-      {(loadError || error) && <p role="alert" className="wb-error-text">{loadError || error}</p>}
-      <ul className="wb-team-list">
+      {(loadError || error) && <p role="alert" className="workshop-error-text">{loadError || error}</p>}
+      <ul className="workshop-team-list">
         {members.map(member => {
           const self = member.userId === currentUserId;
           const canRemove = member.role !== 'owner' && (self || isOwner || (team.role === 'admin' && member.role === 'member'));
           return <li key={member.userId} tabIndex={-1} ref={focusedMember === member.userId ? focusRow : undefined}
             data-focused={focusedMember === member.userId}>
-            <div className="wb-team-person">
-              <span className="wb-team-avatar" aria-hidden="true" style={{ backgroundColor: member.avatarColor }}>
+            <div className="workshop-team-person">
+              <span className="workshop-team-avatar" aria-hidden="true" style={{ backgroundColor: member.avatarColor }}>
                 {Array.from(member.displayName)[0]?.toUpperCase()}
               </span>
               <div><strong>{member.displayName}</strong>{member.email && <p>{member.email}</p>}</div>
             </div>
-            <div className="wb-team-actions">
+            <div className="workshop-team-actions">
               {isOwner && member.role !== 'owner' ? (
                 <select aria-label={text.roleFor(member.displayName)} value={member.role} disabled={busy}
                   onChange={event => {
@@ -125,8 +125,8 @@ export function TeamMembers({ team, currentUserId, focusedMember, onLeave }: Tea
                   <option value="member">{text.teamRoles.member}</option>
                   <option value="admin">{text.teamRoles.admin}</option>
                 </select>
-              ) : <span className="wb-role-label">{text.teamRoles[member.role]}</span>}
-              {canRemove && <button type="button" className="wb-button wb-button-secondary" disabled={busy}
+              ) : <span className="workshop-role-label">{text.teamRoles[member.role]}</span>}
+              {canRemove && <button type="button" className="workshop-button workshop-button-secondary" disabled={busy}
                 onClick={() => void run(async () => {
                   await changeTeamMember(team.id, member.userId);
                   if (self) onLeave();
@@ -136,7 +136,7 @@ export function TeamMembers({ team, currentUserId, focusedMember, onLeave }: Tea
           </li>;
         })}
       </ul>
-      {canInvite && <form className="wb-team-form" onSubmit={event => {
+      {canInvite && <form className="workshop-team-form" onSubmit={event => {
         event.preventDefault();
         void run(async () => {
           const result = await inviteTeamMember(team.id, email.trim(), role);
@@ -147,23 +147,23 @@ export function TeamMembers({ team, currentUserId, focusedMember, onLeave }: Tea
           setEmail('');
         });
       }}>
-        <label className="wb-field">{text.inviteEmail}
+        <label className="workshop-field">{text.inviteEmail}
           <input type="email" required value={email} maxLength={254} disabled={busy} onChange={event => setEmail(event.target.value)} />
         </label>
-        {isOwner && <label className="wb-field">{text.inviteRole}
+        {isOwner && <label className="workshop-field">{text.inviteRole}
           <select value={role} disabled={busy} onChange={event => setRole(event.target.value === 'admin' ? 'admin' : 'member')}>
             <option value="member">{text.teamRoles.member}</option>
             <option value="admin">{text.teamRoles.admin}</option>
           </select>
         </label>}
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !email.trim()}><WorkbenchIcon name="plus" />{text.invite}</button>
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !email.trim()}><WorkshopIcon name="plus" />{text.invite}</button>
       </form>}
-      {invitation && <div className="wb-team-invitation">
-        <label className="wb-field">{text.invitationURL}
+      {invitation && <div className="workshop-team-invitation">
+        <label className="workshop-field">{text.invitationURL}
           <input readOnly value={invitation.url} onFocus={event => event.currentTarget.select()} />
         </label>
-        <div className="wb-team-actions">
-          <button type="button" className="wb-button wb-button-secondary" onClick={() => void run(async () => {
+        <div className="workshop-team-actions">
+          <button type="button" className="workshop-button workshop-button-secondary" onClick={() => void run(async () => {
             await navigator.clipboard.writeText(invitation.url);
             setCopied(true);
           })}>{copied ? text.copied : text.copyInvitation}</button>
@@ -182,15 +182,15 @@ interface ProjectAccessProps {
 }
 
 export function ProjectAccess({ project, teamId, currentUserId, onChange }: ProjectAccessProps) {
-  const { messages: { workbench: { teams: text } } } = useI18n();
-  return <details className="wb-team-panel wb-project-access">
+  const { messages: { workshop: { teams: text } } } = useI18n();
+  return <details className="workshop-team-panel workshop-project-access">
     <summary>{text.manageProject}</summary>
     <ProjectAccessEditor project={project} teamId={teamId} currentUserId={currentUserId} onChange={onChange} />
   </details>;
 }
 
 function ProjectAccessEditor({ project, teamId, currentUserId, onChange }: ProjectAccessProps) {
-  const { messages: { workbench: { teams: text } } } = useI18n();
+  const { messages: { workshop: { teams: text } } } = useI18n();
   const [roster, setRoster] = useState<TeamMember[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -230,39 +230,39 @@ function ProjectAccessEditor({ project, teamId, currentUserId, onChange }: Proje
   return (
     <>
       {!loaded && <p role="status">{text.loadingMembers}</p>}
-      {(loadError || error) && <p className="wb-error-text" role="alert">{loadError || error}</p>}
-      <ul className="wb-team-list">
+      {(loadError || error) && <p className="workshop-error-text" role="alert">{loadError || error}</p>}
+      <ul className="workshop-team-list">
         {members.map(member => <li key={member.userId}>
           <strong>{member.displayName}</strong>
-          <div className="wb-team-actions">
-            {member.inherited ? <span className="wb-role-label">{text.projectRoles[member.role]}</span> : (
+          <div className="workshop-team-actions">
+            {member.inherited ? <span className="workshop-role-label">{text.projectRoles[member.role]}</span> : (
               <>
                 <select aria-label={text.roleFor(member.displayName)} value={member.role} disabled={busy}
                   onChange={event => updateAccess(member.userId, event.target.value as ProjectRole)}>
                   {projectRoles.map(option => <option key={option} value={option}>{text.projectRoles[option]}</option>)}
                 </select>
-                <button type="button" className="wb-button wb-button-secondary" disabled={busy}
+                <button type="button" className="workshop-button workshop-button-secondary" disabled={busy}
                   onClick={() => updateAccess(member.userId)}>{text.remove(member.displayName)}</button>
               </>
             )}
           </div>
         </li>)}
       </ul>
-      {available.length > 0 && <form className="wb-team-form" onSubmit={event => {
+      {available.length > 0 && <form className="workshop-team-form" onSubmit={event => {
         event.preventDefault();
         if (memberToAdd) updateAccess(memberToAdd, role);
       }}>
-        <label className="wb-field">{text.memberToAdd}
+        <label className="workshop-field">{text.memberToAdd}
           <select aria-label={text.memberToAdd} value={memberToAdd} disabled={busy} onChange={event => setTarget(event.target.value)}>
             {available.map(person => <option key={person.userId} value={person.userId}>{person.displayName}</option>)}
           </select>
         </label>
-        <label className="wb-field">{text.projectRole}
+        <label className="workshop-field">{text.projectRole}
           <select aria-label={text.projectRole} value={role} disabled={busy} onChange={event => setRole(event.target.value as ProjectRole)}>
             {projectRoles.map(option => <option key={option} value={option}>{text.projectRoles[option]}</option>)}
           </select>
         </label>
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy}>{text.grantAccess}</button>
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={busy}>{text.grantAccess}</button>
       </form>}
     </>
   );

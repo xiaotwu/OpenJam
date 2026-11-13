@@ -18,9 +18,9 @@ import BoardSharingDialog from '../BoardSharingDialog';
 import BoardReviewPanel from '../collaboration/BoardReviewPanel';
 import BoardSyncNotice from '../collaboration/BoardSyncNotice';
 import BoardVersionsPanel from '../collaboration/BoardVersionsPanel';
-import AccountPopover from '../workbench/AccountPopover';
-import WorkbenchDialog from '../workbench/WorkbenchDialog';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import AccountPopover from '../workshop/AccountPopover';
+import WorkshopDialog from '../workshop/WorkshopDialog';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import SheetGrid from './SheetGrid';
 import '../docs/docs.css';
 import './sheets.css';
@@ -330,9 +330,9 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
           if (!draftRef.current) return;
           event.preventDefault();
           void flushDraft().then(saved => { if (saved) navigate(returnPath); });
-        }}><WorkbenchIcon name="back" /></Link>
+        }}><WorkshopIcon name="back" /></Link>
       <div className="doc-crumb">
-        <WorkbenchIcon name="sheet" />
+        <WorkshopIcon name="sheet" />
         {canWrite ? <button type="button" className="sheet-title" aria-label="Rename Spreadsheet"
           title="Rename Spreadsheet" onClick={event => showDialog('rename', event.currentTarget)}>{title}</button>
           : <span>{title}</span>}
@@ -349,11 +349,11 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
         </div>
         <div className="doc-top-actions">
           <button type="button" className="doc-icon" aria-label="Comments" title="Comments" aria-pressed={panel === 'comments'}
-            onClick={() => setPanel(panel === 'comments' ? null : 'comments')}><WorkbenchIcon name="message" /></button>
+            onClick={() => setPanel(panel === 'comments' ? null : 'comments')}><WorkshopIcon name="message" /></button>
           <button type="button" className="doc-icon" aria-label="Spreadsheet History" title="History" aria-pressed={panel === 'history'}
-            onClick={() => setPanel(panel === 'history' ? null : 'history')}><WorkbenchIcon name="recent" /></button>
+            onClick={() => setPanel(panel === 'history' ? null : 'history')}><WorkshopIcon name="recent" /></button>
           <details className="doc-dropdown" ref={exportMenu}>
-            <summary className="doc-icon" aria-label="Export Spreadsheet" title="Export"><WorkbenchIcon name="download" /></summary>
+            <summary className="doc-icon" aria-label="Export Spreadsheet" title="Export"><WorkshopIcon name="download" /></summary>
             <div className="doc-menu">
               <button type="button" disabled={!readyToExport} onClick={() => void exportFile('xlsx')}>Excel (.xlsx)</button>
               <button type="button" disabled={!readyToExport} onClick={() => void exportFile('csv')}>Current Sheet (.csv)</button>
@@ -361,7 +361,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
             </div>
           </details>
           <button type="button" className="doc-icon" aria-label="Share Spreadsheet" title="Share"
-            onClick={() => setPanel('share')}><WorkbenchIcon name="shared" /></button>
+            onClick={() => setPanel('share')}><WorkshopIcon name="shared" /></button>
         </div>
       </>}
       <AccountPopover user={user} theme={theme} setTheme={setTheme}
@@ -382,9 +382,9 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
       <div className="sheet-controls">
         {canEdit && <div className="sheet-toolset" aria-label="Edit History">
           <button type="button" className="doc-tool" aria-label="Undo" title="Undo" disabled={!sync.canUndo || dirty}
-            onClick={() => void sync.undo()}><WorkbenchIcon name="undo" /></button>
+            onClick={() => void sync.undo()}><WorkshopIcon name="undo" /></button>
           <button type="button" className="doc-tool" aria-label="Redo" title="Redo" disabled={!sync.canRedo || dirty}
-            onClick={() => void sync.redo()}><WorkbenchIcon name="redo" /></button>
+            onClick={() => void sync.redo()}><WorkshopIcon name="redo" /></button>
         </div>}
         <form className="sheet-address" onSubmit={event => {
           event.preventDefault();
@@ -403,7 +403,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
           <input key={tab.id + ':' + address} name="address" aria-label="Go to Cell" defaultValue={address} maxLength={6} autoComplete="off" />
         </form>
         <div className="sheet-formula">
-          <span title="Start a formula with =. Try =SUM(B2:B8)."><WorkbenchIcon name="formula" /></span>
+          <span title="Start a formula with =. Try =SUM(B2:B8)."><WorkshopIcon name="formula" /></span>
           <textarea ref={formula} aria-label="Cell Input" value={formulaText} rows={1} spellCheck={false} readOnly={!canWrite}
             placeholder={canWrite ? 'Enter a value or formula' : undefined}
             onFocus={() => { if (!draftRef.current) edit(selection.position); }}
@@ -411,7 +411,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
             onBlur={() => void flushDraft()} onKeyDown={formulaKey} />
         </div>
         <button type="button" className="doc-tool sheet-copy" aria-label="Copy Cell Link" title="Copy Cell Link"
-          onClick={() => void copyCellLink()}><WorkbenchIcon name="link" /></button>
+          onClick={() => void copyCellLink()}><WorkshopIcon name="link" /></button>
       </div>
       <div className="sheet-frame">
         <SheetGrid name={tab.name} cells={cells} selection={selection.position} source={selectedSource} gridRef={grid}
@@ -422,7 +422,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
               onClick={() => select(firstCell, item.id)}>{item.name}</button>)}
           </nav>
           {canWrite && <button type="button" className="doc-tool" aria-label="Add Worksheet" title="Add Worksheet"
-            disabled={tabs.length >= sheetTabs} onClick={event => showDialog('add', event.currentTarget)}><WorkbenchIcon name="plus" /></button>}
+            disabled={tabs.length >= sheetTabs} onClick={event => showDialog('add', event.currentTarget)}><WorkshopIcon name="plus" /></button>}
         </div>
       </div>
       {(error || sync.historyNotice || notice) && <p className="sheet-message" role={error ? 'alert' : 'status'}>{error || sync.historyNotice || notice}</p>}
@@ -435,7 +435,7 @@ export default function ShioriSheet({ sheetId, user }: { sheetId: string; user: 
       permission={sync.permission} epoch={sync.epoch} seq={sync.seq} pendingCount={sync.pendingCount}
       online={sync.status === 'synced' && !dirty} onRestore={sync.retry} onOpenBoard={id => navigate(resourcePath('sheet', id))} onClose={() => setPanel(null)} />}
     {canShow && panel === 'share' && <BoardSharingDialog isOpen resourceKind="sheet" boardId={sheetId} boardName={title} onClose={() => setPanel(null)} />}
-    {canShow && dialog && <WorkbenchDialog title={dialog.mode === 'add' ? 'New Worksheet' : 'Rename Spreadsheet'}
+    {canShow && dialog && <WorkshopDialog title={dialog.mode === 'add' ? 'New Worksheet' : 'Rename Spreadsheet'}
       submitLabel={dialog.mode === 'add' ? 'Add' : 'Save'} field={dialog.mode === 'add'
         ? { label: 'Worksheet Name', value: 'Sheet' + suggestedTab, maxLength: 31 }
         : { label: 'Spreadsheet Name', value: title, maxLength: 255 }}

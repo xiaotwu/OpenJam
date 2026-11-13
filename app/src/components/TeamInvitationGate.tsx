@@ -13,7 +13,7 @@ interface TeamInvitationGateProps {
 
 export default function TeamInvitationGate({ teamId, token, email, onAccepted }: TeamInvitationGateProps) {
   const { logout } = useAuth();
-  const { messages: { workbench: { teams: text } } } = useI18n();
+  const { messages: { workshop: { teams: text } } } = useI18n();
   const request = useRef<AbortController | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -39,20 +39,20 @@ export default function TeamInvitationGate({ teamId, token, email, onAccepted }:
 
   return (
     <main className="grid min-h-dvh place-items-center px-4" style={{ background: 'var(--surface-canvas)', color: 'var(--text-primary)' }}>
-      <section className="wb-team-panel w-full max-w-md">
+      <section className="workshop-team-panel w-full max-w-md">
         <h1 className="text-xl font-semibold">{text.invitation}</h1>
         <p>{token ? text.invitationDescription : text.invalidInvitation}</p>
         <p className="break-all">{text.signedInAs} <strong>{email}</strong></p>
-        {error && <p className="wb-error-text" role="alert">{error}</p>}
-        <div className="wb-team-actions">
-          {token && <button type="button" className="wb-button wb-button-primary" disabled={busy} onClick={() => void accept()}>
+        {error && <p className="workshop-error-text" role="alert">{error}</p>}
+        <div className="workshop-team-actions">
+          {token && <button type="button" className="workshop-button workshop-button-primary" disabled={busy} onClick={() => void accept()}>
             {busy ? text.working : text.accept}
           </button>}
-          <button type="button" className="wb-button wb-button-secondary" disabled={busy} onClick={() => {
+          <button type="button" className="workshop-button workshop-button-secondary" disabled={busy} onClick={() => {
             void logout().catch(failure => setError(failure instanceof Error ? failure.message : text.actionError));
           }}>{text.switchAccount}</button>
         </div>
-        <Link to="/workplace" className="wb-team-link">{text.back}</Link>
+        <Link to="/workplace" className="workshop-team-link">{text.back}</Link>
       </section>
     </main>
   );

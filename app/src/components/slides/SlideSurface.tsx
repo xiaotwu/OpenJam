@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import { useBoardFont } from '../../lib/boardFonts';
 import type { SlideBox, SlideImage, SlideObject, SlidePage, SlideText } from '../../lib/slides';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 
 export interface TextEdit {
   id: string;
@@ -140,7 +140,7 @@ export default function SlideSurface({ page, items, images, label, interaction, 
         })}
       </div>
       {onEmpty && items.length === 0 && <div className="slide-empty">
-        <button type="button" className="doc-edit-action" onClick={onEmpty}><WorkbenchIcon name="text" />Add Text</button>
+        <button type="button" className="doc-edit-action" onClick={onEmpty}><WorkshopIcon name="text" />Add Text</button>
       </div>}
     </div>}
   </div>;

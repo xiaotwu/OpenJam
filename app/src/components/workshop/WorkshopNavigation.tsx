@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Organization, Project } from '../../lib/directory';
 import type { InboxBadgeStyle } from '../../lib/useAppearance';
-import WorkbenchIcon, { type WorkbenchIconName } from './WorkbenchIcon';
+import WorkshopIcon, { type WorkshopIconName } from './WorkshopIcon';
 
 export type WorkshopView = 'inbox' | 'calendar' | 'recents' | 'recent' | 'favorites' | 'shared' | 'archive';
 
@@ -46,20 +46,20 @@ export default function WorkshopNavigation({
       return next;
     });
   }
-  function row(id: WorkshopView, label: string, icon: WorkbenchIconName) {
-    return <button type="button" key={id} className="wb-nav-button" aria-current={activeView === id ? 'page' : undefined}
+  function row(id: WorkshopView, label: string, icon: WorkshopIconName) {
+    return <button type="button" key={id} className="workshop-nav-button" aria-current={activeView === id ? 'page' : undefined}
       aria-label={id === 'inbox' && unread > 0 && badge !== 'hidden' ? `Inbox, ${unread} unread` : undefined}
       onClick={() => onView(id)}>
-      <WorkbenchIcon name={icon} /><span>{label}</span>
+      <WorkshopIcon name={icon} /><span>{label}</span>
       {id === 'inbox' && unread > 0 && badge !== 'hidden' && (
-        <span className={`wb-unread-badge wb-unread-${badge}`} aria-hidden="true">{badge === 'count' && (unread > 99 ? '99+' : unread)}</span>
+        <span className={`workshop-unread-badge workshop-unread-${badge}`} aria-hidden="true">{badge === 'count' && (unread > 99 ? '99+' : unread)}</span>
       )}
     </button>;
   }
   function projectRows(items: Project[]) {
-    return items.map(project => <button type="button" key={project.id} className="wb-nav-button wb-nav-child"
+    return items.map(project => <button type="button" key={project.id} className="workshop-nav-button workshop-nav-child"
       aria-current={activeProject === project.id ? 'page' : undefined} onClick={() => onProject(project.id)} title={project.name}>
-      <WorkbenchIcon name="folder" /><span>{project.name}</span>
+      <WorkshopIcon name="folder" /><span>{project.name}</span>
     </button>);
   }
 
@@ -67,51 +67,51 @@ export default function WorkshopNavigation({
   const teamsExpanded = !collapsed.has('teams');
 
   return (
-    <nav className="wb-navigation" aria-label="Workshop Navigation">
-      <p className="wb-nav-heading">Workshop</p>
+    <nav className="workshop-navigation" aria-label="Workshop Navigation">
+      <p className="workshop-nav-heading">Workshop</p>
       {primaryViews.map(item => row(item.id, item.label, item.icon))}
-      <div className="wb-nav-group">
-        <div className="wb-nav-parent">
-          <button type="button" className="wb-nav-button" aria-current={personalOpen && !activeProject ? 'page' : undefined}
+      <div className="workshop-nav-group">
+        <div className="workshop-nav-parent">
+          <button type="button" className="workshop-nav-button" aria-current={personalOpen && !activeProject ? 'page' : undefined}
             onClick={() => { if (!projectsExpanded) toggle('projects'); onProjects(); }}>
-            <WorkbenchIcon name="folder" /><span>Projects</span>
+            <WorkshopIcon name="folder" /><span>Projects</span>
           </button>
-          <button type="button" className="wb-icon-button wb-nav-chevron" data-expanded={projectsExpanded}
+          <button type="button" className="workshop-icon-button workshop-nav-chevron" data-expanded={projectsExpanded}
             aria-label={projectsExpanded ? 'Collapse Projects' : 'Expand Projects'} aria-expanded={projectsExpanded}
-            onClick={() => toggle('projects')}><WorkbenchIcon name="chevron" /></button>
+            onClick={() => toggle('projects')}><WorkshopIcon name="chevron" /></button>
         </div>
-        {projectsExpanded && <div className="wb-nav-children">{projectRows(personalProjects)}</div>}
+        {projectsExpanded && <div className="workshop-nav-children">{projectRows(personalProjects)}</div>}
       </div>
-      <div className="wb-nav-group">
-        <div className="wb-nav-parent">
-          <button type="button" className="wb-nav-button" aria-expanded={teamsExpanded} onClick={() => toggle('teams')}>
-            <WorkbenchIcon name="organization" /><span>Teams</span>
-            <i className="wb-nav-chevron" data-expanded={teamsExpanded}><WorkbenchIcon name="chevron" /></i>
+      <div className="workshop-nav-group">
+        <div className="workshop-nav-parent">
+          <button type="button" className="workshop-nav-button" aria-expanded={teamsExpanded} onClick={() => toggle('teams')}>
+            <WorkshopIcon name="organization" /><span>Teams</span>
+            <i className="workshop-nav-chevron" data-expanded={teamsExpanded}><WorkshopIcon name="chevron" /></i>
           </button>
-          <button type="button" className="wb-icon-button" aria-label="New Team" title="New Team" onClick={onNewTeam}>
-            <WorkbenchIcon name="plus" />
+          <button type="button" className="workshop-icon-button" aria-label="New Team" title="New Team" onClick={onNewTeam}>
+            <WorkshopIcon name="plus" />
           </button>
         </div>
-        {teamsExpanded && <div className="wb-nav-children">
+        {teamsExpanded && <div className="workshop-nav-children">
           {teams.map(team => {
             const expanded = activeTeam === team.id && !collapsed.has(team.id);
             return <div key={team.id}>
-              <div className="wb-nav-parent">
-                <button type="button" className="wb-nav-button wb-nav-child" title={team.name}
+              <div className="workshop-nav-parent">
+                <button type="button" className="workshop-nav-button workshop-nav-child" title={team.name}
                   aria-current={activeTeam === team.id && !activeProject ? 'page' : undefined}
                   onClick={() => { if (collapsed.has(team.id)) toggle(team.id); onTeam(team.id); }}>
-                  <WorkbenchIcon name="organization" /><span>{team.name}</span>
+                  <WorkshopIcon name="organization" /><span>{team.name}</span>
                 </button>
-                {activeTeam === team.id && <button type="button" className="wb-icon-button wb-nav-chevron" data-expanded={expanded}
+                {activeTeam === team.id && <button type="button" className="workshop-icon-button workshop-nav-chevron" data-expanded={expanded}
                   aria-label={expanded ? 'Collapse ' + team.name : 'Expand ' + team.name} aria-expanded={expanded}
-                  onClick={() => toggle(team.id)}><WorkbenchIcon name="chevron" /></button>}
+                  onClick={() => toggle(team.id)}><WorkshopIcon name="chevron" /></button>}
               </div>
-              {expanded && <div className="wb-nav-children">{projectRows(projectsByTeam.get(team.id) ?? [])}</div>}
+              {expanded && <div className="workshop-nav-children">{projectRows(projectsByTeam.get(team.id) ?? [])}</div>}
             </div>;
           })}
         </div>}
       </div>
-      <div className="wb-library-nav">{libraryViews.map(item => row(item.id, item.label, item.icon))}</div>
+      <div className="workshop-library-nav">{libraryViews.map(item => row(item.id, item.label, item.icon))}</div>
     </nav>
   );
 }

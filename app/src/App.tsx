@@ -46,7 +46,7 @@ function AppContent() {
   useEffect(() => {
     document.documentElement.style.setProperty('--ui-text-size', appearance.textSize + 'px');
   }, [appearance.textSize]);
-  const { messages: { workbench: { app: text } } } = useI18n();
+  const { messages: { workshop: { app: text } } } = useI18n();
   // Stabilize color so it doesn't change on every render
   const userColor = useMemo(() => generateColor(), []);
 
@@ -183,7 +183,7 @@ function BoardRoute({ user, fallbackColor, kind = 'board' }: {
   const navigate = useNavigate();
   const { boardId } = useParams();
   const credential = readBoardCredential(location.hash);
-  const { messages: { workbench: { app: text } } } = useI18n();
+  const { messages: { workshop: { app: text } } } = useI18n();
 
   if (!user) {
     const next = encodeURIComponent(`${location.pathname}${location.search}`);

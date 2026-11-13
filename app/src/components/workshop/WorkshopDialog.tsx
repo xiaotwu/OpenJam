@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 import { useI18n } from '../../i18n';
 
 export interface DialogField {
@@ -15,7 +15,7 @@ export interface DialogSelection {
   options: Array<{ id: string; label: string }>;
 }
 
-interface WorkbenchDialogProps {
+interface WorkshopDialogProps {
   title: string;
   submitLabel: string;
   field?: DialogField;
@@ -27,10 +27,10 @@ interface WorkbenchDialogProps {
   onSubmit: (name: string, selectionId: string) => void;
 }
 
-export default function WorkbenchDialog({
+export default function WorkshopDialog({
   title, submitLabel, field, selection, busy, error, returnFocus, onClose, onSubmit,
-}: WorkbenchDialogProps) {
-  const { messages: { workbench: { dialog: text } } } = useI18n();
+}: WorkshopDialogProps) {
+  const { messages: { workshop: { dialog: text } } } = useI18n();
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState(field?.value ?? '');
@@ -58,7 +58,7 @@ export default function WorkbenchDialog({
 
   return (
     <dialog
-      className="wb-dialog"
+      className="workshop-dialog"
       ref={dialogRef}
       aria-labelledby={`${id}-title`}
       onCancel={(event) => {
@@ -66,10 +66,10 @@ export default function WorkbenchDialog({
         if (!busy) onClose();
       }}
     >
-      <div className="wb-dialog-heading">
+      <div className="workshop-dialog-heading">
         <h2 id={`${id}-title`}>{title}</h2>
-        <button type="button" className="wb-icon-button" aria-label={text.close} onClick={onClose} disabled={busy}>
-          <WorkbenchIcon name="close" />
+        <button type="button" className="workshop-icon-button" aria-label={text.close} onClick={onClose} disabled={busy}>
+          <WorkshopIcon name="close" />
         </button>
       </div>
       <form onSubmit={(event) => {
@@ -77,7 +77,7 @@ export default function WorkbenchDialog({
         if (!busy && validName && validSelection) onSubmit(name.trim(), selectionId);
       }}>
         {field && (
-          <label className="wb-field">
+          <label className="workshop-field">
             {field.label}
             <input
               value={name}
@@ -92,19 +92,19 @@ export default function WorkbenchDialog({
             />
           </label>
         )}
-        {nameTooLong && <p className="wb-error-text" id={`${id}-length`}>{text.nameTooLong(maxLength)}</p>}
+        {nameTooLong && <p className="workshop-error-text" id={`${id}-length`}>{text.nameTooLong(maxLength)}</p>}
         {selection && (
-          <label className="wb-field">
+          <label className="workshop-field">
             {selection.label}
             <select value={selectionId} onChange={(event) => setSelectionId(event.target.value)} disabled={busy} required>
               {selection.options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
             </select>
           </label>
         )}
-        {error && <p className="wb-error-text" role="alert">{error}</p>}
-        <div className="wb-dialog-actions">
-          <button type="button" className="wb-button wb-button-secondary" onClick={onClose} disabled={busy}>{text.cancel}</button>
-          <button type="submit" className="wb-button wb-button-primary" disabled={busy || !validName || !validSelection}>
+        {error && <p className="workshop-error-text" role="alert">{error}</p>}
+        <div className="workshop-dialog-actions">
+          <button type="button" className="workshop-button workshop-button-secondary" onClick={onClose} disabled={busy}>{text.cancel}</button>
+          <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !validName || !validSelection}>
             {busy ? text.saving : submitLabel}
           </button>
         </div>

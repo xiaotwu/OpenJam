@@ -4,7 +4,7 @@ import type { useTheme } from '../../lib/useTheme';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../AuthContext';
 import { useAppearance, type InboxBadgeStyle } from '../../lib/useAppearance';
-import WorkbenchIcon, { type WorkbenchIconName } from './WorkbenchIcon';
+import WorkshopIcon, { type WorkshopIconName } from './WorkshopIcon';
 
 type ThemeControls = Pick<ReturnType<typeof useTheme>, 'theme' | 'setTheme'>;
 
@@ -15,7 +15,7 @@ interface AccountPopoverProps extends ThemeControls {
   expanded?: boolean;
 }
 
-const themeOptions: Array<{ value: ThemeControls['theme']; icon: WorkbenchIconName }> = [
+const themeOptions: Array<{ value: ThemeControls['theme']; icon: WorkshopIconName }> = [
   { value: 'system', icon: 'monitor' },
   { value: 'light', icon: 'sun' },
   { value: 'dark', icon: 'moon' },
@@ -24,7 +24,7 @@ const themeOptions: Array<{ value: ThemeControls['theme']; icon: WorkbenchIconNa
 export default function AccountPopover({
   user, onLogout, theme, setTheme, side = 'below', expanded = false,
 }: AccountPopoverProps) {
-  const { messages: { workbench: { account: text, auth, dialog } } } = useI18n();
+  const { messages: { workshop: { account: text, auth, dialog } } } = useI18n();
   const { saveProfile } = useAuth();
   const { appearance, updateAppearance } = useAppearance(user?.id);
   const [open, setOpen] = useState(false);
@@ -119,8 +119,8 @@ export default function AccountPopover({
         aria-controls={open ? id : undefined}
         onClick={() => { setOpen(current => !current); setEditing(false); setError(''); }}
       >
-        {user ? <span className="shell-avatar" aria-hidden="true">{initial}</span> : <WorkbenchIcon name="settings" />}
-        {expanded && user && <><span className="shell-account-name">{name}</span><WorkbenchIcon name="more" /></>}
+        {user ? <span className="shell-avatar" aria-hidden="true">{initial}</span> : <WorkshopIcon name="settings" />}
+        {expanded && user && <><span className="shell-account-name">{name}</span><WorkshopIcon name="more" /></>}
       </button>
       {open && (
         <div id={id} role="dialog" aria-label={label} className="shell-popover shell-account-popover">
@@ -151,7 +151,7 @@ export default function AccountPopover({
                   aria-pressed={theme === option.value}
                   onClick={() => setTheme(option.value)}
                 >
-                  <WorkbenchIcon name={option.icon} />
+                  <WorkshopIcon name={option.icon} />
                   {text.themes[option.value]}
                 </button>
               ))}
@@ -183,12 +183,12 @@ export default function AccountPopover({
                 setEditing(true);
               }}
             >
-              <WorkbenchIcon name="pencil" /> {text.editProfile}
+              <WorkshopIcon name="pencil" /> {text.editProfile}
             </button>
           )}
           {user && onLogout && !editing && (
             <button type="button" className="shell-account-signout" disabled={working} onClick={() => void signOut()}>
-              <WorkbenchIcon name="logout" /> {text.signOut}
+              <WorkshopIcon name="logout" /> {text.signOut}
             </button>
           )}
           {error && <p role="alert" className="shell-account-error">{error}</p>}

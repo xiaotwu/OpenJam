@@ -29,19 +29,19 @@
 @keyframes agent-character-frames { to { background-position-x: 120%; } }
 
 .agent-profile-dialog {
-  --wb-border: var(--glass-border-strong);
-  --wb-text: var(--text-primary);
-  --wb-muted: var(--text-secondary);
-  --wb-field: var(--badge-bg);
-  --wb-hover: var(--badge-bg);
-  --wb-primary: var(--text-primary);
+  --workshop-border: var(--glass-border-strong);
+  --workshop-text: var(--text-primary);
+  --workshop-muted: var(--text-secondary);
+  --workshop-field: var(--badge-bg);
+  --workshop-hover: var(--badge-bg);
+  --workshop-primary: var(--text-primary);
   max-height: min(640px, calc(100dvh - 32px));
   overflow-y: auto;
 }
 
-.agent-profile-dialog .wb-button { min-height: 40px; padding-inline: 14px; }
-.agent-profile-dialog .wb-field input[type='file'] { height: auto; padding-block: 7px; }
-.agent-profile-dialog .wb-field input::file-selector-button { border: 0; border-radius: 999px; padding: 4px 9px; }
+.agent-profile-dialog .workshop-button { min-height: 40px; padding-inline: 14px; }
+.agent-profile-dialog .workshop-field input[type='file'] { height: auto; padding-block: 7px; }
+.agent-profile-dialog .workshop-field input::file-selector-button { border: 0; border-radius: 999px; padding: 4px 9px; }
 
 .agent-profile-poses,
 .agent-profile-glyphs {
@@ -63,7 +63,7 @@
 
 .agent-profile-poses .agent-character { width: 2.5rem; height: 2.5rem; }
 .agent-profile-style { margin: 12px 17px; padding: 0; border: 0; }
-.agent-profile-style .wb-field { margin: 8px 0; }
+.agent-profile-style .workshop-field { margin: 8px 0; }
 .agent-profile-style legend { margin-bottom: 6px; font-size: 13px; font-weight: 600; }
 .agent-profile-glyphs { justify-content: flex-start; margin-bottom: 12px; }
 .agent-profile-glyphs .board-action-button { border: 1px solid var(--glass-border-strong); }

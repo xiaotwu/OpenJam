@@ -12,7 +12,7 @@ interface AuthPageProps {
 
 export default function AuthPage({ onSuccess, initialMode = 'login', variant = 'page' }: AuthPageProps) {
   const { login, register } = useAuth();
-  const { messages: { workbench: { auth: text } } } = useI18n();
+  const { messages: { workshop: { auth: text } } } = useI18n();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

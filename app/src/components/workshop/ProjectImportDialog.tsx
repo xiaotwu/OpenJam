@@ -3,7 +3,7 @@ import { importDoc, maxDocImportBytes, type DocFormat } from '../../lib/docs';
 import { importSheet, maxSheetUploadBytes, type SheetFormat } from '../../lib/sheets';
 import { importPptx, maxPptxUploadBytes } from '../../lib/slides';
 import { resourceNames, type DirectoryBoard } from '../../lib/directory';
-import WorkbenchIcon from './WorkbenchIcon';
+import WorkshopIcon from './WorkshopIcon';
 
 const formats = {
   doc: { label: 'Markdown or Word (.docx)', extensions: '.md,.markdown,.docx', pattern: /^(.*)\.(docx|md|markdown)$/i, limit: maxDocImportBytes },
@@ -62,22 +62,22 @@ export default function ProjectImportDialog({ kind, projectId, projectName, onCl
     }
   }
 
-  return <dialog className="wb-dialog wb-doc-import" ref={dialog} aria-label={'Import ' + noun}
+  return <dialog className="workshop-dialog workshop-doc-import" ref={dialog} aria-label={'Import ' + noun}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header className="wb-dialog-heading">
+    <header className="workshop-dialog-heading">
       <h2>Import {noun}</h2>
-      <button type="button" className="wb-icon-button" aria-label="Close" onClick={onClose} disabled={busy}><WorkbenchIcon name="close" /></button>
+      <button type="button" className="workshop-icon-button" aria-label="Close" onClick={onClose} disabled={busy}><WorkshopIcon name="close" /></button>
     </header>
     <form onSubmit={event => { event.preventDefault(); void submit(); }}>
-      <p className="wb-import-context">{projectName} · {config.label}</p>
-      <label className="wb-field">File<input type="file" accept={config.extensions} disabled={busy}
+      <p className="workshop-import-context">{projectName} · {config.label}</p>
+      <label className="workshop-field">File<input type="file" accept={config.extensions} disabled={busy}
         onChange={event => choose(event.target.files?.[0])} required /></label>
-      <label className="wb-field">{noun} Name<input value={title} onChange={event => setTitle(event.target.value)} disabled={busy} required maxLength={255} /></label>
-      {error && <p role="alert" className="wb-error-text">{error}</p>}
-      <footer className="wb-dialog-actions">
-        <button type="button" className="wb-button wb-button-secondary" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="submit" className="wb-button wb-button-primary" disabled={busy || !upload || !title.trim()}>
-          <WorkbenchIcon name="import" />{busy ? 'Importing…' : 'Import'}
+      <label className="workshop-field">{noun} Name<input value={title} onChange={event => setTitle(event.target.value)} disabled={busy} required maxLength={255} /></label>
+      {error && <p role="alert" className="workshop-error-text">{error}</p>}
+      <footer className="workshop-dialog-actions">
+        <button type="button" className="workshop-button workshop-button-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+        <button type="submit" className="workshop-button workshop-button-primary" disabled={busy || !upload || !title.trim()}>
+          <WorkshopIcon name="import" />{busy ? 'Importing…' : 'Import'}
         </button>
       </footer>
     </form>

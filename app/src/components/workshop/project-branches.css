@@ -1,0 +1,125 @@
+.workshop-page-heading:has(> .workshop-project-branch-actions) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+}
+.workshop-page-heading > :is(p, h1) { grid-column: 1; }
+.workshop-project-branch-actions {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: end;
+  gap: 4px;
+}
+
+.workshop-dialog.workshop-branch-dialog {
+  width: min(610px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  background: color-mix(in srgb, var(--surface-panel) 66%, var(--glass-bg-elevated));
+}
+.workshop-dialog.workshop-branch-dialog::backdrop { backdrop-filter: blur(5px); }
+
+.workshop-branch-heading { min-width: 0; }
+.workshop-branch-heading span {
+  display: block;
+  overflow: hidden;
+  color: var(--workshop-muted);
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workshop-branch-modes {
+  display: grid;
+  gap: 6px;
+  margin: 0 17px 14px;
+  padding: 0;
+  border: 0;
+}
+.workshop-branch-modes legend { margin-bottom: 6px; font-size: 0.93rem; font-weight: 650; }
+.workshop-branch-modes label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border: 1px solid var(--workshop-border);
+  border-radius: 17px;
+  background: var(--glass-bg-subtle);
+  cursor: pointer;
+}
+.workshop-branch-modes label:has(:checked) { border-color: var(--workshop-accent); background: var(--workshop-active); }
+.workshop-branch-modes input { accent-color: var(--workshop-accent); }
+.workshop-branch-modes small { display: block; color: var(--workshop-muted); }
+
+.workshop-branch-tabs { display: flex; padding: 12px 17px 0; }
+.workshop-branch-target,
+.workshop-branch-snapshot-form {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  margin: 12px 17px;
+}
+.workshop-branch-target .workshop-field,
+.workshop-branch-snapshot-form .workshop-field { min-width: 0; flex: 1; margin: 0; }
+.workshop-branch-target > button,
+.workshop-branch-snapshot-form > button { min-height: 40px; }
+.workshop-branch-target > button { width: 40px; }
+.workshop-branch-empty,
+.workshop-branch-feedback { margin: 0; padding: 11px 17px 15px; color: var(--workshop-muted); }
+.workshop-branch-feedback { color: var(--workshop-text); }
+
+.workshop-branch-list {
+  display: grid;
+  gap: 1px;
+  margin: 0 12px 12px;
+  padding: 5px;
+  overflow: auto;
+  max-height: min(42vh, 460px);
+  border: 1px solid var(--workshop-border);
+  border-radius: 17px;
+  background: var(--glass-bg-subtle);
+  list-style: none;
+}
+.workshop-branch-list > li + li { border-top: 1px solid var(--workshop-divider); }
+.workshop-branch-row-title {
+  display: flex;
+  min-width: 0;
+  min-height: 43px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+}
+.workshop-branch-row-title > :is(strong, .workshop-branch-version) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.workshop-branch-status {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 3px 7px;
+  border-radius: var(--control-radius);
+  color: var(--workshop-muted);
+  background: var(--workshop-active);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+.workshop-branch-status[data-state='conflict'] { color: var(--workshop-error); background: var(--workshop-error-surface); }
+.workshop-branch-sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  padding: 0 8px 8px 43px;
+}
+.workshop-branch-side { display: grid; flex: 1 1 100px; min-width: 0; align-content: start; font-size: 0.86rem; }
+.workshop-branch-side a { text-decoration: underline; text-underline-offset: 2px; }
+.workshop-branch-side a, .workshop-branch-side span { overflow-wrap: anywhere; }
+.workshop-branch-side small, .workshop-branch-version small { color: var(--workshop-muted); }
+.workshop-branch-side select { min-height: 31px; }
+.workshop-branch-version small { display: block; }
+.workshop-branch-section-title { display: flex; align-items: center; gap: 8px; margin: 12px 17px 8px; }
+.workshop-branch-section-title h3 { min-width: 0; font-size: 1rem; font-weight: 680; overflow-wrap: anywhere; }
+
+@media (max-width: 430px) {
+  .workshop-branch-sides { padding-left: 8px; }
+  .workshop-branch-actions { flex-wrap: wrap; }
+  .workshop-branch-snapshot-form { flex-wrap: wrap; }
+  .workshop-branch-snapshot-form .workshop-field { flex-basis: 100%; }
+  .workshop-branch-snapshot-form > button { margin-inline-start: auto; }
+}

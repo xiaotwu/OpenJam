@@ -8,8 +8,8 @@ import { resourcePath } from '../../lib/directory';
 import { useTheme } from '../../lib/useTheme';
 import { recordRecentBoard } from '../../lib/workshop';
 import { useAuth } from '../AuthContext';
-import AccountPopover from '../workbench/AccountPopover';
-import WorkbenchIcon from '../workbench/WorkbenchIcon';
+import AccountPopover from '../workshop/AccountPopover';
+import WorkshopIcon from '../workshop/WorkshopIcon';
 import BoardSharingDialog from '../BoardSharingDialog';
 import BoardReviewPanel from '../collaboration/BoardReviewPanel';
 import BoardSyncNotice from '../collaboration/BoardSyncNotice';
@@ -326,8 +326,8 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
           event.preventDefault();
           void flush().then(saved => { if (saved) navigate(returnPath); });
         }
-      }}><WorkbenchIcon name="back" /></Link>
-      <span className="doc-crumb"><WorkbenchIcon name="document" /><span>{canShow ? documentState?.name : 'Document'}</span></span>
+      }}><WorkshopIcon name="back" /></Link>
+      <span className="doc-crumb"><WorkshopIcon name="document" /><span>{canShow ? documentState?.name : 'Document'}</span></span>
       {canShow && <>
         <span className="doc-sync" role="status" data-state={sync.status}>
           <i />{draft ? 'Editing…' : status}
@@ -339,18 +339,18 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
         </div>
         <div className="doc-top-actions">
           <button type="button" className="doc-icon" aria-label="Comments" title="Comments" aria-pressed={panel === 'comments'}
-            onClick={() => setPanel(current => current === 'comments' ? null : 'comments')}><WorkbenchIcon name="message" /></button>
+            onClick={() => setPanel(current => current === 'comments' ? null : 'comments')}><WorkshopIcon name="message" /></button>
           <button type="button" className="doc-icon" aria-label="Document History" title="History" aria-pressed={panel === 'history'}
-            onClick={() => { void flush(); setPanel(current => current === 'history' ? null : 'history'); }}><WorkbenchIcon name="recent" /></button>
+            onClick={() => { void flush(); setPanel(current => current === 'history' ? null : 'history'); }}><WorkshopIcon name="recent" /></button>
           <details className="doc-dropdown" ref={exportMenu}>
-            <summary className="doc-icon" aria-label="Export Document" title="Export"><WorkbenchIcon name="download" /></summary>
+            <summary className="doc-icon" aria-label="Export Document" title="Export"><WorkshopIcon name="download" /></summary>
             <div className="doc-menu">
               <button type="button" disabled={!contentReady} onClick={() => void exportFile('md')}>Markdown</button>
               <button type="button" disabled={!contentReady} onClick={() => void exportFile('docx')}>Word (.docx)</button>
               {!contentReady && <span className="doc-muted">Available when saved.</span>}
             </div>
           </details>
-          <button type="button" className="doc-icon" aria-label="Share Document" title="Share" onClick={() => setPanel('share')}><WorkbenchIcon name="shared" /></button>
+          <button type="button" className="doc-icon" aria-label="Share Document" title="Share" onClick={() => setPanel('share')}><WorkshopIcon name="shared" /></button>
         </div>
       </>}
       <AccountPopover user={user} theme={theme} setTheme={setTheme}
@@ -366,12 +366,12 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
     {canShow && active && <div className="doc-scroll">
       {canWrite && <div className="doc-tools" role="toolbar" aria-label="Document Tools">
         {preview ? <button type="button" className="doc-edit-action" aria-label="Edit Document" onClick={() => setPreview(false)}>
-          <WorkbenchIcon name="pencil" />Edit
+          <WorkshopIcon name="pencil" />Edit
         </button> : <>
         <button type="button" className="doc-tool" aria-label="Undo" title="Undo" disabled={!sync.canUndo && !draft}
-          onClick={() => void flush().then(saved => saved && sync.undo())}><WorkbenchIcon name="undo" /></button>
+          onClick={() => void flush().then(saved => saved && sync.undo())}><WorkshopIcon name="undo" /></button>
         <button type="button" className="doc-tool" aria-label="Redo" title="Redo" disabled={!sync.canRedo}
-          onClick={() => void flush().then(saved => saved && sync.redo())}><WorkbenchIcon name="redo" /></button>
+          onClick={() => void flush().then(saved => saved && sync.redo())}><WorkshopIcon name="redo" /></button>
         <span className="doc-tools-divider" aria-hidden="true" />
         <select className="doc-select" aria-label="Block Style" title="Block Style" value={blockType(activeText ?? '')} disabled={preview}
           onChange={event => { change(active, withBlockType(activeText ?? '', event.target.value)); input.current?.focus(); }}>
@@ -392,16 +392,16 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
         <span className="doc-tools-divider" aria-hidden="true" />
         <button type="button" className="doc-tool" aria-label="Preview Document" title="Preview"
           onClick={() => void flush().then(saved => { if (saved) setPreview(true); })}>
-          <WorkbenchIcon name="preview" />
+          <WorkshopIcon name="preview" />
         </button>
         <button type="button" className="doc-tool" aria-label="Add Block" title="Add Block" disabled={blocks.length >= maxDocBlocks || preview}
-          onClick={() => void addBlock()}><WorkbenchIcon name="plus" /></button>
+          onClick={() => void addBlock()}><WorkshopIcon name="plus" /></button>
         <details className="doc-dropdown" ref={blockMenu}>
-          <summary className="doc-tool" aria-label="Block Actions" title="Block Actions"><WorkbenchIcon name="more" /></summary>
+          <summary className="doc-tool" aria-label="Block Actions" title="Block Actions"><WorkshopIcon name="more" /></summary>
           <div className="doc-menu">
-            <button type="button" disabled={preview || index < 1} onClick={() => void adjustBlock(-1)}><WorkbenchIcon name="up" />Move Up</button>
-            <button type="button" disabled={preview || index === blocks.length - 1} onClick={() => void adjustBlock(1)}><WorkbenchIcon name="down" />Move Down</button>
-            <button type="button" disabled={preview || blocks.length < 2} onClick={() => void adjustBlock('delete')}><WorkbenchIcon name="trash" />Delete Block</button>
+            <button type="button" disabled={preview || index < 1} onClick={() => void adjustBlock(-1)}><WorkshopIcon name="up" />Move Up</button>
+            <button type="button" disabled={preview || index === blocks.length - 1} onClick={() => void adjustBlock(1)}><WorkshopIcon name="down" />Move Down</button>
+            <button type="button" disabled={preview || blocks.length < 2} onClick={() => void adjustBlock('delete')}><WorkshopIcon name="trash" />Delete Block</button>
           </div>
         </details>
         </>}
@@ -441,7 +441,7 @@ export default function ShioriDoc({ docId, user }: { docId: string; user: User }
                 }} />}
               {!editing && <button type="button" className="doc-block-select" aria-label={(canWrite && !preview ? 'Edit' : 'Select') + ` Block ${position + 1}`}
                 title={canWrite && !preview ? 'Edit Block' : 'Select Block'} onClick={() => select(block, canWrite && !preview)}>
-                <WorkbenchIcon name={canWrite && !preview ? 'pencil' : 'text'} />
+                <WorkshopIcon name={canWrite && !preview ? 'pencil' : 'text'} />
               </button>}
             </section>;
           })}
