@@ -7,8 +7,8 @@ Shiori keeps the existing board ID, project assignment, owner and sharing permis
 Run the schema migration before starting the new API. On an upgrade, back up PostgreSQL and let legacy editors finish saving before switching the API. The first authorized V2 snapshot request activates an untouched board. Operators can inspect or activate a board explicitly.
 
 ```bash
-docker compose exec -T server openjam documents inspect "$BOARD_ID"
-docker compose exec -T server openjam documents migrate "$BOARD_ID"
+docker compose exec -T server shiori documents inspect "$BOARD_ID"
+docker compose exec -T server shiori documents migrate "$BOARD_ID"
 ```
 
 For an unmigrated board, `inspect` previews the page, element and stamp counts. A `migrationIssue` identifies source data that requires review, such as duplicate IDs. Inspection leaves the source intact.
@@ -22,7 +22,7 @@ The active board continues to support legacy reads. PostgreSQL fences legacy sna
 The migration report identifies the archive epoch, object counts and hash. Export a recovery copy to an access-controlled location. The export can contain board content and user identifiers.
 
 ```bash
-docker compose exec -T server openjam documents export-legacy "$BOARD_ID" "$ARCHIVE_EPOCH" > "$RECOVERY_FILE"
+docker compose exec -T server shiori documents export-legacy "$BOARD_ID" "$ARCHIVE_EPOCH" > "$RECOVERY_FILE"
 ```
 
 ## Roll back a board
@@ -30,8 +30,8 @@ docker compose exec -T server openjam documents export-legacy "$BOARD_ID" "$ARCH
 Inspect the board and record its current epoch and sequence. The rollback command requires both values and refuses a stale plan. It checkpoints the current V2 document, projects that state into the legacy format and enables the legacy editor. Previously archived operations remain in the recovery archive. The legacy editor opens the projected snapshot and starts a new operation log.
 
 ```bash
-docker compose exec -T server openjam documents inspect "$BOARD_ID"
-docker compose exec -T server openjam documents rollback "$BOARD_ID" "$EPOCH" "$SEQ"
+docker compose exec -T server shiori documents inspect "$BOARD_ID"
+docker compose exec -T server shiori documents rollback "$BOARD_ID" "$EPOCH" "$SEQ"
 ```
 
 Use the current application image for compatibility mode. A board explicitly rolled back stays in legacy mode until an operator runs `documents migrate` again. A fresh V2 epoch fences pending commands created before the transition. The schema migration ledger and prior checkpoints stay available for recovery.

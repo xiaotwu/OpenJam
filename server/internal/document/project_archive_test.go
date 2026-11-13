@@ -11,24 +11,24 @@ import (
 )
 
 func TestArchiveRewritesOnlyLocalFileLinks(t *testing.T) {
-	origin, err := parseArchiveOrigin("https://openjam.example")
+	origin, err := parseArchiveOrigin("https://shiori.example")
 	if err != nil {
 		t.Fatal(err)
 	}
 	targets := map[string]archiveLinkTarget{"old-doc": {"doc", "new-doc"}, "old-sheet": {"sheet", "new-sheet"}}
 	for _, tc := range []struct{ input, want string }{
 		{"[Read](/doc/old-doc?block=b1#heading)", "[Read](/doc/new-doc?block=b1#heading)"},
-		{"[Read](https://OPENJAM.EXAMPLE:443/board/old-doc?invite=sample&page=a#token=secret&keep=1)", "[Read](/doc/new-doc?page=a#keep=1)"},
+		{"[Read](https://SHIORI.EXAMPLE:443/board/old-doc?invite=sample&page=a#token=secret&keep=1)", "[Read](/doc/new-doc?page=a#keep=1)"},
 		{"查看/doc/old-doc?block=b1。然后打开/sheet/old-sheet?cell=A1。", "查看/doc/new-doc?block=b1。然后打开/sheet/new-sheet?cell=A1。"},
 		{"/?room=old-doc&block=b1", "/doc/new-doc?block=b1"},
-		{"//openjam.example/sheet/old-sheet?sheet=tab&cell=B2", "/sheet/new-sheet?sheet=tab&cell=B2"},
-		{"/room/outside?page=abc", "https://openjam.example/room/outside?page=abc"},
+		{"//shiori.example/sheet/old-sheet?sheet=tab&cell=B2", "/sheet/new-sheet?sheet=tab&cell=B2"},
+		{"/room/outside?page=abc", "https://shiori.example/room/outside?page=abc"},
 		{"[Other](https://other.example/doc/old-doc#share=other)", "[Other](https://other.example/doc/old-doc#share=other)"},
-		{"ftp://openjam.example/doc/old-doc", "ftp://openjam.example/doc/old-doc"},
+		{"ftp://shiori.example/doc/old-doc", "ftp://shiori.example/doc/old-doc"},
 		{"file/doc/old-doc /other/doc/old-doc", "file/doc/old-doc /other/doc/old-doc"},
 		{"/auth?mode=login&next=%2Fdoc%2Fold-doc%3Fblock%3Db1#invite=key", "/auth?mode=login&next=%2Fdoc%2Fnew-doc%3Fblock%3Db1"},
 		{"/doc/old-doc?share=secret;broken&block=b1", "/doc/new-doc?block=b1"},
-		{"/teams/team-id/invite#invite=secret", "https://openjam.example/teams/team-id/invite"},
+		{"/teams/team-id/invite#invite=secret", "https://shiori.example/teams/team-id/invite"},
 	} {
 		if got := rewriteArchiveText(tc.input, origin, targets); got != tc.want {
 			t.Errorf("rewrite %q:\n got %q\nwant %q", tc.input, got, tc.want)
@@ -47,7 +47,7 @@ func TestProjectArchiveRejectsUnlistedAndChangedEntries(t *testing.T) {
 	}
 	docEntry := "documents/" + digest + ".json"
 	manifest, err := json.Marshal(projectArchiveManifest{
-		Format: projectArchiveFormat, Version: 1, Name: "Studio", Origin: "https://openjam.example",
+		Format: projectArchiveFormat, Version: 1, Name: "Studio", Origin: "https://shiori.example",
 		Files: []archiveFile{{archiveRevision: archiveRevision{FileKey: uuid.New(), Kind: "board", Digest: digest}, RoomID: "original", Epoch: 1}},
 	})
 	if err != nil {

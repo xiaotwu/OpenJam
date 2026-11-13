@@ -145,6 +145,7 @@ func GetThumbnail(ctx context.Context, boardID string, actor uuid.UUID, theme st
 		}
 		// Partition cache keys by head, day and theme. The artifact is shared only
 		// through this route, after authorization, and ages out automatically.
+		// Keep the seed stable across images so they share pending and saved jobs.
 		key := fmt.Sprintf("openjam-thumbnail/%s/%d/%d/%s", boardID, locked.Epoch, locked.Seq, time.Now().UTC().Format("2006-01-02"))
 		if theme != "" {
 			key += "/" + theme
@@ -271,7 +272,7 @@ func exportFilename(name, extension string) string {
 	}
 	slug := strings.Trim(result.String(), "-_")
 	if slug == "" {
-		slug = "openjam-board"
+		slug = "shiori-board"
 	}
 	return slug + "." + extension
 }

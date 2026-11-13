@@ -12,7 +12,7 @@ export const files = {
   exportPending: 'Wait for your edits to sync before exporting.',
   packageFile: 'Shiori JSON or ZIP',
   packageUpload: 'Board package upload',
-  packageLimit: 'Choose an Shiori JSON or ZIP file up to 32 MiB.',
+  packageLimit: 'Choose a Shiori JSON or ZIP file up to 32 MiB.',
   privateImport: 'Import as private board',
   cancelUpload: 'Cancel upload',
   recentFileTasks: 'Recent file tasks',

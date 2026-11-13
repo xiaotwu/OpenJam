@@ -18,13 +18,13 @@ from test_agent import FIXTURE_MODEL, FIXTURE_TOKEN, request_data, valid_proposa
 
 EXTERNAL_TOKEN = "synthetic-external-secret"
 EXTERNAL_LABEL = "Workspace assistant"
-EXTERNAL_URL = "https://adapter.example:8443/openjam/generate"
+EXTERNAL_URL = "https://adapter.example:8443/shiori/generate"
 EXTERNAL_ENV = {
-    "OPENJAM_AGENT_TOKEN": FIXTURE_TOKEN,
-    "OPENJAM_EXTERNAL_AGENT_MODEL": FIXTURE_MODEL,
-    "OPENJAM_EXTERNAL_AGENT_URL": EXTERNAL_URL,
-    "OPENJAM_EXTERNAL_AGENT_TOKEN": EXTERNAL_TOKEN,
-    "OPENJAM_EXTERNAL_AGENT_LABEL": EXTERNAL_LABEL,
+    "SHIORI_AGENT_TOKEN": FIXTURE_TOKEN,
+    "SHIORI_EXTERNAL_AGENT_MODEL": FIXTURE_MODEL,
+    "SHIORI_EXTERNAL_AGENT_URL": EXTERNAL_URL,
+    "SHIORI_EXTERNAL_AGENT_TOKEN": EXTERNAL_TOKEN,
+    "SHIORI_EXTERNAL_AGENT_LABEL": EXTERNAL_LABEL,
 }
 
 
@@ -37,7 +37,7 @@ class ConnectorTests(unittest.TestCase):
         def transport(endpoint, body, headers, _deadline):
             calls.append(endpoint)
             self.assertTrue(endpoint.https)
-            self.assertEqual((endpoint.host, endpoint.port, endpoint.path), ("adapter.example", 8443, "/openjam/generate"))
+            self.assertEqual((endpoint.host, endpoint.port, endpoint.path), ("adapter.example", 8443, "/shiori/generate"))
             self.assertEqual(headers, {"Authorization": "Bearer " + EXTERNAL_TOKEN})
             self.assertEqual(body["version"], 1)
             self.assertEqual(body["context"], ["Review requirements before shipping"])
@@ -117,7 +117,7 @@ class ConnectorTests(unittest.TestCase):
 
     def test_connector_config_is_explicit_and_https_only(self):
         for invalid in (
-            "http://adapter.example/openjam/generate", "https://user@adapter.example/generate",
+            "http://adapter.example/shiori/generate", "https://user@adapter.example/generate",
             "https://adapter.example/generate?x=1", "https://adapter.example/generate#x",
             "https://adapter.example//other", "https://169.254.169.254/generate", "https://224.0.0.1/",
             "\x00https://adapter.example/generate",
@@ -125,9 +125,9 @@ class ConnectorTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaises(UnsafeEndpoint):
                 parse_external_url(invalid)
         with self.assertRaises(ValueError):
-            Config.from_env({**EXTERNAL_ENV, "OPENJAM_EXTERNAL_AGENT_TOKEN": ""})
+            Config.from_env({**EXTERNAL_ENV, "SHIORI_EXTERNAL_AGENT_TOKEN": ""})
         with self.assertRaises(ValueError):
-            Config.from_env({**EXTERNAL_ENV, "OPENJAM_EXTERNAL_AGENT_LABEL": "First\nSecond"})
+            Config.from_env({**EXTERNAL_ENV, "SHIORI_EXTERNAL_AGENT_LABEL": "First\nSecond"})
 
         endpoint = parse_external_url(EXTERNAL_URL)
         records = [
@@ -144,9 +144,15 @@ class ConnectorTests(unittest.TestCase):
 
 
 class PromptPackTests(unittest.TestCase):
+    def test_explicit_legacy_builtin_path_is_loaded(self):
+        previous = BUILTIN_PATH.with_name("board-v1.json")
+        packs = PromptPacks(previous)
+        self.assertEqual(previous.read_bytes(), BUILTIN_PATH.read_bytes())
+        self.assertIsNot(packs.snapshot(), PromptPacks().snapshot())
+
     def test_complete_pack_is_adopted_atomically_and_invalid_updates_are_ignored(self):
         initial = json.loads(BUILTIN_PATH.read_text(encoding="utf-8"))
-        with TemporaryDirectory(prefix="openjam-prompt-pack-") as directory:
+        with TemporaryDirectory(prefix="shiori-prompt-pack-") as directory:
             path = Path(directory) / "board.json"
             packs = PromptPacks(path)
             builtin = packs.snapshot()
@@ -175,10 +181,10 @@ class PromptPackTests(unittest.TestCase):
         pack = json.loads(BUILTIN_PATH.read_text(encoding="utf-8"))
         pack["version"] = "1.1.0-test"
         pack["workflows"]["workshop"]["instructions"] = "Custom grouping guidance."
-        with TemporaryDirectory(prefix="openjam-prompt-policy-") as directory:
+        with TemporaryDirectory(prefix="shiori-prompt-policy-") as directory:
             path = Path(directory) / "board.json"
             path.write_text(json.dumps(pack), encoding="utf-8")
-            config = Config.from_env({**EXTERNAL_ENV, "OPENJAM_AGENT_PROMPT_PACK": str(path)})
+            config = Config.from_env({**EXTERNAL_ENV, "SHIORI_AGENT_PROMPT_PACK": str(path)})
             request = Generation.parse(request_data("external"))
 
             def transport(_endpoint, body, _headers, _deadline):

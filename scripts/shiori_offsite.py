@@ -341,7 +341,7 @@ def fetch(root, repo, point, destination, command, verify_backup, expected, max_
     if present(dest) or dest_parent == root or root in dest_parent.parents:
         raise OffsiteError("Choose a new recovery directory outside the replica, under a private parent.")
     start = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix=".openjam-fetch-", dir=dest_parent) as stage:
+    with tempfile.TemporaryDirectory(prefix=".shiori-fetch-", dir=dest_parent) as stage:
         stage = Path(stage)
         with locked(root / LOCK, shared=True):
             replica(root, repo["deployment"], repo["repositoryId"])

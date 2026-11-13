@@ -114,7 +114,7 @@ func (m *Media) roomCall(ctx context.Context, method string, body, result any, g
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+m.token("openjam", "", grant))
+	req.Header.Set("Authorization", "Bearer "+m.token("shiori", "", grant))
 	res, err := m.client.Do(req)
 	if err != nil {
 		return err

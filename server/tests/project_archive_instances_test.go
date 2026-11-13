@@ -289,7 +289,7 @@ func TestProjectArchiveIndependentInstances(t *testing.T) {
 		if err := writer.WriteField("options", string(options)); err != nil {
 			t.Fatal(err)
 		}
-		part, err := writer.CreateFormFile("archive", "fixture.openjam-project.zip")
+		part, err := writer.CreateFormFile("archive", "fixture.shiori-project.zip")
 		if err != nil {
 			t.Fatal(err)
 		}

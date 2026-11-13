@@ -61,11 +61,13 @@ The assistant uses an independently deployed Python service. Add a fixed HTTPS a
 
 ## Data Persistence
 
-Use the same Compose project name on upgrades to keep using these volumes:
+Use the original Compose project name on upgrades, even after moving the checkout. Pass `--project-name` or keep the existing `COMPOSE_PROJECT_NAME` to reuse these volumes:
 - `postgres_data` - Database files
 - `redis_data` - Redis persistence
 - `seaweed_data` - Private S3 objects
 - `minio_data` - Uploaded files
+
+The default database and bucket are both named `openjam` for existing installations that rely on defaults. A fresh installation can choose other names in its initial configuration. Keep the original database, bucket and credentials when reusing existing volumes.
 
 For a consistent instance backup, capture PostgreSQL and SeaweedFS during the same maintenance window. Follow [Create an instance backup](./operations.md#create-an-instance-backup).
 

@@ -75,7 +75,7 @@ function useMeetingCall(id: string, refresh: () => void) {
     } };
     setRoom(next);
     try {
-      await next.connect(meetingSignalURL(id), 'openjam');
+      await next.connect(meetingSignalURL(id), 'shiori');
     } catch {
       if (active.current?.room !== next) return;
       setError('Could not connect to the meeting. Try joining again.');

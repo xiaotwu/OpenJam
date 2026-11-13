@@ -189,7 +189,7 @@ class Config:
             raise ValueError("SHIORI_AGENT_TOKEN needs a printable ASCII token")
         mock = (env.get("SHIORI_AGENT_MOCK", "") or "false").lower()
         if mock not in {"true", "false", "1", "0"}:
-            raise ValueError("Invalid OPENJAM_AGENT_MOCK")
+            raise ValueError("Invalid SHIORI_AGENT_MOCK")
         external_model = env.get("SHIORI_EXTERNAL_AGENT_MODEL", "").strip()
         external_endpoint = parse_external_url(env.get("SHIORI_EXTERNAL_AGENT_URL", ""))
         external_token = env.get("SHIORI_EXTERNAL_AGENT_TOKEN", "")
@@ -350,7 +350,7 @@ def openai(config, request, guide, transport, deadline, repair):
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "text": {"format": {
             "type": "json_schema",
-            "name": "openjam_board_proposal",
+            "name": "shiori_board_proposal",
             "schema": BOARD_SCHEMA,
             "strict": True,
         }},

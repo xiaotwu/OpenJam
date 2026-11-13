@@ -2,7 +2,7 @@
 
 Shiori is configured via environment variables. For local development, use a `.env` file in the `server/` directory.
 
-Existing deployments can keep their `OPENJAM_*` settings. When both names are present, the corresponding `SHIORI_*` setting takes precedence. Keep the existing Compose project, database, and bucket when upgrading.
+Existing deployments can keep their `OPENJAM_*` settings. Runtime settings prefer `SHIORI_*` when set, including an explicit empty value. Each setting then applies its usual default or validation. Compose image tags, published addresses and ports use the first nonempty value. Compose supplies both runtime names from the same resolved value so the prior image can run during rollback. Keep the existing Compose project, database, and bucket when upgrading.
 
 ## Environment Variables
 

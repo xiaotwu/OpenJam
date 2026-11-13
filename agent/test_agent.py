@@ -15,7 +15,7 @@ from providers import (
 from service import AgentServer, MAX_REQUEST_BYTES
 
 
-FIXTURE_TOKEN = "openjam-agent-fixture-token"
+FIXTURE_TOKEN = "shiori-agent-fixture-token"
 FIXTURE_KEY = "synthetic-key-for-unit-test"
 FIXTURE_MODEL = "structured-model-fixture"
 
@@ -75,7 +75,7 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(headers, {"Authorization": "Bearer " + FIXTURE_KEY})
             self.assertFalse(body["store"])
             self.assertEqual(body["text"]["format"], {
-                "type": "json_schema", "name": "openjam_board_proposal", "schema": BOARD_SCHEMA, "strict": True,
+                "type": "json_schema", "name": "shiori_board_proposal", "schema": BOARD_SCHEMA, "strict": True,
             })
             self.assertNotIn("tools", body)
             self.assertNotIn("local-note", body["input"])

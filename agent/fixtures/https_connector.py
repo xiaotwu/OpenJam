@@ -71,7 +71,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path != "/openjam/generate":
+        if self.path not in ("/shiori/generate", "/openjam/generate"):
             self.respond(404, {"error": "route not found"})
             return
         authorization = self.headers.get_all("Authorization") or []
@@ -106,9 +106,9 @@ def main():
     arguments.add_argument("--host", default="127.0.0.1")
     arguments.add_argument("--port", type=int, default=8443)
     args = arguments.parse_args()
-    token = os.environ.get("OPENJAM_EXTERNAL_AGENT_TOKEN", "")
+    token = os.environ.get("SHIORI_EXTERNAL_AGENT_TOKEN", os.environ.get("OPENJAM_EXTERNAL_AGENT_TOKEN", ""))
     if not token or not token.isascii() or not token.isprintable() or any(char.isspace() for char in token):
-        arguments.error("set OPENJAM_EXTERNAL_AGENT_TOKEN to a synthetic bearer token")
+        arguments.error("set SHIORI_EXTERNAL_AGENT_TOKEN to a synthetic bearer token")
     tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     tls.load_cert_chain(args.certificate, args.key)
     with FixtureServer((args.host, args.port), tls, ("Bearer " + token).encode("ascii")) as server:

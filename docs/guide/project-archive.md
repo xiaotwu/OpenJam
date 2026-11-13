@@ -1,6 +1,6 @@
 # Move a project to another Shiori instance
 
-A project archive (`.openjam-project.zip`) is a point-in-time copy. It contains Boards, Docs, Sheets and Slides, their current content and saved file versions, project snapshots, and the private images referenced by those revisions. Archived files keep their archived state. A file deleted before export can still be recovered from a project snapshot that contains it. Individual file versions already removed from the source, edit logs, and unsaved changes are outside the package.
+A project archive (`.shiori-project.zip`) is a point-in-time copy. Earlier downloads named `.openjam-project.zip` use the same archive format and can be restored with the same workflow. The archive contains Boards, Docs, Sheets and Slides, their current content and saved file versions, project snapshots, and the private images referenced by those revisions. Archived files keep their archived state. A file deleted before export can still be recovered from a project snapshot that contains it. Individual file versions already removed from the source, edit logs, and unsaved changes are outside the package.
 
 1. Open a project and choose **Export Project Archive → Download** in the project header.
 2. On the destination instance, open **Projects** or a Team **Overview** and choose **Restore Project Archive** in the toolbar.

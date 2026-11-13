@@ -15,7 +15,7 @@ from proposal import WORKFLOWS, bounded_array, bounded_text, decode_json, requir
 MAX_PACK_BYTES = 48 * 1024
 PACK_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?")
 SKILL_ID = re.compile(r"[a-z][a-z0-9-]{0,47}")
-BUILTIN_PATH = Path(__file__).with_name("prompts") / "board-v1.json"
+BUILTIN_PATH = Path(__file__).with_name("prompts") / "board.json"
 
 
 @dataclass(frozen=True)

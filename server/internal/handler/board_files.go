@@ -64,7 +64,7 @@ func queueBoardImport(c *gin.Context) {
 	}
 	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || (mediaType != "application/json" && mediaType != "application/zip") {
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"code": "INVALID_BOARD_FILE", "error": "Upload an Shiori JSON or ZIP file"})
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"code": "INVALID_BOARD_FILE", "error": "Upload a Shiori JSON or ZIP file"})
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, boardfiles.MaxPackageBytes)

@@ -1,9 +1,12 @@
 services:
   server:
     environment:
-      OPENJAM_MEETINGS_MEDIA_URL: http://meeting-media:7880
-      OPENJAM_MEETINGS_MEDIA_KEY: openjam
-      OPENJAM_MEETINGS_MEDIA_SECRET: "${SHIORI_MEETINGS_MEDIA_SECRET:-${OPENJAM_MEETINGS_MEDIA_SECRET:?Set SHIORI_MEETINGS_MEDIA_SECRET}}"
+      SHIORI_MEETINGS_MEDIA_URL: &media-url http://meeting-media:7880
+      SHIORI_MEETINGS_MEDIA_KEY: &media-key openjam
+      SHIORI_MEETINGS_MEDIA_SECRET: &media-secret "${SHIORI_MEETINGS_MEDIA_SECRET-${OPENJAM_MEETINGS_MEDIA_SECRET:?Set SHIORI_MEETINGS_MEDIA_SECRET}}"
+      OPENJAM_MEETINGS_MEDIA_URL: *media-url
+      OPENJAM_MEETINGS_MEDIA_KEY: *media-key
+      OPENJAM_MEETINGS_MEDIA_SECRET: *media-secret
     depends_on:
       meeting-media:
         condition: service_started
@@ -14,7 +17,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:
-      LIVEKIT_KEYS: "openjam: ${SHIORI_MEETINGS_MEDIA_SECRET:-${OPENJAM_MEETINGS_MEDIA_SECRET:?Set SHIORI_MEETINGS_MEDIA_SECRET}}"
+      LIVEKIT_KEYS: "openjam: ${SHIORI_MEETINGS_MEDIA_SECRET-${OPENJAM_MEETINGS_MEDIA_SECRET:?Set SHIORI_MEETINGS_MEDIA_SECRET}}"
       LIVEKIT_CONFIG: |
         port: 7880
         rtc:
