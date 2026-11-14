@@ -14,7 +14,7 @@
 Shiori brings boards, documents, spreadsheets, and presentations into team-owned Projects. A team can sketch a plan on a board, write the brief, track the budget, and present a decision from the same workspace. Search and file relationships respect the access each person has.
 
 <p align="center">
-  <img src="docs/public/images/shiori-character.png" alt="Shiori in a gray draped jacket, with pink-violet hair and three hairclips" width="20%" align="middle">
+  <img src="docs/public/images/shiori-character-full-body.webp" alt="Full-body illustration of Shiori in a gray draped jacket and plaid skirt" width="20%" align="middle">
   <img src="docs/public/images/shiori-workshop-preview.png" alt="Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project" width="77%" align="middle">
 </p>
 
