@@ -1,6 +1,6 @@
 # API Reference
 
-Shiori exposes a REST API for authentication, room management, and board operations.
+Shiori exposes HTTP APIs for accounts, Workshop, and the four editors. The current editor APIs use `/api/v2`.
 
 ## Authentication
 
@@ -59,9 +59,22 @@ Update display name and avatar color.
 }
 ```
 
+## Document sync
+
+Boards, Docs, Sheets, and Slides use the same sync endpoints. The file ID comes from the Workshop directory.
+
+| Method and path | Behavior |
+| --- | --- |
+| `GET /api/v2/directory` | Lists the caller’s accessible organizations, workspaces, projects, boards, docs, sheets, and slides. |
+| `GET /api/v2/boards/:id/snapshot` | Returns the current document, access level, epoch, sequence, and hash. |
+| `GET /api/v2/boards/:id/changes?epoch=…&afterSeq=…` | Returns committed changes after the given sequence. |
+| `POST /api/v2/boards/:id/commands` | Submits a command and returns its commit receipt. Retry with the same client ID, command ID, and payload. |
+
+The WebSocket at `/ws/v2` handles subscriptions, presence, cursors, and change notifications. See [Real-Time Collaboration](../guide/collaboration.md) and the [command contract](https://github.com/xiaotwu/Shiori/blob/main/contracts/board-sync.md).
+
 ## Rooms
 
-All room endpoints require authentication.
+The room endpoints are used by older board clients and require authentication.
 
 ### POST `/api/rooms`
 Create a new room.
@@ -119,6 +132,8 @@ Remove an invited member from a room (owner only).
 
 ## Board Data
 
+These full-board endpoints apply to boards in legacy sync mode. Use [Document sync](#document-sync) for current files.
+
 ### POST `/api/rooms/:id/save`
 Save board state.
 
@@ -136,6 +151,8 @@ Save board state.
 Load saved board state.
 
 ## Export
+
+The routes below serve older board clients. For current Board PNG, JSON, or ZIP exports, queue a job with `POST /api/v2/boards/:id/files/export`. Read the job with `GET /api/v2/jobs/:jobId` and download its completed artifact from `GET /api/v2/jobs/:jobId/artifact`.
 
 ### POST `/api/rooms/:id/export/png`
 Export board as PNG image.
@@ -236,10 +253,13 @@ Workshop endpoints use `/api/v2/workshop` and require authentication. Reads appl
 
 ## Health
 
-### GET `/health`
-Health check endpoint. Returns `{ "status": "ok" }`.
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /livez` | Reports that the API process is responding. |
+| `GET /startupz` | Reports that the API has opened its listener. |
+| `GET /readyz` | Reports PostgreSQL readiness and returns `503` if the database is unavailable or the API is draining. |
+| `GET /health` | Reports basic health and the `exportsEnabled` flag for storage initialization. |
 
 ## WebSocket
 
-### GET `/ws?token=<session_token>`
-Upgrade to WebSocket connection. See [Collaboration](/guide/collaboration) for message format.
+Use `/ws/v2` for current editors. See [Real-Time Collaboration](../guide/collaboration.md) for subscriptions and change notifications. The `/ws` endpoint serves legacy board clients.

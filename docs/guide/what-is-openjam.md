@@ -1,5 +1,6 @@
 ---
 title: What is Shiori?
+search: false
 head:
   - - meta
     - http-equiv: refresh

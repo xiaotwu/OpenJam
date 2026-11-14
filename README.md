@@ -4,8 +4,9 @@
   <p><strong>A self-hosted workspace for teams that plan, write, and work together.</strong></p>
   <p>
     <a href="#get-started">Get Started</a> ·
-    <a href="docs/guide/getting-started.md">User Guide</a> ·
+    <a href="https://xiaotwu.github.io/Shiori/">User Guide</a> ·
     <a href="docs/guide/docker.md">Deploy</a> ·
+    <a href="https://github.com/xiaotwu/Shiori/releases/latest">Download</a> ·
     <a href="https://github.com/xiaotwu/Shiori/issues">Report an Issue</a>
   </p>
 </div>
@@ -14,10 +15,8 @@ Shiori brings boards, documents, spreadsheets, and presentations into team-owned
 
 <p align="center">
   <img src="docs/public/images/shiori-character.png" alt="Shiori in a gray draped jacket, with pink-violet hair and three hairclips" width="20%" align="middle">
-  <img src="docs/public/images/workshop-preview.png" alt="A Team Project in Shiori with a board, document, spreadsheet, and presentation" width="77%" align="middle">
+  <img src="docs/public/images/workshop-preview.png" alt="Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project" width="77%" align="middle">
 </p>
-
-Shiori’s mascot welcomes teams to the workspace and appears beside the feature previews.
 
 ## Workspace
 
@@ -30,25 +29,22 @@ Shiori’s mascot welcomes teams to the workspace and appears beside the feature
 
 ## Get Started
 
-For a local evaluation, install Docker with Compose and run this from the repository checkout.
-
-~~~sh
-docker compose up --build --wait
-~~~
+Install Docker with Compose and download the Compose bundle from the [latest release](https://github.com/xiaotwu/Shiori/releases/latest). Follow the bundled `INSTALL.md` to verify the download, configure your environment, and start the published image. [Docker deployment guide](docs/guide/docker.md)
 
 Open [localhost:8080](http://localhost:8080), create an account, and make a personal Project or a Team. Choose **New** inside a project to create a Board, Doc, Sheet, or Slide deck.
 
-For a shared deployment, set a trusted HTTPS origin, configure the reverse proxy, and plan a verified backup before inviting users. Existing deployments should follow the upgrade and rollback steps in the operations guide. [Docker setup](docs/guide/docker.md) · [Operations and recovery](docs/guide/operations.md)
+Before inviting users, set up HTTPS and verify a backup. Follow the upgrade and rollback steps for an existing deployment. [Operations and recovery](docs/guide/operations.md)
 
 ## Release Status
 
-The first release targets Docker Compose for self-hosted teams. The frozen RC2 pilot candidate has passed local rehearsals. Pilot acceptance on the target host is pending. Meeting media requires separate setup and validation. Knowledge-base retrieval, the full deployment management console, and Kubernetes packaging are planned for later releases. [Pilot handoff](docs/guide/pilot-handoff.md) · [Meetings guide](docs/guide/meetings.md)
+[Shiori v1.0.0](https://github.com/xiaotwu/Shiori/releases/tag/v1.0.0) ships a Compose bundle and a public container image for Linux ARM64 and AMD64. Both platforms passed native checks for startup, schema, sign-in, and saving and reopening a document. Acceptance of the pilot's HTTPS ingress and offsite recovery remains in progress. Meeting media requires separate setup and verification. [Pilot acceptance](docs/guide/pilot-acceptance.md) · [Meetings guide](docs/guide/meetings.md) · [Product plan](PRODUCT_PLAN.md)
 
 ## Documentation
 
 | Guide | What it covers |
 | --- | --- |
 | [Using Shiori](docs/guide/getting-started.md) | Teams, Projects, the editors, relationships, and search |
+| [Board Assistant](docs/guide/board-assistant.md) | Configure a model, review a draft, and apply it to a board |
 | [Project branches and sync](docs/guide/project-sync.md) | Link a personal Project to a Team, create a branch, or restore a snapshot |
 | [Move a project](docs/guide/project-archive.md) | Export and recover project content on another instance |
 | [Deploy with Docker](docs/guide/docker.md) | Services, storage, and deployment configuration |

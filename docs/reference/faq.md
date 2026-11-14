@@ -33,9 +33,8 @@ The MinIO client is S3-compatible. You can point `MINIO_ENDPOINT` to an S3-compa
 - Check browser console for WebSocket errors
 
 ### My changes aren't being saved
-- Ensure PostgreSQL is running and accessible
-- Check the server logs for database errors
-- Auto-save runs every 30 seconds; manual save with Ctrl+S
+
+Check the editor’s sync indicator. When Shiori reports an offline or queued edit, reconnect and wait for **Saved**. If it reports a conflict, review or download the draft before discarding the edit. For a persistent server error, check `/readyz` and the server logs. [Saving and sync](../guide/collaboration.md#saving-and-sync)
 
 ### I can't see other users' cursors
 - Both users must be in the same room (same URL)

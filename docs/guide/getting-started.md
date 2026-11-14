@@ -1,42 +1,41 @@
 # Getting Started
 
-The fastest way to run Shiori is with Docker Compose.
+Shiori brings Boards, Docs, Sheets, and Slides together in a self-hosted workspace.
 
 ## Quick Start (Docker)
 
-```bash
-git clone https://github.com/xiaotwu/Shiori.git shiori
-cd shiori
-docker compose up --build -d
-```
-
-Open [http://localhost:8080](http://localhost:8080) and create an account.
+Download the published Compose bundle for Linux ARM64 or AMD64 and follow its `INSTALL.md`. Open [localhost:8080](http://localhost:8080) and create an account when the stack is ready. [Download Shiori](https://github.com/xiaotwu/Shiori/releases/latest) · [Install with Docker](./docker.md#install-the-published-release)
 
 ## Development Setup
 
-For local development, you'll run the backend and frontend separately.
+Clone the [Shiori repository](https://github.com/xiaotwu/Shiori). For local development, you'll run the backend and frontend separately.
 
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) (for database services)
 - [Go](https://golang.org/dl/) 1.22+
-- [Bun](https://bun.sh/) or [Node.js](https://nodejs.org/) 20+
+- [Bun](https://bun.sh/) or [Node.js](https://nodejs.org/) 20.19+ or 22.12+
 
 ### 1. Start dependency services
 
 ```bash
+cp .env.example .env
+# Set fresh values for POSTGRES_PASSWORD and MINIO_SECRET_KEY in .env.
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-This starts PostgreSQL, Redis, and SeaweedFS.
+This starts PostgreSQL, Redis, and SeaweedFS. For existing dev volumes, use their original project name, store names and credentials.
 
 ### 2. Start the backend
 
 ```bash
 cd server
 cp .env.example .env
+# Match DATABASE_URL and MINIO_* to the store settings in the root .env.
 go run .
 ```
+
+In a second terminal, run `go run . worker` from `server/` with the same environment to enable queued file jobs.
 
 ### 3. Start the frontend
 
@@ -68,15 +67,15 @@ Signing in opens **Inbox**. It lists Team discussions, direct conversations you 
 
 **Calendar** shows personal, Team, and Project events and tasks. Select a date and use the plus button to add an item. Personal items are private. A Team item is visible to current Team members, and a Project item follows Project access. Inbox links to items scheduled today and during the next seven days.
 
-**Recents** shows boards and documents you opened with your account. It hides files you can no longer access.
+**Recents** shows files you opened with your account. It hides files you can no longer access.
 
 ## Projects and Teams
 
-Expand **Projects** for personal projects and Drafts. Open a project and choose **New → New Board** or **New → New Document**. **Shared With Me** includes files shared directly with you outside a project you can browse.
+Expand **Projects** for personal projects and Drafts. Open a project and choose **New** to create a board, document, spreadsheet, or presentation. **Shared With Me** includes files shared directly with you outside a project you can browse.
 
 Expand **Teams** to create a Team or open one you joined. **Overview** lists the projects you can access and the Team roster. Owners and admins can create a named invitation in **Members**. Send the link privately to the invited address. It expires after seven days. The recipient signs in with that address and accepts the link.
 
-In a Team project, open **Project Access** to grant roles to current Team members. A Manager can manage project access and boards. Editors can create and edit boards. Commenters can leave feedback, and Viewers can read. The Team owner can manage its projects. Team admins manage the roster, and their content access follows their project or board grants.
+In a Team project, open **Project Access** to grant roles to current Team members. A Manager can manage project access and files. Editors can create and edit files. Commenters can leave feedback, and Viewers can read. The Team owner can manage its projects. Team admins manage the roster, and their content access follows their project or file grants.
 
 Use **Import to Team** in a personal Project to create a linked Team copy or an independent branch. [Project Branches and Sync](./project-sync.md) explains transfers, conflict resolution, and snapshots.
 

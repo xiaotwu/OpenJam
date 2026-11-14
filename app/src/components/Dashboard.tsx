@@ -29,10 +29,10 @@ interface DashboardProps {
 }
 
 const features = [
-  { id: 'boards', mascot: sketch, preview: boardsPreview, width: 1056, height: 660 },
-  { id: 'docs', mascot: review, preview: docsPreview, width: 1120, height: 700 },
-  { id: 'sheets', mascot: review, preview: sheetsPreview, width: 1280, height: 800 },
-  { id: 'slides', mascot: present, preview: slidesPreview, width: 1360, height: 850 },
+  { id: 'boards', mascot: sketch, preview: boardsPreview },
+  { id: 'docs', mascot: review, preview: docsPreview },
+  { id: 'sheets', mascot: review, preview: sheetsPreview },
+  { id: 'slides', mascot: present, preview: slidesPreview },
 ] as const;
 
 function HomeFeatures() {
@@ -75,7 +75,7 @@ function HomeFeatures() {
           </button>
         ))}
       </div>
-      {features.map(({ id, mascot, preview, width, height }, index) => (
+      {features.map(({ id, mascot, preview }, index) => (
         <article
           key={id}
           id={`home-panel-${id}`}
@@ -93,7 +93,7 @@ function HomeFeatures() {
             <img className="home-feature-mascot" src={mascot} alt="" width={300} height={375} loading="lazy" />
           </div>
           <figure className="home-product">
-            <img src={preview} alt={text.features[id].previewAlt} width={width} height={height} loading="lazy" />
+            <img src={preview} alt={text.features[id].previewAlt} width={1280} height={720} loading="lazy" />
           </figure>
         </article>
       ))}
@@ -184,7 +184,7 @@ export default function Dashboard({
             </div>
           </div>
           <figure className="home-product">
-            <img src={projectPreview} alt={text.previewAlt} width={1052} height={620} fetchPriority="high" />
+            <img src={projectPreview} alt={text.previewAlt} width={1280} height={720} fetchPriority="high" />
           </figure>
         </section>
         <HomeFeatures />

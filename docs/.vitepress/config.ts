@@ -9,6 +9,7 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', href: '/Shiori/icons/favicon-light.png', media: '(prefers-color-scheme: light)' }],
     ['link', { rel: 'icon', href: '/Shiori/icons/favicon-dark.png', media: '(prefers-color-scheme: dark)' }],
+    ['meta', { property: 'og:site_name', content: 'Shiori' }],
   ],
 
   themeConfig: {
@@ -17,6 +18,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/configuration' },
+      { text: 'Releases', link: 'https://github.com/xiaotwu/Shiori/releases' },
       { text: 'GitHub', link: 'https://github.com/xiaotwu/Shiori' },
     ],
 
@@ -28,6 +30,8 @@ export default defineConfig({
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Project Branches and Sync', link: '/guide/project-sync' },
           { text: 'Move a Project Between Instances', link: '/guide/project-archive' },
+          { text: 'Board Assistant', link: '/guide/board-assistant' },
+          { text: 'External Agent Connector', link: '/guide/agent-connector' },
           { text: 'Meetings', link: '/guide/meetings' },
         ],
       },
@@ -37,7 +41,6 @@ export default defineConfig({
           { text: 'Docker', link: '/guide/docker' },
           { text: 'Operations and Recovery', link: '/guide/operations' },
           { text: 'Pilot Acceptance', link: '/guide/pilot-acceptance' },
-          { text: 'Pilot Handoff', link: '/guide/pilot-handoff' },
           { text: 'Manual Setup', link: '/guide/manual-setup' },
         ],
       },

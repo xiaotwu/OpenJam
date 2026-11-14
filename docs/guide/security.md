@@ -8,8 +8,8 @@ Shiori implements session-based authentication with several security measures.
 2. Password is hashed with **bcrypt** (default cost)
 3. A 32-byte cryptographically random session token is generated
 4. Token is stored in PostgreSQL with an expiration (7 days)
-5. Token is returned to the client and stored in localStorage
-6. Subsequent requests include the token in the `Authorization: Bearer` header
+5. The server sets the `wb_session` cookie with `HttpOnly` and `SameSite=Lax`. HTTPS production deployments also set `Secure`.
+6. The web client also receives a token for authenticated API requests and stores it in localStorage.
 
 ## Session Management
 
@@ -30,12 +30,12 @@ Private image requests and document sync each have a separate budget of 30 reque
 ## Room Access Control
 
 - Rooms are owned by the user who created them
-- Room list shows owned rooms and rooms where the current user is an invited member
+- Workshop lists files the current account can access through personal ownership, a Team Project role, or a direct file grant
 - Owners can invite registered Shiori users by email with `view`, `comment`, or `edit` permission
 - Owners can configure board-link permissions: `restricted`, `anyone-view`, `anyone-comment`, or `anyone-edit`
 - Public link permissions apply to authenticated users who have the board URL; unauthenticated viewers still need to sign in first
-- Room load, export, and WebSocket join flows allow owners, invited members, and authenticated link viewers
-- Room save and WebSocket operation flows require owner or edit permission
+- Document reads, exports, and collaboration subscriptions check current access
+- Document commands require owner or edit permission
 - Room rename through the room API and deletion remain owner-only
 
 ## Security Headers
