@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'app/src/assets/home/*.webp'
   workflow_dispatch:
 
 permissions:
