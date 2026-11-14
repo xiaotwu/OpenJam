@@ -31,4 +31,4 @@ for path in / /livez /startupz /readyz /health; do
 done
 
 script_dir=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-python3 -B "$script_dir/../openjam-ops.py" quick-check "$origin"
+python3 -B "$script_dir/../shiori-ops.py" quick-check "$origin"

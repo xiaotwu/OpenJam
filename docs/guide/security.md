@@ -30,12 +30,12 @@ Private image requests and document sync each have a separate budget of 30 reque
 ## Room Access Control
 
 - Rooms are owned by the user who created them
-- Room list shows owned rooms and rooms where the current user is an invited member
+- Workshop lists files the current account can access through personal ownership, a Team Project role, or a direct file grant
 - Owners can invite registered Shiori users by email with `view`, `comment`, or `edit` permission
 - Owners can configure board-link permissions: `restricted`, `anyone-view`, `anyone-comment`, or `anyone-edit`
 - Public link permissions apply to authenticated users who have the board URL; unauthenticated viewers still need to sign in first
-- Room load, export, and WebSocket join flows allow owners, invited members, and authenticated link viewers
-- Room save and WebSocket operation flows require owner or edit permission
+- Document reads, exports, and collaboration subscriptions check current access
+- Document commands require owner or edit permission
 - Room rename through the room API and deletion remain owner-only
 
 ## Security Headers

@@ -1,5 +1,12 @@
 ---
 layout: home
+head:
+  - - meta
+    - property: og:image
+      content: https://xiaotwu.github.io/Shiori/images/workshop-preview.png
+  - - meta
+    - property: og:image:alt
+      content: The Product Launch project in Shiori Workshop
 hero:
   name: Shiori
   text: A self-hosted team workspace
@@ -9,16 +16,18 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: View on GitHub
-      link: https://github.com/xiaotwu/Shiori
+      text: Download
+      link: https://github.com/xiaotwu/Shiori/releases/latest
 
 features:
   - title: Real-Time Collaboration
-    details: Work together on the same canvas with live cursors, presence indicators, and operation-log based conflict resolution.
-  - title: Rich Canvas Tools
-    details: Shapes, sticky notes, freehand drawing, text, connectors, images, frames, and 11 interactive widgets.
+    details: Edit boards, docs, sheets, and slides together, leave comments, and revisit saved versions.
+  - title: Workshop
+    details: Find projects, files, and their contents. Open a result at the matching object, block, cell, or slide.
+  - title: Project Access
+    details: Give a team its own projects and grant access by role. Files and history stay with the team.
   - title: Self-Hosted
-    details: Deploy on your own infrastructure with Docker. Your data stays under your control.
-  - title: Team Projects
-    details: Organize boards, documents, spreadsheets, and presentations together with project access and version history.
+    details: Run Shiori on your infrastructure with Docker Compose. Back up or move projects and their private assets.
 ---
+
+![Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project](/images/workshop-preview.png)

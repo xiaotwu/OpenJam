@@ -1,6 +1,12 @@
-# Pilot handoff for openjam-pilot-20261112-rc2
+---
+search: false
+---
 
-RC2 is frozen locally for Linux ARM64 and Linux AMD64. Both use source commit `ae5686a76ab05c41fdc692e6bb2d346b50684211` and require database schema 23. The local Git tag is `openjam-pilot-20261112-rc2`. Follow the [joint pilot checklist](./pilot-acceptance.md) when the pilot host and operating window are available. Meetings media and the external AI profile are off for this candidate.
+# Frozen RC2 pilot handoff
+
+This record applies to the frozen pilot tracked by XW-151 and XW-152. Use the [Shiori Docker guide](./docker.md) for new installations and the [Shiori pilot checklist](./pilot-acceptance.md) to qualify a current release.
+
+RC2 is frozen locally for Linux ARM64 and Linux AMD64. Both use source commit `ae5686a76ab05c41fdc692e6bb2d346b50684211` and require database schema 23. The local Git tag is `openjam-pilot-20261112-rc2`. Follow the [frozen RC2 checklist](https://github.com/xiaotwu/Shiori/blob/v1.0.0/docs/guide/pilot-acceptance.md) from the matching runtime checkout. Meetings media and the external AI profile are off for this candidate.
 
 ## 1. Identify and load the candidate
 
@@ -14,7 +20,7 @@ RC2 is frozen locally for Linux ARM64 and Linux AMD64. Both use source commit `a
 | Local archive and checksum directory | `xw-154-image-sync` | `xw-151-152-pilot-rc2-amd64` |
 | Local acceptance evidence directories | `xw-151-152-pilot-rc2` | `xw-151-152-pilot-rc2-amd64` and `xw-151-152-pilot-rc2-amd64-edge` |
 
-The lock at `scripts/pilot-acceptance/rc2.lock.json` records both artifacts, the pinned stores and their per-platform manifests, the configuration template hashes and the evidence hashes. Each archive contains the application for server, worker and migrate. The Git tag points to the runtime source.
+The lock at `scripts/pilot-acceptance/rc2.lock.json` records both artifacts, the pinned stores and their per-platform manifests, the configuration template hashes and the evidence hashes. Each archive contains the application for server, worker and migrate. Get the exact runtime files and templates from the recorded Git commit and verify them against the lock.
 
 On the Linux target, copy the matching archive and checksum through the approved private channel. Run the following from that archive directory. Docker reports the architecture of the engine for the current context.
 
@@ -62,7 +68,7 @@ The default backup commands apply to the pinned Compose PostgreSQL, Redis and Se
 
 - **Existing deployment:** Before the change, record the previous image digest, installed schema, Compose project, protected environment location, proxy config checksum and stores. Take and verify an instance backup; record its point ID, capture UTC, trusted receipt SHA-256, manifest/schema, replica location and how an authorized operator can fetch and decrypt it. Keep the old image and recovery point available outside scheduled expiry. If a migration commits, restore the verified old backup to empty volumes with the old compatible image before moving ingress. Repointing Caddy alone does not roll back a schema change.
 - **Fresh deployment:** Record that there is no earlier dataset. The initial fallback is the saved maintenance config and stopped writers. Before inviting pilot users, verify the first encrypted recovery point from the selected deployment. Use that point, or a later verified point, for any subsequent restore.
-- **Failed cutover after writes:** Hold the edge at 503, stop the rejected API and worker, preserve both stores, reconcile accepted writes and access changes, then route to one verified writer. If the changes cannot be reconciled, keep maintenance until the owner approves the recovery point and any data gap. Follow [the rollback steps](./pilot-acceptance.md#_5-roll-back-when-a-gate-fails).
+- **Failed cutover after writes:** Hold the edge at 503, stop the rejected API and worker, preserve both stores, reconcile accepted writes and access changes, then route to one verified writer. If the changes cannot be reconciled, keep maintenance until the owner approves the recovery point and any data gap. Follow [the RC2 rollback steps](https://github.com/xiaotwu/Shiori/blob/v1.0.0/docs/guide/pilot-acceptance.md#5-roll-back-when-a-gate-fails).
 
 | Rehearsal record | Value |
 | --- | --- |

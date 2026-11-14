@@ -1,8 +1,6 @@
 # Configuration
 
-Shiori is configured via environment variables. For local development, use a `.env` file in the `server/` directory.
-
-Existing deployments can keep their `OPENJAM_*` settings. Runtime settings prefer `SHIORI_*` when set, including an explicit empty value. Each setting then applies its usual default or validation. Compose image tags, published addresses and ports, and the required secret in the Meetings overlay use the first nonempty value. Compose supplies both runtime names from the same resolved value so the prior image can run during rollback. Keep the existing Compose project, database, and bucket when upgrading.
+Configure Compose with the `.env.example` from the release bundle or source checkout. To run the API and worker outside Compose, start from `server/.env.example` and use the credentials and bucket from your stores.
 
 ## Environment Variables
 
@@ -19,7 +17,7 @@ Existing deployments can keep their `OPENJAM_*` settings. Runtime settings prefe
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgres://postgres:postgres@localhost:5432/openjam?sslmode=disable` | Yes |
+| `DATABASE_URL` | PostgreSQL connection string | Legacy fallback if unset | Set for manual deployments |
 | `REDIS_URL` | Redis connection string | _(empty)_ | No |
 
 ### Security
@@ -29,7 +27,7 @@ Existing deployments can keep their `OPENJAM_*` settings. Runtime settings prefe
 | `SHIORI_TRUSTED_PROXIES` | Comma-separated trusted proxy addresses or CIDRs for client IP forwarding | _(empty)_ | No |
 | `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:5173` | Yes (production) |
 
-### Storage (MinIO / S3)
+### S3-compatible object storage
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
@@ -37,7 +35,7 @@ Existing deployments can keep their `OPENJAM_*` settings. Runtime settings prefe
 | `MINIO_ACCESS_KEY` | MinIO access key | `minioadmin` | No |
 | `MINIO_SECRET_KEY` | MinIO secret key | `minioadmin` | No |
 | `MINIO_USE_SSL` | Use SSL for MinIO | `false` | No |
-| `MINIO_BUCKET` | Storage bucket name | `openjam` | No |
+| `MINIO_BUCKET` | Storage bucket name | `shiori` in the fresh-install example | Set to match the store |
 
 ## Example `.env` File
 
@@ -45,20 +43,27 @@ Existing deployments can keep their `OPENJAM_*` settings. Runtime settings prefe
 PORT=8080
 ENVIRONMENT=development
 
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/openjam?sslmode=disable
+DATABASE_URL=postgres://shiori:replace-with-a-random-database-secret@localhost:5432/shiori?sslmode=disable
 REDIS_URL=redis://localhost:6379
 
 CORS_ORIGINS=http://localhost:5173
 
 MINIO_ENDPOINT=localhost:8333
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
+MINIO_ACCESS_KEY=shiori
+MINIO_SECRET_KEY=replace-with-a-random-storage-secret
 MINIO_USE_SSL=false
+MINIO_BUCKET=shiori
 
 SHIORI_AUTO_MIGRATE=true
 ```
 
 When a deployment runs `shiori-server migrate` separately, start the API with `SHIORI_AUTO_MIGRATE=false`. The API checks the installed schema before opening its listener. Use `/startupz` and `/livez` for process probes and `/readyz` to check database connectivity and shutdown state.
+
+## Compatibility with earlier deployments
+
+Keep the original Compose project name, database, bucket, and credentials when upgrading. When those names are unset, the legacy database and bucket default is `openjam`.
+
+`SHIORI_*` settings take precedence over the corresponding `OPENJAM_*` aliases. Runtime variables also take precedence when explicitly empty, after which each setting applies its default or validation. Compose image tags, published addresses and ports, and the required Meetings secret use the first nonempty value. Compose passes both names to the server so a previous image can read the same resolved settings during rollback.
 
 ### Worker and model settings
 

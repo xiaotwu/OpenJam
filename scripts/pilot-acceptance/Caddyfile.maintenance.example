@@ -5,5 +5,5 @@
 
 pilot.example.test {
 	header Cache-Control "no-store"
-	respond "OpenJam is temporarily in maintenance." 503
+	respond "Shiori is temporarily in maintenance." 503
 }

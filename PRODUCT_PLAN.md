@@ -1,24 +1,25 @@
 # Shiori 自托管产品化实施计划
 
-## 当前交付顺序 · 2026-11-12
+## 当前交付与后续顺序 · 2026-11-13
 
-首发面向小团队，以 Docker Compose 交付 Teams、Projects、Boards、Docs、Sheets 和 Slides。首发前需要完成真实主机的 HTTPS/WSS 与协作验收（XW-151），以及异地备份、空实例恢复和切流回滚验收（XW-152）。两项沿用冻结 RC2 和[联合验收清单](docs/guide/pilot-acceptance.md)。实机验收后，再确认最终 Shiori 候选并补测有差异的路径。
+Shiori v1.0.0 已发布。首发通过 Docker Compose 交付 Workshop、Teams、Projects、Boards、Docs、Sheets 和 Slides。公开镜像支持 Linux ARM64 和 AMD64。两个架构均通过原生环境的空卷启动、schema 23、登录和 Doc 首写回读。安装包与镜像摘要以发布附件为准。[v1.0.0 发布](https://github.com/xiaotwu/Shiori/releases/tag/v1.0.0) · [部署文档](docs/guide/docker.md)
 
-I10 知识库、I11 完整管理控制台和 Kubernetes / Helm 放在后续。Meetings 媒体和外部模型按需要配置并单独验证。下文保留 11 月 10 日的原始规格、容量目标和实施记录；其中更广的交付范围以此处的更新为准。
+- **试点运营验收。** [XW-151](https://linear.app/xiaotwu/issue/XW-151) 等正式入口和代表性客户端网络，验收实际 HTTPS/WSS 与协作。[XW-152](https://linear.app/xiaotwu/issue/XW-152) 等两次正式备份、值班签收、换机恢复与切流回滚。当前签收沿用[冻结 RC2 交接](docs/guide/pilot-handoff.md)。
+- **后续产品顺序。** I10 授权知识检索 → I11 完整运维控制台 → I12 剩余 Helm/kind 交付。桌面安装包可独立验证。Meetings 媒体和外部模型按实际启用范围验收。
 
-2026-11-10 · 依据本地 `main` 的 `0107faa` 和当前工作树
+## 原始规格与实施记录 · 2026-11-10
 
-首版面向自托管的小型团队。主流程是创建工作区和画板、共同编辑、留下评审意见、用 AI 整理或生成内容、保存可追溯版本。组织管理员可以启用云模型，也可以配置本地模型。部署人员用 Docker Compose 或 Kubernetes 交付同一套应用，并能在控制台判断实例是否健康、任务是否积压、备份是否可恢复。
+下列规格和容量目标来自重构前的设计。以本页的交付记录和[当前用户文档](https://xiaotwu.github.io/Shiori/)为准确认已上线功能。
 
-- [首发范围](#scope) · [当前代码](#baseline) · [交互设计](#design) · [技术架构](#architecture)
+- [原始范围](#scope) · [重构前基线](#baseline) · [交互设计](#design) · [技术架构](#architecture)
 - [协作和数据](#collaboration) · [AI 与知识库](#agent) · [管理与部署](#operations)
 - [迁移](#migration) · [集中实施](#implementation) · [逐项验收](#verification)
 
 <a id="scope"></a>
 
-## 🎯 首发目标与范围
+## 🎯 原始目标与范围
 
-| 使用者 | 首发要完成的任务 | 可交付结果 |
+| 使用者 | 原始设计中的任务 | 预期结果 |
 | --- | --- | --- |
 | 团队成员 | 从空白或模板创建白板，邀请同事，进行工作坊 | 有归属、可搜索、可分享和可恢复的画板 |
 | 评审者 | 跳转到指定页面或区块，跟随演示，标注意见，稍后回来继续 | 持久评论线程、提及通知、待处理筛选和可复制的定位链接 |
@@ -32,11 +33,11 @@ I10 知识库、I11 完整管理控制台和 Kubernetes / Helm 放在后续。Me
 
 <a id="baseline"></a>
 
-## 🔎 现有项目与改造落点
+## 🔎 重构前基线与改造落点
 
-当前版本已有 React/Vite 前端、Go/Gin API 与 WebSocket、PostgreSQL、可选 Redis 和 MinIO。现有代码含结构校验、部分权限回查、乐观锁、速率限制和少量单测。历史 [ANALYSIS.md](ANALYSIS.md) 基于更早提交。下表对应这次读取的工作树，包含暂存和未暂存改动。
+重构前的本地基线以 `0107faa` 和当时的工作树为依据。现行架构见 [Shiori 架构](docs/guide/architecture.md)，旧版审阅的出处见 [维护概览](ANALYSIS.md)。
 
-| 区域 | 当前可复用的东西与代码证据 | 本轮改造 |
+| 区域 | 当时的实现与代码证据 | 计划改造 |
 | --- | --- | --- |
 | 工作台 | [App.tsx](app/src/App.tsx#L39) 有登录、`/workplace`、画板和旧链接跳转。[WorkspaceDashboard.tsx](app/src/components/WorkspaceDashboard.tsx#L33) 把工作区分类和画板归组放在浏览器存储 | 组织、工作区、项目成为服务端实体。个人折叠状态继续做偏好，实际归属从 API 读取 |
 | 编辑器 | [ShioriCanvas.tsx](app/src/components/ShioriCanvas.tsx#L1609) 用 DOM/SVG 与变换层渲染，已有选区、属性、工具、快捷键和组件。当前排序遍历所有对象，[元素基类](app/src/lib/elements.ts#L54) 无 `pageId`，[usePages.ts](app/src/components/canvas/hooks/usePages.ts#L23) 只改变页面列表与当前页 | 真实页面和区块、视口裁剪、可复用命令、按对象订阅。把客户端当前页从共享文档移到个人视图状态 |
@@ -257,7 +258,7 @@ sequenceDiagram
 
 | 形态 | 交付内容 | 预期操作 |
 | --- | --- | --- |
-| Docker Compose | `compose.yaml` 和配置示例，包含 API、Go worker、PostgreSQL、Redis、对象存储与独立迁移任务。AI、Mailpit 和观测按 profile 启动。默认仅暴露 Web 入口 | 初始化、打开页面、建组织、启停 AI、按卷保留数据、原位升级、生成备份、以新实例恢复 |
+| Docker Compose | [`docker-compose.yml`](docker-compose.yml) 交付 API、Go worker、PostgreSQL、Redis、SeaweedFS 和独立迁移任务。按需启用 AI，默认仅暴露本地 Web 入口 | 初始化、打开页面、建组织、启停 AI、按卷保留数据、原位升级、生成备份、以新实例恢复 |
 | 本地 Kubernetes | `deploy/helm/shiori`、`values-local.yaml`、kind 配置和故障演练脚本。kind 多节点验证两个 API 副本、独立 worker 和同源 Web/WS 入口。本地镜像可直接装载到节点。Gateway API 接入实际支持 WS 与 SSE 的控制器 | 渲染并校验 Helm，启动迁移 Job、部署副本、验证 WebSocket/SSE，滚动升级，替换 Pod，关闭 Redis 后继续补读，从备份恢复到新命名空间。[^kind][^gateway] |
 | 云端部署映射 | EKS 可换用 RDS PostgreSQL 与 S3，GKE 可换用 Cloud SQL PostgreSQL 与经同一套测试的 S3 兼容对象服务。Redis、TLS、Secret 和身份通过 Helm values 选择外部服务。需要原生 GCS 时先实现并验收该存储适配器 | 编写可迁移配置与操作说明。本地验证配置替换和应用行为，实际云 IAM、数据库扩展、负载均衡、对象签名和故障切换留待真实环境演练 |
 

@@ -1,92 +1,31 @@
 # Architecture
 
-Shiori follows a client-server architecture with WebSocket for real-time communication.
+The Shiori image serves the React frontend and Go API from one origin. Workshop and its editors use HTTP for data and commands and WebSocket for collaboration. The default Compose stack runs PostgreSQL, Redis, SeaweedFS, and a separate Go worker.
 
-## System Overview
+## Services
 
-```
-┌──────────────────┐     HTTP + WS     ┌──────────────────┐
-│                  │ ◄───────────────► │                  │
-│  React Frontend  │                   │   Go Backend     │
-│  (SPA)           │                   │   (Gin)          │
-│                  │                   │                  │
-└──────────────────┘                   └────────┬─────────┘
-                                                │
-                            ┌───────────────────┼───────────────────┐
-                            │                   │                   │
-                     ┌──────┴──────┐    ┌───────┴───────┐  ┌───────┴───────┐
-                     │ PostgreSQL  │    │    Redis      │  │    MinIO      │
-                     │ (Primary)   │    │  (Optional)   │  │  (Optional)   │
-                     └─────────────┘    └───────────────┘  └───────────────┘
-```
+| Component | Responsibility |
+| --- | --- |
+| Web client | Opens Workshop and the Board, Doc, Sheet, and Slides editors. Sends authenticated commands and updates the editor from confirmed changes. |
+| API server | Checks Team, Project, and file access. Serves search, file endpoints, and board collaboration. |
+| PostgreSQL | Stores accounts, permissions, projects, file revisions, sync receipts, search data, and durable jobs. |
+| Redis | Caches sessions and relays collaboration notifications across API replicas. Clients can catch up from PostgreSQL if a notification is missed. |
+| SeaweedFS | Provides the default S3-compatible object store for private images and storage-backed files. Shiori checks access when serving them. |
+| Worker | Claims queued file jobs and Board Assistant runs. The optional Python Agent handles requests to configured model providers. |
+| Migrator | Updates the PostgreSQL schema before the API and worker start. |
 
-## Frontend Architecture
+## Follow an edit
 
-The frontend is a single-page React application built with Vite.
+1. The editor reads an authenticated snapshot. The browser stores pending commands for an open editor in IndexedDB.
+2. The API checks current edit permission and commits the document update, its change entry, and its command receipt in one PostgreSQL transaction.
+3. The WebSocket channel tells subscribed clients that a new sequence is available. A client reads missed committed changes over HTTP and applies them in order.
+4. The editor shows **Saved** after the write is confirmed. Retrying the same command reuses its receipt.
 
-### Key Components
+API replicas share PostgreSQL and Redis. A missed notification or reconnect uses the same committed change feed. See [Real-Time Collaboration](./collaboration.md) for the browser behavior and [Docker Deployment](./docker.md) for services and health checks.
 
-- **ShioriCanvas** - Main canvas component handling rendering, interaction, and tool management
-- **ElementStore** - Operation-log state management for canvas elements with vector clocks for ordering and dedup
-- **useCollaboration** - React hook bridging ElementStore with WebSocket for real-time sync
-- **WebSocketClient** - WebSocket connection with auto-reconnect and message queuing
+## Source layout
 
-### Data Flow
-
-1. User action (e.g., add sticky note)
-2. ElementStore creates operation with vector clock
-3. useCollaboration intercepts and broadcasts via WebSocket
-4. Remote clients receive operation and apply to their ElementStore
-5. React re-renders affected components
-
-## Backend Architecture
-
-The backend is structured following Go conventions with `internal/` packages.
-
-### Package Structure
-
-- **config** - Environment variable loading and validation
-- **db** - PostgreSQL connection pool and Redis client
-- **handler** - HTTP route handlers and WebSocket upgrade
-- **middleware** - Authentication middleware
-- **model** - Data models with database operations
-- **storage** - MinIO/S3 file storage
-- **ws** - WebSocket hub (room management) and client (message handling)
-
-### WebSocket Hub
-
-The hub manages connected clients and rooms:
-
-- Clients register/unregister on connect/disconnect
-- Room-based message broadcasting (only clients in the same room)
-- Redis pub/sub for multi-server broadcasting
-- Automatic cleanup of disconnected clients
-
-## Database Schema
-
-```sql
--- Users with bcrypt password hashing
-users (id UUID, email, password_hash, display_name, avatar_color, ...)
-
--- Session tokens with expiration
-sessions (token VARCHAR(64), user_id, expires_at, ...)
-
--- Rooms (boards) with JSONB board data
-rooms (id VARCHAR(36), name, owner_id, board_data JSONB, ...)
-
--- Board sharing and registered-user membership
-room_members (room_id, user_id, permission, ...)
-room_share_settings (room_id, link_permission, updated_by, ...)
-
--- Operation log for real-time sync (last-writer-wins with opId dedup)
-operations (id BIGSERIAL, room_id, user_id, op_id, op_type, payload JSONB, vector_clock JSONB, ...)
-```
-
-## Multi-Server Scaling
-
-With Redis enabled, Shiori supports horizontal scaling:
-
-1. Each server instance connects to the shared Redis pub/sub channel
-2. When a client sends an operation, the server broadcasts locally AND publishes to Redis
-3. Other server instances receive the pub/sub message and broadcast to their local clients
-4. All server instances share the same PostgreSQL database
+- `app/src/components/workshop` contains Workshop navigation, project actions, and team views. `app/src/components` also contains the four editors.
+- `app/src/lib/boardSync*` contains the shared command protocol, client queue, and synchronization code.
+- `server/internal/document` implements document commands, revisions, project sync, and archives. `server/internal/handler` exposes the HTTP and WebSocket endpoints.
+- `server/internal/boardfiles` and `server/internal/jobs` handle file work and the persistent queue. `agent` contains the optional model service.

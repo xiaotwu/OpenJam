@@ -1,72 +1,19 @@
 # Real-Time Collaboration
 
-Shiori uses WebSocket connections with an operation-log and last-writer-wins conflict resolution for real-time multi-user collaboration.
+Boards, Docs, Sheets, and Slides share a versioned command protocol. Access follows current file grants and Team and Project roles. A browser can show other people’s presence while those people have access to the file.
 
-## How It Works
+## Saving and sync
 
-### Connection Lifecycle
+1. The browser loads a snapshot and subscribes to `/ws/v2` with its session. The snapshot identifies the current document epoch and committed sequence.
+2. Edits enter the browser’s local queue and are submitted as commands. The server checks access and writes each accepted command and its receipt before acknowledging it.
+3. A socket message announces a new committed sequence. Browsers read the change feed to get the edits they missed. If a notification is delayed or lost, polling the feed still delivers the edits.
 
-1. User authenticates via REST API and receives a `wb_session` cookie (httpOnly) plus a bearer token
-2. Frontend opens a WebSocket connection authenticated via the cookie (same-origin) or query token (cross-origin dev)
-3. Client sends a `join` message with the room ID
-4. Server sends back a `sync` message with current state and online users
-5. Subsequent operations are broadcast in real time
+The **Saved** indicator means the server has confirmed the edit. If a connection drops, the open editor can keep eligible edits on the device and submit them after reconnection. Reopening a file requires a fresh authenticated snapshot. The server rechecks permission and the current document epoch before accepting queued writes.
 
-### Message Types
+## Concurrent edits and versions
 
-| Type | Direction | Purpose |
-|------|-----------|---------|
-| `join` | Client → Server | Join a room |
-| `leave` | Client → Server | Leave a room |
-| `op` | Bidirectional | Canvas operation (add, update, delete, move, etc.) |
-| `cursor` | Bidirectional | Cursor position update |
-| `sync` | Server → Client | Initial state sync on join |
-| `presence` | Server → Client | User join/leave notifications |
+Independent edits can be merged. If two people change the same protected value, such as the text of a Doc block or a spreadsheet cell, the editor shows the conflict and keeps the queued edit for review. You can download a draft or discard the conflicting edit and work from the current content.
 
-### Operations
+Use the file’s history to save a named version. Restoring a version starts a new document epoch. An open editor reloads the restored state, and edits queued against the previous epoch require review.
 
-Each operation includes:
-- **opId** - Unique operation identifier
-- **opType** - Operation type (add, update, delete, move, resize, reorder, lock, clear)
-- **elementId** - Target element ID
-- **vectorClock** - Causal ordering metadata
-- **userId** - Originating user
-- **timestamp** - Wall clock time
-
-### Vector Clocks
-
-Vector clocks ensure correct ordering of concurrent operations:
-
-- Each user maintains a counter in the vector clock
-- On each operation, the user increments their counter
-- When receiving remote operations, clocks are merged (max of each entry)
-- Concurrent operations (neither happens-before the other) are resolved by timestamp
-
-### Conflict Resolution
-
-For concurrent edits to the same element:
-
-1. Operations are ordered by vector clock, then timestamp as a tiebreaker
-2. Last-writer-wins for property updates (the later operation overwrites)
-3. Each operation is deduplicated by opId, so the same operation is never applied twice
-4. Board state is persisted as a full snapshot via auto-save; on save, an optimistic-lock check (based on `updated_at`) rejects stale overwrites and the client reloads the server's authoritative version to merge
-
-## Board Persistence
-
-The authoritative board state is the `board_data` JSONB column in the `rooms` table. The `operations` table logs incremental edits for real-time sync but is not the source of truth for persistence. On join, the client loads the snapshot via HTTP and receives the operation history via WebSocket `sync` to fill any gap since the last save.
-
-## Live Cursors
-
-Cursor positions are broadcast at up to 20fps (throttled) to show where collaborators are pointing. Stale cursors (no update for 10 seconds) are automatically removed.
-
-## Presence
-
-When users join or leave a room, presence messages are broadcast to all other clients. The status bar shows how many users are currently online.
-
-## Reconnection
-
-The WebSocket client automatically reconnects with exponential backoff:
-- Initial delay: 1 second
-- Backoff multiplier: 1.5x
-- Maximum attempts: 10
-- On reconnect, the client re-joins the room and receives a fresh sync
+The [API reference](../reference/api.md#document-sync) identifies the current HTTP endpoints. The [board sync contract](https://github.com/xiaotwu/Shiori/blob/main/contracts/board-sync.md) covers command shapes, receipts, and queue limits.

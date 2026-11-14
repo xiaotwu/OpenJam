@@ -1,8 +1,10 @@
-# Pilot acceptance for XW-151 and XW-152
+# Shiori pilot acceptance
 
 Use this runbook to qualify the actual pilot ingress and backup workflow before opening access to pilot users. The reference deployment uses a host proxy and Compose PostgreSQL, Redis and SeaweedFS. If the pilot uses managed PostgreSQL, MinIO or another S3 provider, keep the same ingress checks and run the storage provider's backup and restore procedure at a common recovery point. The default Compose backup command applies to the default stores.
 
-Start with the [pilot handoff](./pilot-handoff.md) to confirm the frozen candidate, required inputs and rollback point.
+Use the image, stores, and Compose files approved for the pilot. For a Shiori installation, start with the [published Compose release](https://github.com/xiaotwu/Shiori/releases/latest) and the [deployment guide](./docker.md).
+
+The pending [XW-151](https://linear.app/xiaotwu/issue/XW-151) and [XW-152](https://linear.app/xiaotwu/issue/XW-152) acceptance records refer to the frozen RC2 candidate. To finish that run, use the [RC2 handoff](./pilot-handoff.md) and [frozen checklist](https://github.com/xiaotwu/Shiori/blob/v1.0.0/docs/guide/pilot-acceptance.md) with the matching checkout. If the pilot switches to a Shiori release, record the new image and run the relevant checks against that deployment.
 
 Record the result of each gate as Pass, Fail, Pending or N/A with its UTC time, operator and evidence. Meetings can be N/A when the pilot leaves media disabled. Keep the pilot closed if a required gate fails, if a result is missing, or if the rollback point or account access is uncertain.
 
@@ -20,26 +22,26 @@ In the collaboration checks, A and B are the owner and editor browsers. In the r
 
 ## 1. Prepare the pilot
 
-Use the frozen RC2 handoff checkout for this checklist. Its image identifiers, `OPENJAM_*` variables, and template checksums describe that candidate. Continue to record the actual pilot evidence against the same locked runtime.
+Use a Shiori source checkout to access the example pilot templates. Use the Compose files and image digest for the version that will actually serve the pilot.
 
-- Record the Docker engine architecture, the matching RC2 application and store manifest digests, the source commit, Compose project and file paths, pilot origin and proxy, storage layout and bucket, backup window, replica ID, operator and on-call contact, and the empty restore target's name and port. Record whether Meetings is enabled.
+- Record the Docker engine architecture, the approved application and store manifest digests, the source commit, Compose project and file paths, pilot origin and proxy, storage layout and bucket, backup window, replica ID, operator and on-call contact, and the empty restore target's name and port. Record whether Meetings is enabled.
 - Prepare two separate browsers or profiles and two synthetic accounts. Give A ownership of a restricted Board in a Team Project. Invite B to the Team and grant B Editor on the Project. Use a small private PNG, a named version and a distinctive test edit. Keep B free of direct Board grants, share links or invitations that would preserve access after removal.
 - Keep a known-good proxy configuration and deployment configuration with the previous image and a verified pre-change recovery point. Save these separately from scheduled retention. Record the approved restore identity's retrieval procedure. Limit participant access at the edge until the acceptance run ends.
 - Provision an operator-owned recovery parent with mode `0700` on encrypted staging before the window. Use a private child directory if the staging mount root has broader permissions. Verify the parent is a real directory and reserve a new path for the decrypted point.
 
-Copy `scripts/pilot-acceptance/compose.env.example` to a protected file at mode `0600`. Set the approved image and deployment secrets, keep the backend port on loopback and set `CORS_ORIGINS` to the exact pilot HTTPS origin. The proxy port must match `OPENJAM_PUBLISH_PORT`. Configure `OPENJAM_TRUSTED_PROXIES` with the immediate address or narrow CIDR seen by the API if the deployment uses forwarded client addresses. Use the actual Docker gateway address when it is the immediate peer.
+Copy `scripts/pilot-acceptance/compose.env.example` to a protected file at mode `0600`. Set the approved image and deployment secrets, keep the backend port on loopback and set `CORS_ORIGINS` to the exact pilot HTTPS origin. The proxy port must match `SHIORI_PUBLISH_PORT`. Configure `SHIORI_TRUSTED_PROXIES` with the immediate address or narrow CIDR seen by the API if the deployment uses forwarded client addresses. Use the actual Docker gateway address when it is the immediate peer.
 
 For a host running Caddy, start with `scripts/pilot-acceptance/Caddyfile.example` and `Caddyfile.maintenance.example`. Replace the sample hostname in both and keep the same TLS settings. Use a certificate chain trusted by the actual clients. Keep `skip_install_trust` in the single global options block so Caddy leaves local trust stores alone. The serving config forwards paths, including the WebSocket routes, to the local app port. On a shared proxy, merge the pilot site block into the full configuration and preserve the other sites. Validate the full configuration and preserve its known-good copy. [Caddy HTTPS](https://caddyserver.com/docs/automatic-https) · [Caddy reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) · [Caddy global options](https://caddyserver.com/docs/caddyfile/options#skip_install_trust)
 
-In Bash from the approved checkout, fill these values before using the command blocks. The defaults for the systemd examples use the project `openjam`. Adjust both service instances if you choose another project or checkout.
+In Bash from the approved checkout, fill these values before using the command blocks. The examples use the project `shiori`. Adjust both service instances if you choose another project or checkout.
 
 ~~~bash
-pilot_project=openjam
-pilot_env=/etc/openjam/compose.env
+pilot_project=shiori
+pilot_env=/etc/shiori/compose.env
 pilot_host=pilot.example.test
 pilot_local=http://127.0.0.1:8080
 pilot_compose=(docker compose --project-name "$pilot_project" --env-file "$pilot_env")
-pilot_ops=(python3 -B scripts/openjam-ops.py --project "$pilot_project" --env-file "$pilot_env")
+pilot_ops=(python3 -B scripts/shiori-ops.py --project "$pilot_project" --env-file "$pilot_env")
 
 docker context show
 "${pilot_compose[@]}" config --quiet
@@ -49,7 +51,7 @@ docker context show
 Before the write hold, run this check on the recovery host as the account that will fetch the backup. On Linux, verify the recovery parent and the new destination with the following commands.
 
 ~~~bash
-restore_parent=/secure/recovery/openjam
+restore_parent=/secure/recovery/shiori
 restore_archive="$restore_parent/pilot-point"
 test -d "$restore_parent" && test ! -L "$restore_parent" &&
   test "$(stat -c '%a:%u' -- "$restore_parent")" = "700:$(id -u)" &&
@@ -60,7 +62,7 @@ For a new pilot instance, start the configured image with `"${pilot_compose[@]}"
 
 ~~~bash
 "${pilot_compose[@]}" ps --all
-python3 -B scripts/openjam-ops.py quick-check "$pilot_local"
+python3 -B scripts/shiori-ops.py quick-check "$pilot_local"
 "${pilot_ops[@]}" self-check --assets --timeout 5m
 docker inspect --format '{{.Image}}' "$("${pilot_compose[@]}" ps -q server)"
 ~~~
@@ -142,9 +144,9 @@ Save response codes, timestamps, receipt hashes and relevant `X-Request-ID` valu
 Prepare the replica directory, an encrypted local staging filesystem, the public recipients file, and the actual receiver in the [schedule templates and setup](./operations.md#run-backups-and-retention-unattended). Keep the decrypt identity on the recovery side. Verify the filesystem mount, a separate failure domain, free space and which identity can read, publish or prune. Use a scoped test point to check locking, atomic publication, sync, interruption and deletion protection on the actual provider. Establish the agreed UTC backup window and named on-call owner.
 
 ~~~bash
-pilot_replica=/mnt/openjam-replica/openjam
-pilot_stage=/var/lib/openjam-offsite/capture
-pilot_recipients=/etc/openjam/backup.recipients
+pilot_replica=/mnt/shiori-replica/shiori
+pilot_stage=/var/lib/shiori-offsite/capture
+pilot_recipients=/etc/shiori/backup.recipients
 
 df -h "$pilot_replica" "$pilot_stage"
 
@@ -166,23 +168,23 @@ pilot_store=(--replica "$pilot_replica" --repository-id "$pilot_replica_id")
 "${pilot_ops[@]}" offsite prune "${pilot_store[@]}"  # preview only
 ~~~
 
-On the pilot, install the selected scheduler configuration, observe two real backup windows and record both verified point IDs. On Linux, use `systemctl list-timers --all 'openjam-offsite@*'` and `journalctl -u openjam-offsite@backup.service -u openjam-offsite@retention.service --since today`. Check `schedule_backup_verified` and the daily `schedule_retention` result against the prune preview. Use a separate synthetic deployment and replica namespace for missed-window, receiver failure and expired-point tests on that host. Prove that restart publishes one catch-up point, that protected points remain, that retries preserve the alert ID, and that the actual duty recipient both receives and acknowledges the test. Record the receiver and acknowledgment times separately.
+On the pilot, install the selected scheduler configuration, observe two real backup windows and record both verified point IDs. On Linux, use `systemctl list-timers --all 'shiori-offsite@*'` and `journalctl -u shiori-offsite@backup.service -u shiori-offsite@retention.service --since today`. Check `schedule_backup_verified` and the daily `schedule_retention` result against the prune preview. Use a separate synthetic deployment and replica namespace for missed-window, receiver failure and expired-point tests on that host. Prove that restart publishes one catch-up point, that protected points remain, that retries preserve the alert ID, and that the actual duty recipient both receives and acknowledges the test. Record the receiver and acknowledgment times separately.
 
 ## 4. Restore from the replica and measure
 
 Start the UTC clock when the operator receives the drill signal, before retrieving the recovery key and archive or preparing the image. Select the latest verified point suitable for the drill using its independently recorded receipt hash. Record which test markers bracket that specific capture. If a later capture includes both markers, prepare a new pair around the point used for the drill. Prepare an empty target B with a new Compose project, fresh volumes and a different loopback port. Match the restored PostgreSQL major version, SeaweedFS image and bucket from the manifest and use the application image compatible with that schema.
 
-Fill the values on the recovery host. Prepare `restore.env` with the matching image and store settings and set `OPENJAM_PUBLISH_PORT=18081`. Use the **source** deployment and repository ID for `fetch`, then the **target** project for `restore`. Use the private recovery parent prepared in section 1. The restore tool requires an empty target.
+Fill the values on the recovery host. Prepare `restore.env` with the matching image and store settings and set `SHIORI_PUBLISH_PORT=18081`. Use the **source** deployment and repository ID for `fetch`, then the **target** project for `restore`. Use the private recovery parent prepared in section 1. The restore tool requires an empty target.
 
 ~~~bash
-restore_project=openjam-pilot-restore
-restore_env=/etc/openjam/restore.env
+restore_project=shiori-pilot-restore
+restore_env=/etc/shiori/restore.env
 restore_local=http://127.0.0.1:18081
-restore_identity=/secure/recovery/openjam.agekey
+restore_identity=/secure/recovery/shiori.agekey
 restore_point=REPLACE_WITH_POINT_ID
 restore_receipt=REPLACE_WITH_TRUSTED_RECEIPT_SHA256
 restore_compose=(docker compose --project-name "$restore_project" --env-file "$restore_env")
-restore_ops=(python3 -B scripts/openjam-ops.py --project "$restore_project" --env-file "$restore_env")
+restore_ops=(python3 -B scripts/shiori-ops.py --project "$restore_project" --env-file "$restore_env")
 
 [[ -n "$restore_project" && "$restore_project" != "$pilot_project" && "$restore_local" != "$pilot_local" ]] &&
 "${pilot_ops[@]}" offsite fetch "${pilot_store[@]}" "$restore_point" "$restore_archive" \
@@ -211,7 +213,7 @@ Start B with its edge restricted and run the checks.
 "${restore_compose[@]}" up --no-build --wait seaweedfs &&
 "${restore_compose[@]}" run --rm --no-deps server doctor --assets --timeout 5m &&
 "${restore_compose[@]}" up --no-build --wait &&
-python3 -B scripts/openjam-ops.py quick-check "$restore_local" &&
+python3 -B scripts/shiori-ops.py quick-check "$restore_local" &&
 "${restore_ops[@]}" self-check --assets --timeout 5m
 ~~~
 
@@ -224,7 +226,7 @@ For cutover, keep participant access restricted. Pause both deployments' schedul
 source_running=$("${pilot_compose[@]}" ps --status running --services server worker) &&
 target_running=$("${restore_compose[@]}" ps --status running --services server worker) &&
 [[ -z "$source_running" && $(sort <<< "$target_running") == $'server\nworker' ]] &&
-python3 -B scripts/openjam-ops.py quick-check "$restore_local"
+python3 -B scripts/shiori-ops.py quick-check "$restore_local"
 ~~~
 
 If B stays active under a different Compose project name, initialize a separate replica namespace and use B's new repository ID, capture directory and scheduler state. The replica marker is bound to its source deployment; B cannot publish to A's repository by copying A's settings. Preserve A's recovery points, and verify a first backup from B before enabling its scheduler. During a rehearsal keep both schedulers paused until the chosen writer is back.
@@ -253,8 +255,8 @@ PY
 
 ## 5. Roll back when a gate fails
 
-1. **Hold the edge and stop new changes.** Switch the pilot site to its prepared maintenance config. Validate and reload the full proxy config and confirm HTTPS `503` on `/readyz` from a client. Pause backup and retention timers on both deployments and check for in-flight jobs. On Linux with the templates, use `sudo systemctl stop openjam-offsite@backup.timer openjam-offsite@retention.timer`, then inspect the corresponding services and wait for any active capture to resume the source or follow the interrupted-job procedure. Stop the serving candidate's API and worker with the explicit Compose project and `stop --timeout 30 server worker`. Keep the database, object volumes, logs and receipts.
-2. **Choose the rollback branch.** For a proxy-only change, reload the saved serving proxy config after the previously verified backend passes its local check. If the application changed and the earlier schema and stores are still compatible, restore the saved image and environment, start the previous stack and run its checks. If a migration committed, prepare a fresh project and restore the verified pre-change backup with the previous image and matching stores using step 4. If that archive is already local, run `python3 -B scripts/openjam-ops.py verify-backup "$restore_archive"` and continue with the target commands. Keep all affected writers stopped while choosing the authoritative data.
+1. **Hold the edge and stop new changes.** Switch the pilot site to its prepared maintenance config. Validate and reload the full proxy config and confirm HTTPS `503` on `/readyz` from a client. Pause backup and retention timers on both deployments and check for in-flight jobs. On Linux with the templates, use `sudo systemctl stop shiori-offsite@backup.timer shiori-offsite@retention.timer`, then inspect the corresponding services and wait for any active capture to resume the source or follow the interrupted-job procedure. Stop the serving candidate's API and worker with the explicit Compose project and `stop --timeout 30 server worker`. Keep the database, object volumes, logs and receipts.
+2. **Choose the rollback branch.** For a proxy-only change, reload the saved serving proxy config after the previously verified backend passes its local check. If the application changed and the earlier schema and stores are still compatible, restore the saved image and environment, start the previous stack and run its checks. If a migration committed, prepare a fresh project and restore the verified pre-change backup with the previous image and matching stores using step 4. If that archive is already local, run `python3 -B scripts/shiori-ops.py verify-backup "$restore_archive"` and continue with the target commands. Keep all affected writers stopped while choosing the authoritative data.
 3. **Reconcile before reopening.** Preserve the stopped candidate's stores and logs. Compare its final accepted writes and permission changes with the chosen target's state. In a rehearsal with only one intentional write, record its file, element, value and revision; apply it through the selected writer's normal edit path after checking for conflicts, then read it back. Verify the chosen target still contains any pre-cutover source-only writes and enforces the final access policy. If changes are unknown or cannot be reconciled, keep maintenance enabled until the owner approves a recovery choice and any data gap. This drill's single test write does not establish an automatic merge for diverged instances.
 4. **Reopen with one writer.** While the failed candidate stays stopped, repeat the local health and asset checks for the selected target. Route the restricted edge back, verify fresh login, allowed write with readback and denied access. Recheck that the rejected writer is stopped, reopen pilot access after sign-off, and re-enable scheduling only for the selected deployment. Record the chosen point, reconciled changes or approved gap, timestamps and approver.
 

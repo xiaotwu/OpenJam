@@ -6,7 +6,7 @@ Deploy Shiori without Docker by building the frontend and backend manually.
 
 - Go 1.22+
 - Bun and Node.js for the frontend build. The Dockerfile records the versions used for Compose builds.
-- PostgreSQL 14+
+- PostgreSQL 16, as used by the Compose release
 - Redis (optional)
 - MinIO or S3-compatible storage (optional)
 
@@ -35,7 +35,7 @@ Create `/etc/systemd/system/shiori.service`:
 
 ```ini
 [Unit]
-Description=Shiori Whiteboard Server
+Description=Shiori Workspace API
 After=network.target postgresql.service
 
 [Service]
