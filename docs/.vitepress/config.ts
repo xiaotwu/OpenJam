@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
@@ -5,6 +6,11 @@ export default defineConfig({
   description: 'Self-hosted collaboration for boards, documents, spreadsheets, and presentations',
   base: '/Shiori/',
   ignoreDeadLinks: [/^http:\/\/localhost/],
+  vite: {
+    server: {
+      fs: { allow: [fileURLToPath(new URL('../../app/src/assets/home/', import.meta.url))] },
+    },
+  },
 
   head: [
     ['link', { rel: 'icon', href: '/Shiori/icons/favicon-light.png', media: '(prefers-color-scheme: light)' }],

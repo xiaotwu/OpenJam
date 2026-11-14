@@ -1,4 +1,5 @@
 import DefaultTheme from 'vitepress/theme';
+import Layout from './Layout.vue';
 import './shiori.css';
 
-export default DefaultTheme;
+export default { extends: DefaultTheme, Layout };
