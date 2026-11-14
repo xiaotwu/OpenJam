@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import boardsPreview from '../assets/home/boards.webp';
+import budget from '../assets/home/budget.webp';
 import docsPreview from '../assets/home/docs.webp';
 import present from '../assets/home/present.webp';
 import projectPreview from '../assets/home/project.webp';
@@ -31,7 +32,7 @@ interface DashboardProps {
 const features = [
   { id: 'boards', mascot: sketch, preview: boardsPreview },
   { id: 'docs', mascot: review, preview: docsPreview },
-  { id: 'sheets', mascot: review, preview: sheetsPreview },
+  { id: 'sheets', mascot: budget, preview: sheetsPreview },
   { id: 'slides', mascot: present, preview: slidesPreview },
 ] as const;
 
