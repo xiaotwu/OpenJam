@@ -8,8 +8,8 @@ Shiori implements session-based authentication with several security measures.
 2. Password is hashed with **bcrypt** (default cost)
 3. A 32-byte cryptographically random session token is generated
 4. Token is stored in PostgreSQL with an expiration (7 days)
-5. Token is returned to the client and stored in localStorage
-6. Subsequent requests include the token in the `Authorization: Bearer` header
+5. The server sets the `wb_session` cookie with `HttpOnly` and `SameSite=Lax`. HTTPS production deployments also set `Secure`.
+6. The web client also receives a token for authenticated API requests and stores it in localStorage.
 
 ## Session Management
 

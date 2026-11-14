@@ -253,10 +253,13 @@ Workshop endpoints use `/api/v2/workshop` and require authentication. Reads appl
 
 ## Health
 
-### GET `/health`
-Health check endpoint. Returns `{ "status": "ok" }`.
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /livez` | Reports that the API process is responding. |
+| `GET /startupz` | Reports that the API has opened its listener. |
+| `GET /readyz` | Reports PostgreSQL readiness and returns `503` if the database is unavailable or the API is draining. |
+| `GET /health` | Reports basic health and the `exportsEnabled` flag for storage initialization. |
 
 ## WebSocket
 
-### GET `/ws?token=<session_token>`
-Upgrade to WebSocket connection. See [Collaboration](/guide/collaboration) for message format.
+Use `/ws/v2` for current editors. See [Real-Time Collaboration](../guide/collaboration.md) for subscriptions and change notifications. The `/ws` endpoint serves legacy board clients.
