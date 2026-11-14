@@ -7,18 +7,6 @@ head:
   - - meta
     - property: og:image:alt
       content: The Product Launch project in Shiori Workshop
-hero:
-  name: Shiori
-  text: A self-hosted team workspace
-  tagline: Bring boards, docs, sheets, and slides together in one project.
-  actions:
-    - theme: brand
-      text: Get Started
-      link: /guide/getting-started
-    - theme: alt
-      text: Download
-      link: https://github.com/xiaotwu/Shiori/releases/latest
-
 features:
   - title: Real-Time Collaboration
     details: Edit boards, docs, sheets, and slides together, leave comments, and revisit saved versions.
@@ -29,5 +17,3 @@ features:
   - title: Self-Hosted
     details: Run Shiori on your infrastructure with Docker Compose. Back up or move projects and their private assets.
 ---
-
-![Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project](/images/shiori-workshop-preview.png)
