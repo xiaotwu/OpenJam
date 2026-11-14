@@ -62,7 +62,7 @@ export default function Drawing({
       ? getMarkerOptions(element.strokeWidth / 3)
       : getPenOptions(element.strokeWidth);
 
-    return getStrokePath(offsetPoints, options);
+    return getStrokePath(offsetPoints, { ...options, last: true });
   }, [element.points, element.strokeWidth, element.stroke, bounds]);
 
   if (element.points.length === 0) return null;
@@ -82,40 +82,19 @@ export default function Drawing({
       <svg
         width={bounds.width}
         height={bounds.height}
-        className="overflow-visible pointer-events-auto"
+        className="overflow-visible pointer-events-none"
         onClick={handleClick}
       >
-        {/* Selection highlight */}
-        {isSelected && pathD && (
-          <path
-            d={pathD}
-            fill="#3B82F6"
-            stroke="none"
-            opacity={0.15}
-          />
-        )}
-
         {/* Main path — filled shape from perfect-freehand */}
         <path
           d={pathD}
           fill={element.isEraser ? 'white' : element.stroke}
-          stroke="none"
+          stroke={isSelected ? '#3B82F6' : 'none'}
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="visiblePainted"
           style={element.isEraser ? { mixBlendMode: 'difference' } : undefined}
         />
-
-        {/* Selection bounding box */}
-        {isSelected && (
-          <rect
-            x={0}
-            y={0}
-            width={bounds.width}
-            height={bounds.height}
-            fill="none"
-            stroke="#3B82F6"
-            strokeWidth={1}
-            strokeDasharray="4 2"
-          />
-        )}
       </svg>
     </div>
   );

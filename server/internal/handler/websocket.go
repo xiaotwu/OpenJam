@@ -4,11 +4,13 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/ws"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/ws"
 )
 
 // allowedOrigins is set by InitWebSocket from the config's CorsOrigins.
@@ -24,7 +26,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
-		if origin == "" {
+		if origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host {
 			return true
 		}
 		for _, allowed := range allowedOrigins {
@@ -36,10 +38,15 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// TODO: Add per-IP rate limiting to WebSocket connections to prevent abuse.
-
 func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
-	token := c.Query("token")
+	// Legacy clients can also use the old token query parameter.
+	token := ""
+	if cookie, err := c.Cookie(middleware.SessionCookieName); err == nil && cookie != "" {
+		token = cookie
+	}
+	if token == "" {
+		token = c.Query("token")
+	}
 	if token == "" {
 		auth := c.GetHeader("Authorization")
 		if strings.HasPrefix(auth, "Bearer ") {
@@ -64,14 +71,48 @@ func HandleWebSocket(hub *ws.Hub, c *gin.Context) {
 		return
 	}
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	upgradeWebSocket(hub, c, upgrader, user, "")
+}
+
+func HandleDocumentWebSocket(hub *ws.Hub, c *gin.Context) {
+	user, session := middleware.GetUser(c), middleware.GetSession(c)
+	if user == nil || session == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
+		return
+	}
+	socketUpgrader := upgrader
+	socketUpgrader.HandshakeTimeout = 3 * time.Second
+	socketUpgrader.CheckOrigin = func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host {
+			return true
+		}
+		for _, allowed := range allowedOrigins {
+			if allowed == origin {
+				return true
+			}
+		}
+		return false
+	}
+	upgradeWebSocket(hub, c, socketUpgrader, user, session.Token)
+}
+
+func upgradeWebSocket(hub *ws.Hub, c *gin.Context, socketUpgrader websocket.Upgrader, user *model.User, documentToken string) {
+	conn, err := socketUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
 
 	client := ws.NewClient(hub, conn, user)
-	hub.Register(client)
+	if documentToken != "" {
+		client.UseDocumentProtocol(documentToken)
+	}
+	if !hub.Register(client) {
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseServiceRestart, "Shiori is restarting"), time.Now().Add(time.Second))
+		_ = conn.Close()
+		return
+	}
 
 	go client.WritePump()
 	go client.ReadPump()

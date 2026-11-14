@@ -1,9 +1,8 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-ui, system-ui, sans-serif);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -34,12 +33,6 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
-}
-
-/* Button focus styles */
-button:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
 }
 
 /* Animations */
@@ -91,7 +84,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 16px;
   height: 16px;
-  background: #6366f1;
+  background: var(--focus-ring);
   border-radius: 50%;
   margin-top: -5px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -115,7 +108,7 @@ input[type="range"]::-moz-range-track {
 input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: #6366f1;
+  background: var(--focus-ring);
   border-radius: 50%;
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -158,7 +151,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 4px 8px;
   background: #1f2937;
   color: white;
-  font-size: 12px;
+  font-size: 0.857rem;
   font-weight: 500;
   border-radius: 4px;
   white-space: nowrap;
@@ -169,4 +162,426 @@ input[type="color"]::-webkit-color-swatch {
 
 [data-tooltip]:hover::after {
   opacity: 1;
+}
+
+:root {
+  --shell-control-size: 44px;
+  --shell-outline: var(--glass-border-strong);
+  --shell-hover: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
+.shell-island,
+.shell-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--shell-control-size);
+  border: 1px solid var(--shell-outline);
+  border-radius: 999px;
+  background: var(--surface-float);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 550;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.shell-island {
+  padding: 3px;
+  box-shadow: 0 2px 9px rgb(0 0 0 / 7%);
+  backdrop-filter: blur(16px);
+}
+
+.shell-pill {
+  padding: 0 16px;
+}
+
+.shell-pill:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--text-primary));
+}
+
+.shell-pill-primary,
+.shell-pill-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--text-primary);
+  color: var(--surface-canvas);
+}
+
+.shell-pill-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.shell-pill:disabled {
+  opacity: 0.55;
+}
+
+.shell-icon-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-secondary);
+}
+
+.shell-icon-button:hover,
+.shell-icon-button[aria-expanded='true'] {
+  background: var(--shell-hover);
+  color: var(--text-primary);
+}
+
+.shell-island svg,
+.shell-pill svg,
+.shell-icon-button svg,
+.shell-popover svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+}
+
+.shell-island:focus-visible,
+.shell-pill:focus-visible,
+.shell-icon-button:focus-visible,
+.shell-popover :is(button, input):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.shell-popover {
+  border: 1px solid var(--shell-outline);
+  border-radius: 20px;
+  background: var(--surface-float);
+  color: var(--text-primary);
+  box-shadow: var(--glass-shadow-lg);
+  backdrop-filter: blur(22px) saturate(1.12);
+}
+
+.shell-account {
+  position: relative;
+  display: inline-flex;
+}
+
+.shell-account-expanded,
+.shell-account-expanded .shell-account-trigger {
+  width: 100%;
+  min-width: 0;
+}
+
+.shell-account-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-control-size);
+  height: var(--shell-control-size);
+  color: var(--text-secondary);
+}
+
+.shell-account-avatar-trigger {
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+}
+
+.shell-account-avatar-trigger .shell-avatar {
+  width: 100%;
+  height: 100%;
+  flex-basis: 100%;
+}
+
+.shell-account-avatar-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.shell-account-expanded .shell-account-trigger {
+  justify-content: flex-start;
+  gap: 8px;
+  padding-inline: 5px 11px;
+}
+
+.shell-account-trigger:is(:hover, [aria-expanded='true']) {
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--text-primary));
+  color: var(--text-primary);
+}
+
+.shell-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-panel));
+  color: var(--text-primary);
+  font-size: 0.929rem;
+  font-weight: 650;
+}
+
+.shell-account-name {
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-account-popover {
+  position: absolute;
+  z-index: 24;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(300px, calc(100vw - 28px));
+  padding: 7px;
+  animation: slideUp 130ms ease-out;
+}
+
+.shell-account[data-side='above'] .shell-account-popover {
+  inset: auto auto calc(100% + 8px) 0;
+}
+
+.shell-account-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px 11px;
+  border-bottom: 1px solid var(--shell-outline);
+}
+
+.shell-account-identity > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.shell-account-identity > div > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-account-identity strong {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.shell-account-identity div span,
+.shell-theme-section > p {
+  color: var(--text-secondary);
+  font-size: 0.857rem;
+}
+
+.shell-theme-section {
+  padding: 9px 5px 5px;
+}
+
+.shell-theme-section > p {
+  margin: 0 0 7px 4px;
+  font-weight: 550;
+}
+
+.shell-theme-options,
+.shell-auth-modes {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--shell-outline);
+  border-radius: 999px;
+  background: var(--shell-hover);
+}
+
+.shell-theme-options button,
+.shell-auth-modes button {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.857rem;
+  font-weight: 550;
+}
+
+.shell-theme-options button:hover,
+.shell-auth-modes button:hover {
+  color: var(--text-primary);
+}
+
+.shell-theme-options button[aria-pressed='true'],
+.shell-auth-modes button[aria-pressed='true'] {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
+}
+
+.shell-appearance-options {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 3px;
+}
+
+.shell-appearance-options label {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.shell-appearance-options select {
+  min-width: 90px;
+  min-height: 31px;
+  padding: 3px 6px;
+  border: 1px solid var(--shell-outline);
+  border-radius: var(--control-radius);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+.shell-appearance-options select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.shell-account-signout {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  padding-inline: 9px;
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 0.929rem;
+  text-align: left;
+}
+
+.shell-account-signout:hover:not(:disabled) {
+  background: var(--shell-hover);
+}
+
+.shell-account-error {
+  margin: 7px 5px;
+  padding: 8px;
+  border-radius: 9px;
+  background: color-mix(in srgb, #dc4b45 15%, var(--surface-panel));
+  color: var(--text-primary);
+  font-size: 0.929rem;
+  overflow-wrap: anywhere;
+}
+
+.shell-profile-form {
+  display: grid;
+  gap: 7px;
+  padding: 10px 6px 5px;
+  font-size: 0.929rem;
+}
+
+.shell-profile-form > input,
+.shell-auth-form input {
+  width: 100%;
+  min-height: 40px;
+  padding-inline: 10px;
+  border: 1px solid var(--shell-outline);
+  border-radius: 11px;
+  background: var(--shell-hover);
+  color: var(--text-primary);
+}
+
+.shell-profile-color,
+.shell-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.shell-profile-color input {
+  width: 37px;
+  height: 28px;
+}
+
+.shell-profile-actions {
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.shell-profile-actions .shell-pill {
+  min-height: 36px;
+  padding-inline: 10px;
+  font-size: 0.857rem;
+}
+
+.home-auth-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(420px, calc(100% - 28px));
+  max-height: calc(100% - 28px);
+  margin: auto;
+  padding: 20px;
+  overflow: auto;
+}
+
+.home-auth-dialog::backdrop {
+  background: var(--surface-overlay);
+  backdrop-filter: blur(5px);
+}
+
+.home-auth-close {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+}
+
+.shell-auth-page {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: 16px;
+}
+
+.shell-auth-page .shell-popover {
+  width: min(100%, 420px);
+  padding: 20px;
+}
+
+.shell-auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 15px;
+  font-size: 1.286rem;
+}
+
+.shell-auth-form form {
+  display: grid;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.shell-auth-form form label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 0.929rem;
+  font-weight: 500;
+}
+
+.shell-auth-form form .shell-pill {
+  width: 100%;
+  margin-top: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-account-popover {
+    animation: none;
+  }
 }

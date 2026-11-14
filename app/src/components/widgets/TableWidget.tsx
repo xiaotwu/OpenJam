@@ -1,157 +1,150 @@
-// Table Widget - Interactive grid-based data table
-import { useState, useCallback } from 'react';
-
-interface TableCell {
-  id: string;
-  content: string;
-  backgroundColor?: string;
-  rowSpan?: number;
-  colSpan?: number;
-}
+import { useMemo, useState } from 'react';
+import {
+  insertTableColumn, insertTableRow, MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, normalizeTable,
+  removeTableColumn, removeTableRow, updateTableCell, type TableData, type WidgetData,
+} from '../../lib/workshopWidgets';
+import WidgetTextInput, { type EditDirection } from './WidgetTextInput';
 
 interface TableWidgetProps {
-  id: string;
   x: number;
   y: number;
-  rows: number;
-  cols: number;
-  cells: TableCell[][];
-  onUpdate: (data: Partial<TableWidgetProps>) => void;
+  data: WidgetData;
+  editable: boolean;
+  onUpdate: (data: TableData, expected?: WidgetData) => void;
   onDelete: () => void;
   isSelected: boolean;
   onSelect: () => void;
 }
 
-export default function TableWidget({
-  x, y, rows, cols, cells, onUpdate, onDelete, isSelected, onSelect,
-}: TableWidgetProps) {
-  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number } | null>(null);
+interface EditingCell {
+  id: string;
+  value: string;
+  data: WidgetData;
+  table: TableData;
+}
 
-  const handleCellChange = useCallback((row: number, col: number, content: string) => {
-    const newCells = cells.map((r, ri) => r.map((c, ci) => ri === row && ci === col ? { ...c, content } : c));
-    onUpdate({ cells: newCells });
-  }, [cells, onUpdate]);
+const CELL_COLORS = [
+  ['White', '#ffffff'], ['Yellow', '#FEF3C7'], ['Green', '#DCFCE7'],
+  ['Blue', '#DBEAFE'], ['Purple', '#F3E8FF'], ['Pink', '#FCE7F3'],
+] as const;
+const actionClass = 'rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40';
 
-  const addRow = useCallback((afterIndex: number) => {
-    const newRow = Array(cols).fill(null).map((_, i) => ({ id: `cell-${Date.now()}-${i}`, content: '' }));
-    const newCells = [...cells.slice(0, afterIndex + 1), newRow, ...cells.slice(afterIndex + 1)];
-    onUpdate({ cells: newCells, rows: rows + 1 });
-    setContextMenu(null);
-  }, [cells, cols, rows, onUpdate]);
+export default function TableWidget({ x, y, data, editable, onUpdate, onDelete, isSelected, onSelect }: TableWidgetProps) {
+  const table = useMemo(() => normalizeTable(data), [data]);
+  const [editing, setEditing] = useState<EditingCell | null>(null);
+  const [focusedCell, setFocusedCell] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, row: number, col: number) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const nextCol = col + 1;
-      if (nextCol < cols) {
-        setEditingCell({ row, col: nextCol });
-      } else if (row + 1 < rows) {
-        setEditingCell({ row: row + 1, col: 0 });
-      }
-    } else if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (row + 1 < rows) {
-        setEditingCell({ row: row + 1, col });
-      } else {
-        addRow(rows);
-        setTimeout(() => setEditingCell({ row: rows, col }), 0);
-      }
+  const menuRow = table.cells.findIndex(row => row.some(cell => cell.id === focusedCell));
+  const row = Math.max(0, menuRow);
+  const col = Math.max(0, table.cells[row].findIndex(cell => cell.id === focusedCell));
+
+  function changeStructure(next: TableData) {
+    if (next !== table) onUpdate(next);
+    setMenuOpen(false);
+  }
+
+  function neighbor(ri: number, ci: number, direction?: EditDirection) {
+    if (direction === 'down') return table.cells[ri + 1]?.[ci];
+    if (direction === 'next') return table.cells[ri][ci + 1] ?? table.cells[ri + 1]?.[0];
+    if (direction === 'previous') return table.cells[ri][ci - 1] ?? table.cells[ri - 1]?.[table.cols - 1];
+  }
+
+  function commitCell(entry: EditingCell, value: string, ri: number, ci: number, direction?: EditDirection) {
+    if (value !== entry.value) {
+      const latestCell = table.cells[ri][ci];
+      const unchanged = latestCell.id === entry.id && latestCell.content === entry.value;
+      onUpdate(updateTableCell(unchanged ? table : entry.table, entry.id, { content: value }), unchanged ? undefined : entry.data);
     }
-  }, [cols, rows, addRow]);
-
-  const addColumn = useCallback((afterIndex: number) => {
-    const newCells = cells.map((row) => [
-      ...row.slice(0, afterIndex + 1),
-      { id: `cell-${Date.now()}-${Math.random()}`, content: '' },
-      ...row.slice(afterIndex + 1),
-    ]);
-    onUpdate({ cells: newCells, cols: cols + 1 });
-    setContextMenu(null);
-  }, [cells, cols, onUpdate]);
-
-  const deleteRow = useCallback((index: number) => {
-    if (rows <= 1) return;
-    const newCells = cells.filter((_, i) => i !== index);
-    onUpdate({ cells: newCells, rows: rows - 1 });
-    setContextMenu(null);
-  }, [cells, rows, onUpdate]);
-
-  const deleteColumn = useCallback((index: number) => {
-    if (cols <= 1) return;
-    const newCells = cells.map((row) => row.filter((_, i) => i !== index));
-    onUpdate({ cells: newCells, cols: cols - 1 });
-    setContextMenu(null);
-  }, [cells, cols, onUpdate]);
-
-  const setCellColor = useCallback((row: number, col: number, color: string) => {
-    const newCells = cells.map((r, ri) => r.map((c, ci) => ri === row && ci === col ? { ...c, backgroundColor: color } : c));
-    onUpdate({ cells: newCells });
-    setContextMenu(null);
-  }, [cells, onUpdate]);
+    const next = neighbor(ri, ci, direction);
+    setEditing(next ? { id: next.id, value: next.content, table, data } : null);
+    if (next) setFocusedCell(next.id);
+  }
 
   return (
-    <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="table">
-      <div className={`bg-white rounded-lg shadow-lg border-2 ${isSelected ? 'border-blue-500' : 'border-gray-200'}`}>
-        <table className="border-collapse">
+    <div className="absolute text-gray-900" style={{ left: x, top: y }} onClick={onSelect} data-widget="table">
+      <div className={`rounded-lg border-2 canvas-widget-surface shadow-lg ${isSelected ? 'border-blue-500' : 'border-gray-200'}`}>
+        <table aria-label="Workshop table" className="border-collapse">
           <tbody>
-            {cells.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, colIndex) => (
-                  <td key={cell.id} className="border border-gray-200 min-w-[80px] min-h-[32px] p-0"
+            {table.cells.map((cells, ri) => (
+              <tr key={table.rowIds[ri]}>
+                {cells.map((cell, ci) => (
+                  <td
+                    key={cell.id}
+                    className="min-w-[80px] max-w-[320px] border border-gray-200 p-0"
                     style={{ backgroundColor: cell.backgroundColor || 'white' }}
-                    onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: rowIndex, col: colIndex }); }}>
-                    {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
-                      <input type="text" value={cell.content} autoFocus
-                        onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
-                        onBlur={() => setEditingCell(null)}
-                        onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
-                        className="w-full h-full px-2 py-1 text-sm outline-none bg-transparent" />
-                    ) : (
-                      <div className="px-2 py-1 text-sm min-h-[28px] cursor-text"
-                        onClick={() => setEditingCell({ row: rowIndex, col: colIndex })}>
-                        {cell.content || '\u00A0'}
-                      </div>
-                    )}
+                    onContextMenu={event => {
+                      if (!editable) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onSelect();
+                      setFocusedCell(cell.id);
+                      setMenuOpen(true);
+                    }}
+                  >
+                    {editable && editing?.id === cell.id ? (
+                      <WidgetTextInput
+                        label={`Edit row ${ri + 1}, column ${ci + 1}`}
+                        value={editing.value}
+                        maxLength={2000}
+                        className="h-8 w-full bg-transparent px-2 text-sm outline-2 outline-blue-500"
+                        canTraverse={direction => Boolean(neighbor(ri, ci, direction))}
+                        onCommit={(value, direction) => commitCell(editing, value, ri, ci, direction)}
+                        onCancel={() => setEditing(null)}
+                      />
+                    ) : editable ? (
+                      <button
+                        type="button"
+                        aria-label={`Row ${ri + 1}, column ${ci + 1}${cell.content ? `, ${cell.content}` : ''}`}
+                        className="min-h-8 w-full cursor-text whitespace-pre-wrap break-words px-2 py-1 text-left text-sm focus-visible:outline-2 focus-visible:outline-blue-500"
+                        onFocus={() => setFocusedCell(cell.id)}
+                        onClick={() => {
+                          setFocusedCell(cell.id);
+                          setEditing({ id: cell.id, value: cell.content, table, data });
+                          setMenuOpen(false);
+                        }}
+                      >{cell.content || '\u00A0'}</button>
+                    ) : <div className="min-h-8 whitespace-pre-wrap break-words px-2 py-1 text-sm">{cell.content || '\u00A0'}</div>}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
+        {editable && isSelected && (
+          <div className="flex flex-wrap items-center gap-1 px-2 py-1.5">
+            <button type="button" className={actionClass} disabled={table.rows >= MAX_TABLE_ROWS} onClick={() => changeStructure(insertTableRow(table, table.rows))}>Add row</button>
+            <button type="button" className={actionClass} disabled={table.cols >= MAX_TABLE_COLUMNS} onClick={() => changeStructure(insertTableColumn(table, table.cols))}>Add column</button>
+            <button type="button" className={actionClass} aria-expanded={menuOpen} onClick={() => setMenuOpen(value => !value)}>Cell actions</button>
+          </div>
+        )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
-        <div className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <button onClick={() => addRow(contextMenu.row - 1)} className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100">Add row above</button>
-          <button onClick={() => addRow(contextMenu.row)} className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100">Add row below</button>
-          <button onClick={() => addColumn(contextMenu.col - 1)} className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100">Add column left</button>
-          <button onClick={() => addColumn(contextMenu.col)} className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100">Add column right</button>
-          <div className="border-t border-gray-100 my-1" />
-          <button onClick={() => deleteRow(contextMenu.row)} className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100 text-red-600">Delete row</button>
-          <button onClick={() => deleteColumn(contextMenu.col)} className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100 text-red-600">Delete column</button>
-          <div className="border-t border-gray-100 my-1" />
-          <div className="px-3 py-1.5 text-xs text-gray-500">Cell color</div>
-          <div className="px-3 py-1 flex gap-1">
-            {['#ffffff', '#FEF3C7', '#DCFCE7', '#DBEAFE', '#F3E8FF', '#FCE7F3'].map((color) => (
-              <button key={color} onClick={() => setCellColor(contextMenu.row, contextMenu.col, color)}
-                className="w-5 h-5 rounded border border-gray-300" style={{ backgroundColor: color }} />
+      {editable && isSelected && menuOpen && (
+        <div aria-label="Table cell actions" className="absolute left-0 top-full z-50 mt-1 w-48 rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
+          onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setMenuOpen(false); } }}>
+          <div className="mb-1 px-1 text-xs text-gray-500">Row {row + 1}, column {col + 1}</div>
+          <div className="grid grid-cols-1 gap-1">
+            <button type="button" className={actionClass} disabled={table.rows >= MAX_TABLE_ROWS} onClick={() => changeStructure(insertTableRow(table, row))}>Add row above</button>
+            <button type="button" className={actionClass} disabled={table.rows >= MAX_TABLE_ROWS} onClick={() => changeStructure(insertTableRow(table, row + 1))}>Add row below</button>
+            <button type="button" className={actionClass} disabled={table.cols >= MAX_TABLE_COLUMNS} onClick={() => changeStructure(insertTableColumn(table, col))}>Add column left</button>
+            <button type="button" className={actionClass} disabled={table.cols >= MAX_TABLE_COLUMNS} onClick={() => changeStructure(insertTableColumn(table, col + 1))}>Add column right</button>
+            <button type="button" className={actionClass} disabled={table.rows <= 1} onClick={() => changeStructure(removeTableRow(table, row))}>Delete row</button>
+            <button type="button" className={actionClass} disabled={table.cols <= 1} onClick={() => changeStructure(removeTableColumn(table, col))}>Delete column</button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5 px-1">
+            {CELL_COLORS.map(([label, color]) => (
+              <button key={color} type="button" aria-label={`Set cell color to ${label.toLowerCase()}`}
+                onClick={() => changeStructure(updateTableCell(table, table.cells[row][col].id, { backgroundColor: color }))}
+                className="h-5 w-5 rounded border border-gray-300" style={{ backgroundColor: color }} />
             ))}
           </div>
         </div>
       )}
-
-      {/* Delete button */}
-      {isSelected && (
-        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+      {editable && isSelected && (
+        <button type="button" aria-label="Delete table" onClick={event => { event.stopPropagation(); onDelete(); }}
+          className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-red-600 text-xs text-white hover:bg-red-700">✕</button>
       )}
     </div>
   );
 }
-
-

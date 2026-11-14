@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/db"
+	"github.com/xiaotwu/shiori/server/internal/db"
 )
 
 type OpType string

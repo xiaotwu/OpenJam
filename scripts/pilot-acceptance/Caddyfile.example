@@ -1,0 +1,9 @@
+# Replace the hostname with the pilot's HTTPS origin host.
+# This example runs Caddy on the Compose host and uses automatic HTTPS.
+{
+	skip_install_trust
+}
+
+pilot.example.test {
+	reverse_proxy 127.0.0.1:8080
+}

@@ -1,3 +1,4 @@
+import { useBoardFont } from '../../lib/boardFonts';
 // Sticky Note Component
 import { useState, useRef, useEffect } from 'react';
 import type { StickyElement, StickyColor } from '../../lib/elements';
@@ -11,7 +12,7 @@ interface StickyNoteProps {
   onSelect: (id: string, addToSelection: boolean) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: () => void;
-  onUpdate: (id: string, changes: Partial<StickyElement>) => void;
+  onUpdate: (id: string, changes: Partial<StickyElement>, expected?: Record<string, unknown>) => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, width: number, height: number) => void;
 }
@@ -31,22 +32,24 @@ export default function StickyNote({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onResize: _onResize,
 }: StickyNoteProps) {
+  const fontFamily = useBoardFont(element.fontFamily);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const originalText = useRef<string | null>(null);
   const [localText, setLocalText] = useState(element.text);
-  const colors = STICKY_COLORS[element.color];
+  const colors = STICKY_COLORS[element.color] ?? STICKY_COLORS.yellow;
+  const borderRadius = element.stickyShape === 'circle' ? '50%' : element.stickyShape === 'rounded' ? 18 : 2;
 
-  // Focus textarea when editing starts
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.select();
+    if (!isEditing) {
+      originalText.current = null;
+      setLocalText(element.text);
+    } else if (originalText.current === null) {
+      originalText.current = element.text;
+      setLocalText(element.text);
+      textareaRef.current?.focus({ preventScroll: true });
+      textareaRef.current?.select();
     }
-  }, [isEditing]);
-
-  // Sync local text with element
-  useEffect(() => {
-    setLocalText(element.text);
-  }, [element.text]);
+  }, [isEditing, element.text]);
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -65,14 +68,22 @@ export default function StickyNote({
   };
 
   const handleTextBlur = () => {
-    if (localText !== element.text) {
-      onUpdate(element.id, { text: localText });
+    const expected = originalText.current;
+    originalText.current = null;
+    if (expected !== null && localText !== expected) {
+      onUpdate(element.id, { text: localText }, { text: expected });
     }
     onEndEdit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      textareaRef.current?.blur();
+    }
     if (e.key === 'Escape') {
+      originalText.current = null;
       setLocalText(element.text);
       onEndEdit();
     }
@@ -95,22 +106,24 @@ export default function StickyNote({
     >
       {/* Sticky note body */}
       <div
-        className="w-full h-full rounded-sm shadow-md transition-shadow duration-150"
+        className="w-full h-full shadow-md transition-shadow duration-150"
         style={{
+          borderRadius,
+          overflow: 'hidden',
           backgroundColor: colors.bg,
-          boxShadow: isSelected 
-            ? '0 0 0 2px #3B82F6, 0 4px 12px rgba(0,0,0,0.15)' 
+          boxShadow: isSelected
+            ? '0 0 0 2px #3B82F6, 0 4px 12px rgba(0,0,0,0.15)'
             : '0 2px 8px rgba(0,0,0,0.1)',
         }}
       >
         {/* Folded corner effect */}
-        <div
+        {element.stickyShape !== 'circle' && <div
           className="absolute top-0 right-0 w-6 h-6"
           style={{
             background: `linear-gradient(135deg, transparent 50%, ${colors.bg} 50%)`,
             filter: 'brightness(0.9)',
           }}
-        />
+        />}
 
         {/* Text content */}
         {isEditing ? (
@@ -123,9 +136,10 @@ export default function StickyNote({
             className="w-full h-full p-3 bg-transparent border-none outline-none resize-none"
             style={{
               color: colors.text,
+              fontFamily,
               fontSize: element.fontSize,
               textAlign: element.textAlign,
-              fontFamily: 'inherit',
+
             }}
             placeholder="Type here..."
           />
@@ -134,6 +148,7 @@ export default function StickyNote({
             className="w-full h-full p-3 overflow-hidden"
             style={{
               color: colors.text,
+              fontFamily,
               fontSize: element.fontSize,
               textAlign: element.textAlign,
               wordBreak: 'break-word',
@@ -146,17 +161,6 @@ export default function StickyNote({
           </div>
         )}
       </div>
-
-      {/* Resize handle */}
-      {isSelected && !element.locked && (
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-          style={{
-            background: '#3B82F6',
-            borderRadius: '0 0 4px 0',
-          }}
-        />
-      )}
 
       {/* Lock indicator */}
       {element.locked && (

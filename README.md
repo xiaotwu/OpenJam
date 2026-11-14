@@ -1,189 +1,62 @@
 <div align="center">
-  <img src="app/public/icons/openjam.png" alt="OpenJam" width="128" height="128">
-  <h1>OpenJam</h1>
-  <p><strong>A collaborative whiteboard for teams</strong></p>
-
+  <img src="app/public/icons/apple-touch.png" alt="" width="96" height="96">
+  <h1>Shiori</h1>
+  <p><strong>A self-hosted workspace for teams that plan, write, and work together.</strong></p>
   <p>
-    <a href="#features">Features</a> •
-    <a href="#quick-start">Quick Start</a> •
-    <a href="#development">Development</a> •
-    <a href="#deployment">Deployment</a> •
-    <a href="#contributing">Contributing</a>
+    <a href="#get-started">Get Started</a> ·
+    <a href="docs/guide/getting-started.md">User Guide</a> ·
+    <a href="docs/guide/docker.md">Deploy</a> ·
+    <a href="https://github.com/xiaotwu/Shiori/issues">Report an Issue</a>
   </p>
-
-  <!-- Add badges here when available -->
-  <!-- ![License](https://img.shields.io/github/license/your-username/openjam) -->
-  <!-- ![Stars](https://img.shields.io/github/stars/your-username/openjam) -->
 </div>
 
----
+Shiori brings boards, documents, spreadsheets, and presentations into team-owned Projects. A team can sketch a plan on a board, write the brief, track the budget, and present a decision from the same workspace. Search and file relationships respect the access each person has.
 
-## Features
+<img align="left" src="docs/public/images/shiori-character.png" alt="Shiori in a gray draped jacket, with pink-violet hair and three hairclips" width="144">
 
-- 🎨 **Real-time Collaboration** - Work together on the same canvas with your team
-- 🖼️ **Rich Drawing Tools** - Shapes, freehand drawing, text, and more
-- 💾 **Auto-save** - Never lose your work
-- 🔒 **Secure** - Session-based authentication
-- 📤 **Export** - Save your boards as images
-- 🐳 **Docker Ready** - One-command deployment
+Shiori’s mascot welcomes teams to the workspace and appears beside the feature previews.
 
-## Quick Start
+<br clear="left">
 
-The fastest way to run OpenJam:
+![A Team Project in Shiori with a board, document, spreadsheet, and presentation](docs/public/images/workshop-preview.png)
 
-```bash
-git clone https://github.com/xiaotwu/openjam.git
-cd openjam
-docker compose up --build -d
-```
+## Workspace
 
-Open `http://localhost:8080` in your browser.
+- **Teams and Projects.** Give each project a home and grant access by role. Personal Projects stay under your account. Team Projects and their history stay with the team when a member leaves.
+- **Work together in real time.** Collaborate on boards, write in Docs, edit cells in Sheets, and build decks in Slides. Use comments, private attachments, and named versions to review work and recover earlier content.
+- **Find the source.** Search projects, people, file names, and content. Jump to the matching board object, document block, sheet cell, or slide. Team Overview shows relationships between accessible files.
+- **Keep work in view.** Inbox brings team conversations, mentions, and upcoming items together. Calendar and Recents let you return to scheduled work and the files you opened.
+- **Keep your data portable.** Bring in Markdown, DOCX, CSV, XLSX, and PPTX. Export supported formats or move an entire Project with its files, saved versions, and private images. [Format coverage](docs/guide/getting-started.md#docs) · [Project archives](docs/guide/project-archive.md)
+- **Run it on your own infrastructure.** Docker Compose provisions the application, PostgreSQL, Redis, and SeaweedFS. Core collaboration, search, and file conversion run locally. [Deployment guide](docs/guide/docker.md)
 
-## Prerequisites
+## Get Started
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose (for containerized deployment)
-- [Go](https://golang.org/dl/) 1.22+ (for backend development)
-- [Bun](https://bun.sh/) or [Node.js](https://nodejs.org/) 20+ (for frontend development)
+For a local evaluation, install Docker with Compose and run this from the repository checkout.
 
-## Development
+~~~sh
+docker compose up --build --wait
+~~~
 
-### 1. Start Services
+Open [localhost:8080](http://localhost:8080), create an account, and make a personal Project or a Team. Choose **New** inside a project to create a Board, Doc, Sheet, or Slide deck.
 
-```bash
-# Start PostgreSQL, Redis, and MinIO
-docker compose -f docker-compose.dev.yml up -d
-```
+For a shared deployment, set a trusted HTTPS origin, configure the reverse proxy, and plan a verified backup before inviting users. Existing deployments should follow the upgrade and rollback steps in the operations guide. [Docker setup](docs/guide/docker.md) · [Operations and recovery](docs/guide/operations.md)
 
-### 2. Run Backend
+## Release Status
 
-```bash
-cd server
-cp .env.example .env   # Linux/macOS
-# copy .env.example .env  # Windows
-go run .
-```
+The first release targets Docker Compose for self-hosted teams. The frozen RC2 pilot candidate has passed local rehearsals. Pilot acceptance on the target host is pending. Meeting media requires separate setup and validation. Knowledge-base retrieval, the full deployment management console, and Kubernetes packaging are planned for later releases. [Pilot handoff](docs/guide/pilot-handoff.md) · [Meetings guide](docs/guide/meetings.md)
 
-### 3. Run Frontend
+## Documentation
 
-```bash
-cd app
-bun install
-bun run dev
-```
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8080 |
-| MinIO Console | http://localhost:9001 |
-
-## Deployment
-
-### Docker (Recommended)
-
-```bash
-# Build and start all services
-docker compose up --build -d
-```
-
-### Single Binary (Recommended for production)
-
-```bash
-make build
-```
-
-This builds the frontend, embeds it into the Go binary via `go:embed`, and produces a single `./openjam-server` file (~17MB). Deploy it anywhere — no Node.js runtime needed.
-
-```bash
-DATABASE_URL=postgres://... ./openjam-server
-```
-
-### Manual Build
-
-<details>
-<summary>Click to expand</summary>
-
-**Frontend:**
-```bash
-cd app
-bun install
-bun run build
-```
-
-**Backend:**
-```bash
-rm -rf server/static && cp -r app/dist server/static
-cd server && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../openjam-server .
-```
-
-</details>
-
-## Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `8080` |
-| `ENVIRONMENT` | `development` / `production` | `development` |
-| `DATABASE_URL` | PostgreSQL connection string | - |
-| `REDIS_URL` | Redis connection string | - |
-| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` |
-| `SESSION_SECRET` | Session encryption key | ⚠️ **Change in production** |
-| `MINIO_ENDPOINT` | MinIO/S3 endpoint | - |
-| `MINIO_ACCESS_KEY` | MinIO access key | - |
-| `MINIO_SECRET_KEY` | MinIO secret key | - |
-
-See [`.env.example`](server/.env.example) for all available options.
-
-## Project Structure
-
-```
-openjam/
-├── app/                      # Frontend (React + TypeScript + Vite)
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── canvas/       # Canvas decomposed modules
-│   │   │   │   ├── hooks/    # useDrawing, useEraser, useSelection, etc.
-│   │   │   │   └── ...       # DrawingPreview, EraserCursor, CanvasContext
-│   │   │   └── ...           # OpenJamCanvas, BottomToolbar, MenuBar, etc.
-│   │   └── lib/              # ElementStore, WebSocket, API client
-│   └── ...
-├── server/                   # Backend (Go + Gin)
-│   ├── internal/
-│   │   ├── config/           # Configuration
-│   │   ├── db/               # Database layer
-│   │   ├── handler/          # API handlers
-│   │   ├── middleware/       # Middleware
-│   │   ├── model/            # Data models
-│   │   ├── storage/          # File storage
-│   │   └── ws/               # WebSocket hub + client
-│   ├── static.go             # Embedded frontend assets (go:embed)
-│   └── main.go
-├── Makefile                  # Build: make build → single binary
-├── docker-compose.yml        # Production deployment
-├── docker-compose.dev.yml    # Development services
-└── Dockerfile                # Multi-stage build
-```
-
-## Tech Stack
-
-| Layer | Technologies |
-|:------|:-------------|
-| **Frontend** | ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white) |
-| **Backend** | ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white) ![Gin](https://img.shields.io/badge/Gin-00ADD8?style=flat-square&logo=gin&logoColor=white) |
-| **Database** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white) |
-| **Storage** | ![MinIO](https://img.shields.io/badge/MinIO-C72E49?style=flat-square&logo=minio&logoColor=white) |
-| **DevOps** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) |
+| Guide | What it covers |
+| --- | --- |
+| [Using Shiori](docs/guide/getting-started.md) | Teams, Projects, the editors, relationships, and search |
+| [Project branches and sync](docs/guide/project-sync.md) | Link a personal Project to a Team, create a branch, or restore a snapshot |
+| [Move a project](docs/guide/project-archive.md) | Export and recover project content on another instance |
+| [Deploy with Docker](docs/guide/docker.md) | Services, storage, and deployment configuration |
+| [Operations and recovery](docs/guide/operations.md) | Health checks, upgrades, backups, recovery, and troubleshooting |
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+The frontend uses React and TypeScript, with a Go API and worker. The [development setup](docs/guide/getting-started.md#development-setup) covers the local services and toolchain. Report reproducible issues with the revision, browser, and steps to reproduce, and leave credentials and private content out of reports.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-  <sub>Built with ❤️ by OpenJam</sub>
-</div>
+Shiori is available under the [MIT License](LICENSE).

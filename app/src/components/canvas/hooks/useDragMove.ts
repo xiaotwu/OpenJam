@@ -41,17 +41,24 @@ export function useDragMove({ elementStoreRef }: UseDragMoveOptions) {
     setDragMoveStart(canvasPoint);
   }, []);
 
-  const updateDragMove = useCallback((canvasPoint: { x: number; y: number }) => {
+  const updateDragMove = useCallback((canvasPoint: { x: number; y: number }, snap = false) => {
     if (!dragMoveStart || dragInfoRef.current.length === 0) return;
-    const dx = canvasPoint.x - dragMoveStart.x;
-    const dy = canvasPoint.y - dragMoveStart.y;
-    for (const info of dragInfoRef.current) {
-      elementStoreRef.current.moveElement(
-        info.elementId,
-        info.initialPos.x + dx,
-        info.initialPos.y + dy,
-      );
+    let dx = canvasPoint.x - dragMoveStart.x;
+    let dy = canvasPoint.y - dragMoveStart.y;
+    if (snap) {
+      const { x, y } = dragInfoRef.current[0].initialPos;
+      dx = Math.round((x + dx) / 20) * 20 - x;
+      dy = Math.round((y + dy) / 20) * 20 - y;
     }
+    const store = elementStoreRef.current;
+    store.batch(() => {
+      for (const info of dragInfoRef.current) {
+        const current = store.getElementById(info.elementId);
+        const x = info.initialPos.x + dx;
+        const y = info.initialPos.y + dy;
+        if (current && !current.locked && (current.x !== x || current.y !== y)) store.moveElement(info.elementId, x, y);
+      }
+    });
   }, [dragMoveStart, elementStoreRef]);
 
   const endDragMove = useCallback(() => {

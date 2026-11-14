@@ -1,0 +1,14 @@
+{
+  "replica": "/mnt/shiori-replica/shiori",
+  "repositoryId": "REPLACE_WITH_REPOSITORY_ID",
+  "scheduleState": "/var/lib/shiori-offsite/backup-schedule",
+  "stage": "/var/lib/shiori-offsite/capture",
+  "recipients": "/etc/shiori/backup.recipients",
+  "sourceUrl": "http://127.0.0.1:8080",
+  "alertUrl": "https://alerts.example.test/shiori",
+  "alertTokenFile": "/etc/shiori/alert.token",
+  "backupIntervalMinutes": 720,
+  "backupOffsetMinutesUtc": 60,
+  "monitorIntervalMinutes": 15,
+  "retryDelaySeconds": 300
+}

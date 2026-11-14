@@ -1,3 +1,4 @@
+import { useBoardFont } from '../../lib/boardFonts';
 // Shape Component
 import { useMemo } from 'react';
 import type { ShapeElement, ShapeType } from '../../lib/elements';
@@ -27,6 +28,7 @@ export default function Shape({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onUpdate: _onUpdate,
 }: ShapeProps) {
+  const fontFamily = useBoardFont(element.fontFamily);
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(element.id, e.shiftKey);
@@ -79,7 +81,8 @@ export default function Shape({
         <div
           className="absolute inset-0 flex items-center justify-center p-2 overflow-hidden"
           style={{
-            fontSize: element.fontSize || 14,
+            fontFamily,
+              fontSize: element.fontSize || 14,
             color: getContrastColor(element.fill),
             textAlign: 'center',
             wordBreak: 'break-word',

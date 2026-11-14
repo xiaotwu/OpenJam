@@ -1,48 +1,46 @@
-import { useState, useCallback, type RefObject } from 'react';
-import type { Element } from '../../../lib/elements';
-import type { ElementStore } from '../../../lib/elementStore';
+import { useState, useCallback } from 'react';
+import { generateElementId, type Element } from '../../../lib/elements';
+import type { Stamp } from '../../StampTool';
+import { copyBoardElements, movementSelection, resolveConnector } from '../boardObjects';
+
+interface ClipboardContent { elements: Element[]; stamps: Stamp[] }
 
 interface UseClipboardOptions {
   elements: Element[];
+  stamps: Stamp[];
   selectedIds: Set<string>;
-  elementStoreRef: RefObject<ElementStore>;
-  setSelectedIds: (ids: Set<string>) => void;
+  currentPageId?: string;
+  userId: string;
+  insertCopies: (elements: Element[], stamps: Stamp[]) => void;
   onDelete: () => void;
 }
 
-export function useClipboard({ elements, selectedIds, elementStoreRef, setSelectedIds, onDelete }: UseClipboardOptions) {
-  const [clipboard, setClipboard] = useState<Element[]>([]);
+export function useClipboard({ elements, stamps, selectedIds, currentPageId, userId, insertCopies, onDelete }: UseClipboardOptions) {
+  const [clipboard, setClipboard] = useState<ClipboardContent>({ elements: [], stamps: [] });
 
-  const duplicateSelected = useCallback(() => {
-    const newIds: string[] = [];
-    selectedIds.forEach((id) => {
-      const op = elementStoreRef.current.duplicateElement(id);
-      if (op) {
-        newIds.push(op.element.id);
-      }
-    });
-    setSelectedIds(new Set(newIds));
-  }, [selectedIds, elementStoreRef, setSelectedIds]);
+  const getSelection = useCallback((): ClipboardContent => {
+    const byId = new Map(elements.map(element => [element.id, element]));
+    return {
+      elements: movementSelection(elements, selectedIds).map(element => resolveConnector(element, byId)),
+      stamps: stamps.filter(stamp => selectedIds.has(stamp.id)),
+    };
+  }, [elements, selectedIds, stamps]);
 
-  const copySelected = useCallback(() => {
-    const selectedElements = elements.filter((el) => selectedIds.has(el.id));
-    setClipboard(selectedElements);
-  }, [elements, selectedIds]);
+  const paste = useCallback((content: ClipboardContent) => {
+    const offset = 24;
+    const topLayer = elements.reduce((max, element) => Math.max(max, element.zIndex || 0), 0);
+    const copies = copyBoardElements(content.elements, { userId, pageId: currentPageId, offset, firstZIndex: topLayer + 1 });
+    const copiedStamps = content.stamps.map(stamp => ({
+      ...stamp, id: generateElementId(), x: stamp.x + offset, y: stamp.y + offset,
+      userId, createdAt: Date.now(), ...(currentPageId ? { pageId: currentPageId } : {}),
+    }));
+    insertCopies(copies, copiedStamps);
+  }, [currentPageId, elements, insertCopies, userId]);
 
-  const cutSelected = useCallback(() => {
-    const selectedElements = elements.filter((el) => selectedIds.has(el.id));
-    setClipboard(selectedElements);
-    onDelete();
-  }, [elements, selectedIds, onDelete]);
+  const duplicateSelected = useCallback(() => paste(getSelection()), [getSelection, paste]);
+  const copySelected = useCallback(() => setClipboard(getSelection()), [getSelection]);
+  const cutSelected = useCallback(() => { setClipboard(getSelection()); onDelete(); }, [getSelection, onDelete]);
+  const pasteElements = useCallback(() => paste(clipboard), [clipboard, paste]);
 
-  const pasteElements = useCallback(() => {
-    const newIds: string[] = [];
-    clipboard.forEach((el) => {
-      const op = elementStoreRef.current.addElement(el.type, el.x + 20, el.y + 20, el);
-      newIds.push(op.element.id);
-    });
-    setSelectedIds(new Set(newIds));
-  }, [clipboard, elementStoreRef, setSelectedIds]);
-
-  return { clipboard, duplicateSelected, copySelected, cutSelected, pasteElements };
+  return { hasClipboard: clipboard.elements.length > 0 || clipboard.stamps.length > 0, duplicateSelected, copySelected, cutSelected, pasteElements };
 }

@@ -13,9 +13,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
-	"github.com/project-wb/server/internal/storage"
+	"github.com/xiaotwu/shiori/server/internal/document"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/storage"
 )
 
 const maxExportImageBytes = 15 * 1024 * 1024
@@ -98,17 +99,29 @@ func ExportJSON(c *gin.Context) {
 		return
 	}
 
-	operations, err := model.GetOperationsByRoom(c.Request.Context(), roomID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get operations"})
-		return
-	}
-
-	exportData := map[string]interface{}{
+	exportData := map[string]any{
 		"roomId":     roomID,
 		"exportedAt": time.Now().UTC().Format(time.RFC3339),
 		"exportedBy": user.ID,
-		"operations": operations,
+	}
+	snapshot, err := document.Open(c.Request.Context(), roomID, user.ID, false)
+	switch {
+	case err == nil:
+		exportData["protocolVersion"] = snapshot.ProtocolVersion
+		exportData["epoch"] = snapshot.Epoch
+		exportData["seq"] = snapshot.Seq
+		exportData["hash"] = snapshot.Hash
+		exportData["document"] = snapshot.Document
+	case errors.Is(err, document.ErrLegacyMode):
+		operations, err := model.GetOperationsByRoom(c.Request.Context(), roomID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get operations"})
+			return
+		}
+		exportData["operations"] = operations
+	default:
+		writeDocumentError(c, err)
+		return
 	}
 
 	jsonData, err := json.MarshalIndent(exportData, "", "  ")

@@ -7,44 +7,44 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
-	"github.com/project-wb/server/internal/db"
+	"github.com/gorilla/websocket"
+	"github.com/xiaotwu/shiori/server/internal/db"
 )
 
-/* Hub maintains the set of active clients and broadcasts messages */
+// Hub tracks upgraded connections and delivers live room messages.
 type Hub struct {
-	rooms       map[string]map[*Client]bool
-	clientRooms map[*Client]string
-	register    chan *Client
-	unregister  chan *Client
-	joinRoom    chan *joinRequest
-	leaveRoom   chan *Client
-	broadcast   chan *broadcastMessage
-	instanceID  string
-	mu          sync.RWMutex
-}
-
-type joinRequest struct {
-	client *Client
-	roomID string
+	connections     map[*Client]struct{}
+	rooms           map[string]map[*Client]bool
+	clientRooms     map[*Client]string
+	documentMembers map[*Client]string
+	presenceWake    chan struct{}
+	presenceMu      sync.Mutex
+	broadcast       chan *broadcastMessage
+	done            chan struct{}
+	instanceID      string
+	closing         bool
+	mu              sync.RWMutex
 }
 
 type broadcastMessage struct {
-	roomID  string
-	message []byte
-	sender  *Client
+	roomID        string
+	message       []byte
+	sender        *Client
+	accessChanged bool
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		rooms:       make(map[string]map[*Client]bool),
-		clientRooms: make(map[*Client]string),
-		register:    make(chan *Client),
-		unregister:  make(chan *Client),
-		joinRoom:    make(chan *joinRequest),
-		leaveRoom:   make(chan *Client),
-		broadcast:   make(chan *broadcastMessage, 256),
-		instanceID:  generateInstanceID(),
+		connections:     make(map[*Client]struct{}),
+		rooms:           make(map[string]map[*Client]bool),
+		clientRooms:     make(map[*Client]string),
+		documentMembers: make(map[*Client]string),
+		presenceWake:    make(chan struct{}, 1),
+		broadcast:       make(chan *broadcastMessage, 256),
+		done:            make(chan struct{}),
+		instanceID:      generateInstanceID(),
 	}
 }
 
@@ -54,70 +54,173 @@ func generateInstanceID() string {
 	return hex.EncodeToString(b)
 }
 
-func (h *Hub) Run() {
+func (h *Hub) Run(ctx context.Context) {
+	defer close(h.done)
+	go h.runDocumentPresence(ctx)
 	if db.HasRedis() {
-		go h.subscribeToRedis()
+		go h.subscribeToRedis(ctx)
 	}
 
 	for {
 		select {
-		case client := <-h.register:
-			log.Printf("Client registered: %s", client.user.ID)
-
-		case client := <-h.unregister:
-			h.removeClient(client)
-
-		case req := <-h.joinRoom:
-			h.handleJoinRoom(req.client, req.roomID)
-
-		case client := <-h.leaveRoom:
-			h.handleLeaveRoom(client)
-
+		case <-ctx.Done():
+			return
 		case msg := <-h.broadcast:
-			h.handleBroadcast(msg)
+			if !msg.accessChanged {
+				h.sendToRoom(msg.roomID, msg.message, msg.sender, "")
+			}
+			if db.HasRedis() {
+				h.publish(ctx, msg)
+			}
 		}
 	}
 }
 
-func (h *Hub) Register(client *Client) {
-	h.register <- client
+func (h *Hub) Register(client *Client) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closing {
+		return false
+	}
+	h.connections[client] = struct{}{}
+	return true
 }
 
 func (h *Hub) Unregister(client *Client) {
-	h.unregister <- client
+	h.mu.Lock()
+	roomID := h.removeFromRoomLocked(client)
+	if _, registered := h.connections[client]; registered {
+		delete(h.connections, client)
+		close(client.send)
+	}
+	h.mu.Unlock()
+
+	h.releaseRoomPresence(client, roomID)
 }
 
 func (h *Hub) JoinRoom(client *Client, roomID string) {
-	h.joinRoom <- &joinRequest{client: client, roomID: roomID}
+	h.mu.Lock()
+	oldRoom := h.removeFromRoomLocked(client)
+	if h.rooms[roomID] == nil {
+		h.rooms[roomID] = make(map[*Client]bool)
+	}
+	h.rooms[roomID][client] = true
+	h.clientRooms[client] = roomID
+	client.roomID = roomID
+	h.mu.Unlock()
+
+	if oldRoom != roomID {
+		h.releaseRoomPresence(client, oldRoom)
+	}
+	if client.documentToken == "" && db.HasRedis() {
+		_ = db.AddOnlineUser(context.Background(), roomID, client.user.ID.String())
+	}
 }
 
 func (h *Hub) LeaveRoom(client *Client) {
-	h.leaveRoom <- client
+	h.mu.Lock()
+	roomID := h.removeFromRoomLocked(client)
+	client.roomID = ""
+	h.mu.Unlock()
+	h.releaseRoomPresence(client, roomID)
+}
+
+func (h *Hub) removeFromRoomLocked(client *Client) string {
+	roomID := h.clientRooms[client]
+	if roomID == "" {
+		return ""
+	}
+	delete(h.clientRooms, client)
+	delete(h.documentMembers, client)
+	delete(h.rooms[roomID], client)
+	if len(h.rooms[roomID]) == 0 {
+		delete(h.rooms, roomID)
+	}
+	return roomID
+}
+
+func (h *Hub) CloseConnections() {
+	h.mu.Lock()
+	h.closing = true
+	clients := make([]*Client, 0, len(h.connections))
+	for client := range h.connections {
+		clients = append(clients, client)
+	}
+	h.mu.Unlock()
+
+	deadline := time.Now().Add(time.Second)
+	closeMessage := websocket.FormatCloseMessage(websocket.CloseServiceRestart, "Shiori is restarting")
+	for _, client := range clients {
+		_ = client.conn.WriteControl(websocket.CloseMessage, closeMessage, deadline)
+		_ = client.conn.Close()
+	}
 }
 
 func (h *Hub) Broadcast(roomID string, message []byte, sender *Client) {
-	h.broadcast <- &broadcastMessage{roomID: roomID, message: message, sender: sender}
+	select {
+	case h.broadcast <- &broadcastMessage{roomID: roomID, message: message, sender: sender}:
+	case <-h.done:
+	}
 }
 
-func (h *Hub) BroadcastToOtherServers(roomID string, message []byte, senderID string) {
-	if !db.HasRedis() {
+// NotifyDocument is a best-effort high-water hint after the database commits.
+// A subscriber can read the authoritative change feed even if it misses this.
+func (h *Hub) NotifyDocument(boardID string, epoch, seq int64) {
+	message, err := json.Marshal(OutgoingMessage{
+		Type:    MsgTypeDocumentChanged,
+		Payload: documentChanged{BoardID: boardID, Epoch: epoch, Seq: seq},
+	})
+	if err != nil {
 		return
 	}
+	h.tryBroadcast(&broadcastMessage{roomID: boardID, message: message})
+}
 
-	ctx := context.Background()
-	msg := &db.PubSubMessage{
-		RoomID:   roomID,
-		SenderID: senderID,
-		Type:     "broadcast",
-		Payload:  message,
-	}
-	if err := db.Publish(ctx, msg); err != nil {
-		log.Printf("Failed to publish to Redis: %v", err)
+func (h *Hub) tryBroadcast(message *broadcastMessage) {
+	select {
+	case h.broadcast <- message:
+	case <-h.done:
+	default:
 	}
 }
 
-func (h *Hub) subscribeToRedis() {
-	ctx := context.Background()
+// NotifyAccessChanged invalidates live subscriptions after an ACL write. Each
+// reconnect must pass the stored session and current board permission checks.
+func (h *Hub) NotifyAccessChanged(boardID string) {
+	h.closeRoomSubscriptions(boardID)
+	h.tryBroadcast(&broadcastMessage{roomID: boardID, accessChanged: true})
+}
+
+func (h *Hub) closeRoomSubscriptions(boardID string) {
+	for _, client := range h.GetRoomClients(boardID) {
+		_ = client.conn.Close()
+	}
+}
+
+func (h *Hub) publish(ctx context.Context, msg *broadcastMessage) {
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	var senderID string
+	if msg.sender != nil {
+		senderID = msg.sender.user.ID.String()
+	}
+	messageType := "broadcast"
+	if msg.accessChanged {
+		messageType = "access_changed"
+	}
+	err := db.Publish(ctx, &db.PubSubMessage{
+		RoomID:     msg.roomID,
+		SenderID:   senderID,
+		InstanceID: h.instanceID,
+		Type:       messageType,
+		Payload:    msg.message,
+	})
+	if err != nil && ctx.Err() == nil {
+		log.Printf("Publish room message: %v", err)
+	}
+}
+
+func (h *Hub) subscribeToRedis(ctx context.Context) {
 	pubsub, err := db.Subscribe(ctx)
 	if err != nil {
 		log.Printf("Failed to subscribe to Redis: %v", err)
@@ -125,140 +228,50 @@ func (h *Hub) subscribeToRedis() {
 	}
 	defer pubsub.Close()
 
-	log.Println("📡 Redis Pub/Sub listener started")
-
 	ch := pubsub.Channel()
-	for msg := range ch {
-		var pubsubMsg db.PubSubMessage
-		if err := json.Unmarshal([]byte(msg.Payload), &pubsubMsg); err != nil {
-			log.Printf("Failed to unmarshal pub/sub message: %v", err)
-			continue
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, open := <-ch:
+			if !open {
+				return
+			}
+			var incoming db.PubSubMessage
+			if err := json.Unmarshal([]byte(msg.Payload), &incoming); err != nil {
+				log.Printf("Decode room message: %v", err)
+				continue
+			}
+			if incoming.InstanceID == h.instanceID {
+				continue
+			}
+			if incoming.Type == "access_changed" {
+				h.closeRoomSubscriptions(incoming.RoomID)
+			} else if incoming.Type == "broadcast" {
+				h.sendToRoom(incoming.RoomID, incoming.Payload, nil, incoming.SenderID)
+			}
 		}
-
-		h.broadcastLocal(pubsubMsg.RoomID, pubsubMsg.Payload, pubsubMsg.SenderID)
 	}
 }
 
-func (h *Hub) broadcastLocal(roomID string, message []byte, excludeSenderID string) {
+func (h *Hub) sendToRoom(roomID string, message []byte, exclude *Client, excludeUser string) {
+	var slow []*Client
 	h.mu.RLock()
-	clients, ok := h.rooms[roomID]
-	h.mu.RUnlock()
-
-	if !ok {
-		return
-	}
-
-	for client := range clients {
-		if excludeSenderID != "" && client.user.ID.String() == excludeSenderID {
+	for client := range h.rooms[roomID] {
+		if client == exclude || (excludeUser != "" && client.user.ID.String() == excludeUser) {
 			continue
 		}
-
 		select {
 		case client.send <- message:
 		default:
+			slow = append(slow, client)
 		}
 	}
-}
-
-func (h *Hub) handleJoinRoom(client *Client, roomID string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if oldRoom, ok := h.clientRooms[client]; ok {
-		if clients, exists := h.rooms[oldRoom]; exists {
-			delete(clients, client)
-			if len(clients) == 0 {
-				delete(h.rooms, oldRoom)
-			}
-		}
-		if db.HasRedis() {
-			_ = db.RemoveOnlineUser(context.Background(), oldRoom, client.user.ID.String())
-		}
-	}
-
-	if _, ok := h.rooms[roomID]; !ok {
-		h.rooms[roomID] = make(map[*Client]bool)
-	}
-	h.rooms[roomID][client] = true
-	h.clientRooms[client] = roomID
-	client.roomID = roomID
-
-	if db.HasRedis() {
-		_ = db.AddOnlineUser(context.Background(), roomID, client.user.ID.String())
-	}
-
-	log.Printf("Client %s joined room %s", client.user.ID, roomID)
-}
-
-func (h *Hub) handleLeaveRoom(client *Client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if roomID, ok := h.clientRooms[client]; ok {
-		if clients, exists := h.rooms[roomID]; exists {
-			delete(clients, client)
-			if len(clients) == 0 {
-				delete(h.rooms, roomID)
-			}
-		}
-		delete(h.clientRooms, client)
-		client.roomID = ""
-
-		if db.HasRedis() {
-			_ = db.RemoveOnlineUser(context.Background(), roomID, client.user.ID.String())
-		}
-	}
-}
-
-func (h *Hub) removeClient(client *Client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if roomID, ok := h.clientRooms[client]; ok {
-		if clients, exists := h.rooms[roomID]; exists {
-			delete(clients, client)
-			if len(clients) == 0 {
-				delete(h.rooms, roomID)
-			}
-		}
-		delete(h.clientRooms, client)
-
-		if db.HasRedis() {
-			_ = db.RemoveOnlineUser(context.Background(), roomID, client.user.ID.String())
-		}
-	}
-
-	close(client.send)
-	log.Printf("Client removed: %s", client.user.ID)
-}
-
-func (h *Hub) handleBroadcast(msg *broadcastMessage) {
-	h.mu.RLock()
-	clients, ok := h.rooms[msg.roomID]
 	h.mu.RUnlock()
 
-	if !ok {
-		return
-	}
-
-	if db.HasRedis() && msg.sender != nil {
-		h.BroadcastToOtherServers(msg.roomID, msg.message, msg.sender.user.ID.String())
-	}
-
-	for client := range clients {
-		if msg.sender != nil && client == msg.sender {
-			continue
-		}
-
-		select {
-		case client.send <- msg.message:
-		default:
-			h.mu.Lock()
-			delete(clients, client)
-			delete(h.clientRooms, client)
-			close(client.send)
-			h.mu.Unlock()
-		}
+	for _, client := range slow {
+		// The read pump removes the client and closes its send queue.
+		_ = client.conn.Close()
 	}
 }
 

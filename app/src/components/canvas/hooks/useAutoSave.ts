@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Element } from '../../../lib/elements';
+import { saveBoard, BoardConflictError, type BoardData } from '../../../lib/api';
 
 export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error' | 'offline' | 'conflict';
 
@@ -10,6 +11,8 @@ interface UseAutoSaveOptions {
   getStamps: () => unknown[];
   getPages: () => unknown[];
   getCurrentPageId: () => string;
+  getExpectedUpdatedAt: () => string | undefined;
+  onConflict: (remoteBoard: BoardData) => void;
   debounceMs?: number;
   enabled?: boolean;
 }
@@ -21,6 +24,8 @@ export function useAutoSave({
   getStamps,
   getPages,
   getCurrentPageId,
+  getExpectedUpdatedAt,
+  onConflict,
   debounceMs = 1200,
   enabled = true,
 }: UseAutoSaveOptions) {
@@ -29,13 +34,20 @@ export function useAutoSave({
   const timeoutRef = useRef<number | null>(null);
   const saveStatusRef = useRef<SaveStatus>('idle');
   const dirtyVersionRef = useRef(0);
+  const lastSavedUpdatedAtRef = useRef<string | undefined>(undefined);
+  const onConflictRef = useRef(onConflict);
   const latestRef = useRef({
     getElements,
     getBoardName,
     getStamps,
     getPages,
     getCurrentPageId,
+    getExpectedUpdatedAt,
   });
+
+  useEffect(() => {
+    onConflictRef.current = onConflict;
+  }, [onConflict]);
 
   useEffect(() => {
     latestRef.current = {
@@ -44,8 +56,9 @@ export function useAutoSave({
       getStamps,
       getPages,
       getCurrentPageId,
+      getExpectedUpdatedAt,
     };
-  }, [getElements, getBoardName, getStamps, getPages, getCurrentPageId]);
+  }, [getElements, getBoardName, getStamps, getPages, getCurrentPageId, getExpectedUpdatedAt]);
 
   useEffect(() => {
     saveStatusRef.current = saveStatus;
@@ -72,16 +85,19 @@ export function useAutoSave({
     setSaveError('');
     const versionAtStart = dirtyVersionRef.current;
     try {
-      const { saveBoard } = await import('../../../lib/api');
       const current = latestRef.current;
       const currentElements = current.getElements();
-      await saveBoard(boardId, {
+      const expected = current.getExpectedUpdatedAt();
+      const result = await saveBoard(boardId, {
         name: current.getBoardName(),
         elements: currentElements,
         stamps: current.getStamps(),
         pages: current.getPages(),
         currentPageId: current.getCurrentPageId(),
-      });
+      }, expected);
+      if (result.updatedAt) {
+        lastSavedUpdatedAtRef.current = result.updatedAt;
+      }
       if (dirtyVersionRef.current === versionAtStart) {
         setSaveStatus('saved');
       } else {
@@ -91,6 +107,12 @@ export function useAutoSave({
         }, debounceMs);
       }
     } catch (error) {
+      if (error instanceof BoardConflictError) {
+        setSaveStatus('conflict');
+        setSaveError(error.message);
+        onConflictRef.current(error.board);
+        return;
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Failed to save board:', errorMessage);
       setSaveError(errorMessage);
@@ -117,6 +139,7 @@ export function useAutoSave({
   }, [clearPendingSave, debounceMs, enabled, saveNow]);
 
   useEffect(() => {
+    if (!enabled) return;
     const handleOnline = () => {
       if (saveStatusRef.current === 'offline') {
         markDirty();
@@ -135,7 +158,7 @@ export function useAutoSave({
       window.removeEventListener('offline', handleOffline);
       clearPendingSave();
     };
-  }, [clearPendingSave, markDirty]);
+  }, [clearPendingSave, enabled, markDirty]);
 
-  return { saveStatus, saveError, markDirty, saveNow, saveToDatabase: saveNow };
+  return { saveStatus, saveError, markDirty, saveNow, saveToDatabase: saveNow, getSavedUpdatedAt: () => lastSavedUpdatedAtRef.current };
 }

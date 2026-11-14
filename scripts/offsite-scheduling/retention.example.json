@@ -1,0 +1,9 @@
+{
+  "replica": "/mnt/shiori-replica/shiori",
+  "repositoryId": "REPLACE_WITH_REPOSITORY_ID",
+  "scheduleState": "/var/lib/shiori-offsite/retention-schedule",
+  "alertUrl": "https://alerts.example.test/shiori",
+  "alertTokenFile": "/etc/shiori/alert.token",
+  "backupOffsetMinutesUtc": 60,
+  "retentionAfterMinuteUtc": 125
+}

@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState } from 'react';
+import { boardFontOption, boardFonts } from '../lib/boardFonts';
 import type { Element, ShapeElement, StickyColor, StickyElement, TextElement } from '../lib/elements';
 
 interface FloatingObjectToolbarProps {
@@ -30,17 +32,33 @@ export default function FloatingObjectToolbar({
   onDuplicate,
   onDelete,
 }: FloatingObjectToolbarProps) {
-  if (!element || !['sticky', 'shape', 'text'].includes(element.type)) {
+  const toolbar = useRef<HTMLDivElement>(null);
+  const [halfWidth, setHalfWidth] = useState(0);
+  const kind = element?.type;
+
+  useLayoutEffect(() => {
+    const node = toolbar.current;
+    if (!node) return;
+    const measure = () => setHalfWidth(node.offsetWidth / 2);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [kind]);
+
+  if (!element || (element.type !== 'sticky' && element.type !== 'shape' && element.type !== 'text')) {
     return null;
   }
 
   const left = offset.x + (element.x + element.width / 2) * scale;
   const top = Math.max(72, offset.y + element.y * scale - 60);
+  const margin = halfWidth + 8;
 
   return (
     <div
-      className="glass-elevated glass-panel-enter absolute z-50 flex min-h-11 items-center gap-1 rounded-2xl px-2 py-1.5 shadow-xl"
-      style={{ left, top, transform: 'translateX(-50%)' }}
+      ref={toolbar}
+      className="glass-elevated glass-panel-enter absolute z-50 flex w-max max-w-[calc(100vw-20px)] flex-wrap items-center justify-center gap-1 rounded-2xl px-2 py-1.5 shadow-xl"
+      style={{ left: `clamp(min(${margin}px, 50vw), ${left}px, max(calc(100vw - ${margin}px), 50vw))`, top, transform: 'translateX(-50%)' }}
       role="toolbar"
       aria-label={`${element.type} controls`}
     >
@@ -53,6 +71,8 @@ export default function FloatingObjectToolbar({
       {element.type === 'text' && (
         <TextControls element={element as TextElement} onUpdate={onUpdate} />
       )}
+
+      <FontFamilySelect value={element.fontFamily} onChange={fontFamily => onUpdate(element.id, { fontFamily })} />
 
       <Divider />
       <IconButton label="Duplicate selected object" onClick={onDuplicate}>
@@ -68,7 +88,7 @@ export default function FloatingObjectToolbar({
 function StickyControls({ element, onUpdate }: { element: StickyElement; onUpdate: (id: string, changes: Partial<Element>) => void }) {
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap justify-center gap-1">
         {(Object.keys(stickyColors) as StickyColor[]).map((color) => (
           <button
             key={color}
@@ -131,6 +151,24 @@ function TextControls({ element, onUpdate }: { element: TextElement; onUpdate: (
         <span className="text-sm italic">I</span>
       </IconButton>
     </>
+  );
+}
+
+function FontFamilySelect({ value, onChange }: { value?: string; onChange: (value: string) => void }) {
+  const selected = boardFontOption(value)?.family ?? (value || boardFonts[0].family);
+  const known = boardFonts.some(font => font.family === selected);
+
+  return (
+    <label className="relative grid min-h-9 min-w-9 place-items-center rounded-lg hover:bg-[var(--badge-bg)] focus-within:outline-2 focus-within:outline-[var(--focus-ring)]">
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+        <path d="M5 5h14M12 5v14M8 19h8M5 5v3M19 5v3" />
+      </svg>
+      <select className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Font Family" title="Font Family"
+        value={selected} onChange={event => onChange(event.target.value)}>
+        {!known && <option value={selected}>{selected.split(',')[0]}</option>}
+        {boardFonts.map(font => <option key={font.family} value={font.family}>{font.label}</option>)}
+      </select>
+    </label>
   );
 }
 

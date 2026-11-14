@@ -1,0 +1,239 @@
+{
+  "id": "openjam-pilot-20261112-rc2",
+  "state": "local-frozen-pilot-on-hold",
+  "sourceCommit": "ae5686a76ab05c41fdc692e6bb2d346b50684211",
+  "localGitTag": "openjam-pilot-20261112-rc2",
+  "tagObject": "78715a73f1283d075dbf752d548018d4bab1e7c9",
+  "runtimeTemplatesRevision": "ae5686a76ab05c41fdc692e6bb2d346b50684211",
+  "requiredSchema": 23,
+  "applications": {
+    "linux/arm64": {
+      "composeImage": "openjam-pilot@sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+      "localDockerTag": "openjam-pilot:20261112-rc2-arm64",
+      "importTag": "openjam-pilot:20261112-xw154-arm64",
+      "loadedImageId": "sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+      "archive": {
+        "filename": "openjam-xw154-linux-arm64.oci.tar",
+        "bytes": 91048448,
+        "sha256": "46a9e00f50d489cc17e0cee00aa73db32b388940e8a2318d566dfd2f2d3e8180",
+        "indexDigest": "sha256:7bf121de824240dcb0a6c4c942cf82b9b87276c3bdff8a1ceb92e8fa96889011",
+        "manifestDigest": "sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+        "configDigest": "sha256:d3e4c4297c6b010faa08ff11c339d107cf6994c258dfa230bccd628af01b36a1",
+        "verifiedLayers": 5,
+        "directory": "xw-154-image-sync"
+      },
+      "frozenAtUtc": "2026-11-12T22:18:40+00:00"
+    },
+    "linux/amd64": {
+      "composeImage": "openjam-pilot@sha256:31e28b2ed626b5d2e9c99eefff206d0ec4eb1a937896c0e03f0416733e467e31",
+      "localDockerTag": "openjam-pilot:20261112-rc2-amd64",
+      "loadedImageId": "sha256:31e28b2ed626b5d2e9c99eefff206d0ec4eb1a937896c0e03f0416733e467e31",
+      "archive": {
+        "filename": "openjam-pilot-20261112-rc2-linux-amd64.oci.tar",
+        "bytes": 91357696,
+        "sha256": "ccd08b1c1a27bb99516865d82ec4194b0470e18c9d9a4f9cf0a3373b15f3255e",
+        "indexDigest": "sha256:c83b4bd22925b1ed9719f560cb1da33a2e6142b62356d28360f7bfc39c78df6a",
+        "manifestDigest": "sha256:31e28b2ed626b5d2e9c99eefff206d0ec4eb1a937896c0e03f0416733e467e31",
+        "configDigest": "sha256:e778e55fb9358150fb3065e54ff4e4c1b73a9293a68bf5e25d6163f2cb6d95b3",
+        "verifiedLayers": 5,
+        "directory": "xw-151-152-pilot-rc2-amd64"
+      },
+      "frozenAtUtc": "2026-11-12T23:12:10.811589+00:00"
+    }
+  },
+  "defaultStoreImages": {
+    "postgres": "postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139",
+    "redis": "redis:7.4.12-alpine@sha256:7b1753b4c5ad8458906c272a8132b8c15f5557b000379eb115fb239706a384b7",
+    "seaweedfs": "chrislusf/seaweedfs:4.19@sha256:90e181977effc58a303a1b21a0d581314e142b09543a712ff739c79ed78f42cf"
+  },
+  "defaultStorePlatformManifests": {
+    "linux/arm64": {
+      "postgres": "sha256:9f5be6795d4e9dfc0dca4c8a46eb858a9ddef631fc6b57953960f578d3fb1f9b",
+      "redis": "sha256:52d1ea8a654b10f06af3ecda4e9dbcd035c7868b5c49ee7975de917f81de13db",
+      "seaweedfs": "sha256:3cadffc46b9d2794c52e4c0253d4ddf59c477d8a5d1a363c907094bc408a340a"
+    },
+    "linux/amd64": {
+      "postgres": "sha256:ac838714b7d794185a866e5a6b479b954e7d8a070568aa0acac6fe07c3070bf5",
+      "redis": "sha256:e4ee3e03ce8f75471f40937a7c6b2b0e500390b6812fcdf5cb32c01295ded446",
+      "seaweedfs": "sha256:751b523268e6f2f8615d019625129e9216ab6a6066d9536124b2aabe42fd4990"
+    }
+  },
+  "sourceFileSha256": {
+    "Dockerfile": "ac5529f0c1d039ce22b7e8d6db953fa70f5f0dfd1f0097bf3338fa2d5a37ba7f",
+    "app/bun.lock": "32c13ca17b5a656f45aca707704ad73293376f437a4da3afc0588003939510a0",
+    "server/go.mod": "0fdc590b13c29efbac9aa143743dda23e4e56374ad7fc9c9e849f3462ad86a70",
+    "server/go.sum": "3ea65e50c2924977c6be0da9bf273b44f22ecf402b9eb0f6d5c23b54aadad8a7",
+    "docker-compose.yml": "20241660490ae30b9c71dab44cd4ec159085c1ba860cb29dc03aaf2fb4407a08",
+    "scripts/pilot-acceptance/compose.env.example": "c310998ebda300ebfc7bbca1a5e8adf94d2a9aafe410abf78e23740b58ea03bb",
+    "scripts/pilot-acceptance/Caddyfile.example": "36e506d1898b19c76fc88a1df4e910fd95b0cdbc94a17c4e53c82647afdc4998",
+    "scripts/pilot-acceptance/Caddyfile.maintenance.example": "9b013be2cc82296586fcf4ed698ca4e5da4901dc64460f4c888ca3952308c72c",
+    "scripts/pilot-acceptance/check-edge.sh": "5c51072a020e4db566af1bc8958d3ccd27ed7f4daef1de12c21404c02bb982c9",
+    "scripts/openjam-ops.py": "b10d6efc7f428008a573f1b47b9a2ff970f35d1975ab7102b98f00b0293fd623",
+    "scripts/openjam_offsite.py": "b973ab814a86119fcbc43671b1ad5252e4986d65a803f1baa4b71c6e69c3e251",
+    "scripts/openjam_schedule.py": "48246fbc9bfa4dd0a5947b2767eeeb56ef1357465c188dffbd82309bd0c0d61a",
+    "scripts/offsite-scheduling/backup.example.json": "44a0633a5e5642c390243dc7f277789e52d1512c1bbb842c4bab0bb0967f52f1",
+    "scripts/offsite-scheduling/retention.example.json": "354d4cbda3efe4744b4e97bd979e26834a7a4d83fbcfff1af90741ba1a8ed4c2",
+    "scripts/offsite-scheduling/openjam-offsite@.service": "285e36eca45576717a04eae1cc03a553c866522c23daae47d752c73250f670b4",
+    "scripts/offsite-scheduling/openjam-offsite@.timer": "970fd14fce04b0d35eba73e7b6e8fc1078b2bcbbbff978c78197c755bdc7b768",
+    "scripts/offsite-scheduling/com.openjam.offsite.plist": "a70ce23176797d25bda3bf10dce0ba73ff58a3cdfa7e9d2c837e59380b153c3e"
+  },
+  "evidence": {
+    "linux/arm64": {
+      "environment": "ARM64 Docker Desktop on Apple Silicon",
+      "receipts": {
+        "reconnect": {
+          "file": "xw-151-152-pilot-rc2/reconnect.json",
+          "sha256": "a92d82eee7577615d67620a781f88aa7cb9033d9e2549388e85389a1ea9d1bd4",
+          "clients": 50,
+          "latencyP95Ms": 216.652,
+          "http429": 0
+        },
+        "joint": {
+          "file": "xw-151-152-pilot-rc2/joint-rehearsal.json",
+          "sha256": "7095ed53f5d0b6d8f1d9abc2d65d9dcc4505726f2e484b045e9aae69ec1cc425",
+          "completedAtUtc": "2026-11-12T22:34:45.188Z",
+          "scope": "local Caddy TLS, two browser sessions, encrypted replica, empty restore, A to B to A"
+        },
+        "initialRestoreRejection": {
+          "file": "xw-151-152-pilot-rc2/initial-restore-rejection.json",
+          "sha256": "b0aa60eb460e04fdcb0897b4b6806c2e49179f1948a6cb87bc40c6199399591b",
+          "scope": "local recovery directory mode check before decryption"
+        },
+        "replicaReceipt": {
+          "file": "xw-151-152-pilot-rc2/encrypted-point-receipt.json",
+          "sha256": "f529070707200969e156adcd9f6f495de8e198bcc74a1882b63dda39c5b7621a",
+          "point": "20261112T223135Z-2b4eb2b5d4d10d6c"
+        },
+        "restoredManifest": {
+          "file": "xw-151-152-pilot-rc2/restored-manifest.json",
+          "sha256": "2b4eb2b5d4d10d6cbd36ff7e1ac51203f7935d24728d7aa33ed4a8f759f9c28c"
+        },
+        "browser5000": {
+          "file": "xw-154-image-sync/acceptance.json",
+          "sha256": "4dbfdc181d5a60486aec43ad39d391fbce2552c463877e143392e83df54f795d",
+          "issue": "XW-154",
+          "peerP95Ms": 225.5
+        }
+      }
+    },
+    "linux/amd64": {
+      "environment": "AMD64 emulated by Docker Desktop on Apple Silicon",
+      "receipts": {
+        "candidate": {
+          "file": "xw-151-152-pilot-rc2-amd64/candidate.json",
+          "sha256": "df706762ed941d7113323fa2fa859ec6747225d641fa20b9f35cdf7dec1387ec"
+        },
+        "coldStart": {
+          "file": "xw-151-152-pilot-rc2-amd64/compose-cold-start.json",
+          "sha256": "c40afe40eac048d1da5ece2bd3bd44661286c215d5a7a6f8389ed0d20c96171c",
+          "seconds": 11.974
+        },
+        "collaboration": {
+          "file": "xw-151-152-pilot-rc2-amd64/collaboration.json",
+          "sha256": "4b9efdd20bfc6d3a993f955ace4372d5b6a2b682ea61251b6cb300fa0f85c047",
+          "clients": 2,
+          "transport": "loopback HTTP and WebSocket"
+        },
+        "encryptedRestore": {
+          "file": "xw-151-152-pilot-rc2-amd64/encrypted-restore.json",
+          "sha256": "28ceed2c6037ddf592d6b97330b58bfe591f892df5e23c19edc11b9abfe4d2e9",
+          "throughFirstVerifiedWriteSeconds": 20.02
+        },
+        "replicaReceipt": {
+          "file": "xw-151-152-pilot-rc2-amd64/encrypted-point-receipt.json",
+          "sha256": "efe640fd233e87386e665b29f8755d5480c9d25c1d46af6d7410a5d230d85af8",
+          "point": "20261112T232358Z-151ebd3f4453733a"
+        },
+        "restoredManifest": {
+          "file": "xw-151-152-pilot-rc2-amd64/restored-manifest.json",
+          "sha256": "151ebd3f4453733a767e6192ea975d610af3fffad06aa2a5b8a2c47abc94bd0b"
+        },
+        "caddyEnvironment": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/environment.json",
+          "sha256": "423808fd3d0676e80083e8b016e04a84b15d955bbdfbdf4bcb0dd11b10d23978"
+        },
+        "caddyHttpsWss": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/https-wss.json",
+          "sha256": "09d11f83affe23bed31af49b53b2333cbd5a21363dc910a5c2e1d65ac531db1d",
+          "clients": 2,
+          "transport": "loopback HTTPS and WSS"
+        },
+        "caddyReconnect": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/reconnect.json",
+          "sha256": "94c739b2d94af26386afd0ee654099dd3e669f30e41fe98f3f1b7cc0884bed08",
+          "clients": 50,
+          "readyToCatchUpP95Ms": 263.24,
+          "http429": 0
+        },
+        "caddyCutoverRollback": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/cutover-rollback.json",
+          "sha256": "65d79fb68153211751b6a979313c16df4bbbb727697a247c84abe0ba3527bd4a",
+          "rollbackSeconds": 7.546
+        },
+        "caddyPostRollbackWrite": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/post-rollback-write.json",
+          "sha256": "5c4147aaf8c308fd164136ccc58aaa24898a99264eb5f27ac27e1746281e52d7"
+        },
+        "caddyReplicaReceipt": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/encrypted-point-receipt.json",
+          "sha256": "ac0e13746526972ac14e3757ee466c305b9522a0ea6c05a9df5547975f5edfb1",
+          "point": "20261112T235234Z-48d29ae7fcd6462f"
+        },
+        "caddyRestoredManifest": {
+          "file": "xw-151-152-pilot-rc2-amd64-edge/restored-manifest.json",
+          "sha256": "48d29ae7fcd6462f9b923b843c925de3dfb8b5265d34b2856fa788870c50155a"
+        }
+      }
+    }
+  },
+  "localRecovery": {
+    "linux/arm64": {
+      "mode": "same-schema switchback",
+      "authoritative": "A",
+      "schema": 23,
+      "image": "openjam-pilot@sha256:2bf16887e48ebc3bc415221d9e08ddf28df7aa9f68793cd5a9faddca4ab9a741",
+      "sourceCapturePoint": "20261112T223135Z-2b4eb2b5d4d10d6c",
+      "capturedAtUtc": "2026-11-12T22:31:35.429440+00:00",
+      "receiptSha256": "f529070707200969e156adcd9f6f495de8e198bcc74a1882b63dda39c5b7621a",
+      "servingConfigSha256": "6d818f5252574cce91a03d5c433f03e3e352247d683958c79978b7f7eb260c85",
+      "maintenanceConfigSha256": "25cfef4adc931991182987e0041b692f18d29d123946b121d33de6f682a93255",
+      "targetWriteReplayedExactlyOnce": true,
+      "syntheticArchivesRetained": false
+    },
+    "linux/amd64": {
+      "mode": "same-schema switchback",
+      "authoritative": "A",
+      "schema": 23,
+      "image": "openjam-pilot@sha256:31e28b2ed626b5d2e9c99eefff206d0ec4eb1a937896c0e03f0416733e467e31",
+      "sourceCapturePoint": "20261112T235234Z-48d29ae7fcd6462f",
+      "capturedAtUtc": "2026-11-12T23:52:34.809106+00:00",
+      "receiptSha256": "ac0e13746526972ac14e3757ee466c305b9522a0ea6c05a9df5547975f5edfb1",
+      "proxyConfigSha256": {
+        "a": "954de1293961fbe0e257e66b3ca9aa7e6b12789d82671255facd186beca917de",
+        "b": "1627daf7ea85f7d13f796e50da0c1f075da838260fc2b81229c2e2274697bc54",
+        "maintenance": "ba2a13f4374f109cacc8e8f73b3a8520a09a5ac18f9e1c1eee6ddb45ac539faa"
+      },
+      "targetWriteReplayedExactlyOnce": true,
+      "syntheticArchivesRetained": false,
+      "earlierRestoreOnlyPoint": {
+        "sourceCapturePoint": "20261112T232358Z-151ebd3f4453733a",
+        "capturedAtUtc": "2026-11-12T23:23:58.213982+00:00",
+        "receiptSha256": "efe640fd233e87386e665b29f8755d5480c9d25c1d46af6d7410a5d230d85af8"
+      }
+    }
+  },
+  "previousCandidate": {
+    "id": "openjam-pilot-20261112-rc1",
+    "lock": "rc1.lock.json",
+    "sourceCommit": "b4639c31ae9712867817fd8a83d6d30bd94a8d1c",
+    "image": "openjam-pilot@sha256:b178a8921ed54e7913e6547e4bdb93a7baa60304f24f73af312db4bacce31b41",
+    "schema": 23
+  },
+  "realPilot": {
+    "state": "pending-host-and-approval",
+    "meetingsMedia": false,
+    "externalAIProfile": false,
+    "rollbackPoint": null,
+    "note": "Record the previous live image, schema, proxy config and verified recovery point on the pilot host. For a fresh install, record the maintenance fallback and first verified encrypted recovery point."
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "workflows": {
+    "workshop": {
+      "instructions": "Turn the requested session into an editable working board. Start with its intended outcome, then sequence activities so participants can contribute before they converge. Adapt to the audience and time limit supplied. Give participants concrete work to do on the board.",
+      "skills": [
+        {
+          "id": "scope-and-outcome",
+          "instructions": "Name the session after the decision, review, retrospective, or planning outcome. Use the user's terms. Make the scope and desired result visible in the first group. Ask a focused question only when the missing outcome prevents a useful draft."
+        },
+        {
+          "id": "facilitated-agenda",
+          "instructions": "Use a small number of ordered activity groups such as orient, collect, discuss, decide, and follow up. Match the agenda to the actual request. If the user gives a time budget, assign realistic durations whose sum fits it. Prefer actionable notes and discussion prompts to long explanations."
+        },
+        {
+          "id": "decisions-and-actions",
+          "instructions": "Close with explicit places to record decisions and next actions. Preserve supplied responsibilities, dates, and constraints. For facts the user has not supplied, use a question or a placeholder such as owner to confirm."
+        }
+      ]
+    },
+    "flowchart": {
+      "instructions": "Represent a process with short, readable action nodes and directed links. Show the route from start through outcome and make actual decisions, branches, and loops visible. Prefer a compact graph with only the stages needed to explain the process.",
+      "skills": [
+        {
+          "id": "map-steps",
+          "instructions": "Extract the explicit start, actions, decisions, and end state. Label action nodes with short verbs or noun phrases appropriate to the domain. Keep stable unique IDs distinct from display text."
+        },
+        {
+          "id": "branches-and-retries",
+          "instructions": "Put each decision outcome on its own outgoing edge and label conditions such as approved, needs revision, or retry. Show loops only when the prompt or excerpts support them. Preserve parallel or independent steps when the user asks for them."
+        },
+        {
+          "id": "check-graph",
+          "instructions": "Check that each edge connects two existing distinct nodes and that directed pairs are unique. Keep the graph understandable without consulting the prompt. Treat an unclear optional step as an assumption, not an invented fact."
+        }
+      ]
+    },
+    "organize": {
+      "instructions": "Cluster the selected excerpts by meaning and create a readable set of groups for review. Retain the substance of the original notes and distinguish observations, open questions, decisions, and follow-up actions when the evidence supports those categories.",
+      "skills": [
+        {
+          "id": "semantic-clustering",
+          "instructions": "Group related ideas under short descriptive headings. Merge exact repetitions while preserving disagreements, constraints, numbers, and distinctive suggestions. If the selected text supports a better taxonomy than generic categories, use it."
+        },
+        {
+          "id": "evidence-and-uncertainty",
+          "instructions": "Keep uncertain claims and questions visible as such. Call an item a decision only when the text indicates agreement. Retain owner names and deadlines only when provided, and never invent source links."
+        },
+        {
+          "id": "ready-to-review",
+          "instructions": "Write each note as a concise standalone item. Keep the same language as the selected material unless the user asks for translation. Use no more than six groups and prioritize preserving meaningful variation over exhaustive repetition."
+        }
+      ]
+    }
+  }
+}

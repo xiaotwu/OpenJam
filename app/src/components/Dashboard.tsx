@@ -1,7 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
+import boardsPreview from '../assets/home/boards.webp';
+import docsPreview from '../assets/home/docs.webp';
+import present from '../assets/home/present.webp';
+import projectPreview from '../assets/home/project.webp';
+import review from '../assets/home/review.webp';
+import sheetsPreview from '../assets/home/sheets.webp';
+import sketch from '../assets/home/sketch.webp';
+import slidesPreview from '../assets/home/slides.webp';
+import welcome from '../assets/home/welcome.webp';
+import { useI18n } from '../i18n';
 import type { User } from '../lib/api';
+import { useTheme } from '../lib/useTheme';
 import AuthPage from './AuthPage';
+import ShioriMark from './ShioriMark';
+import AccountPopover from './workshop/AccountPopover';
+import WorkshopIcon from './workshop/WorkshopIcon';
+import './home.css';
 
 type AuthMode = 'login' | 'register';
 
@@ -13,190 +28,175 @@ interface DashboardProps {
   onAuthClose?: () => void;
 }
 
-const demoCards = [
-  { title: 'Launch Map', meta: '18 notes', color: '#F59E0B', className: 'demo-card-a' },
-  { title: 'Roadmap', meta: '6 owners', color: '#3B82F6', className: 'demo-card-b' },
-  { title: 'Open Issues', meta: '12 votes', color: '#10B981', className: 'demo-card-c' },
-];
+const features = [
+  { id: 'boards', mascot: sketch, preview: boardsPreview, width: 1056, height: 660 },
+  { id: 'docs', mascot: review, preview: docsPreview, width: 1120, height: 700 },
+  { id: 'sheets', mascot: review, preview: sheetsPreview, width: 1280, height: 800 },
+  { id: 'slides', mascot: present, preview: slidesPreview, width: 1360, height: 850 },
+] as const;
 
-export default function Dashboard({
-  user,
-  onLogout,
-  initialMode = null,
-  onSuccess,
-  onAuthClose,
-}: DashboardProps) {
-  const [authMode, setAuthMode] = useState<AuthMode | null>(initialMode);
+function HomeFeatures() {
+  const { messages: { workshop: { home: text } } } = useI18n();
+  const [selected, setSelected] = useState<number>(0);
+  const tabs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  useEffect(() => {
-    setAuthMode(initialMode);
-  }, [initialMode]);
-
-  const openAuth = (mode: AuthMode) => {
-    setAuthMode(mode);
-  };
-
-  const closeAuth = () => {
-    setAuthMode(null);
-    onAuthClose?.();
-  };
+  function moveTab(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next: number;
+    switch (event.key) {
+      case 'ArrowRight': next = (index + 1) % features.length; break;
+      case 'ArrowLeft': next = (index + features.length - 1) % features.length; break;
+      case 'Home': next = 0; break;
+      case 'End': next = features.length - 1; break;
+      default: return;
+    }
+    event.preventDefault();
+    setSelected(next);
+    tabs.current[next]?.focus();
+  }
 
   return (
-    <main className="home-shell min-h-screen overflow-auto" style={{ color: 'var(--text-primary)' }}>
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-6">
-        <header className="flex items-center justify-between gap-4">
-          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-2xl pr-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
-            <img src="/icons/openjam.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
+    <section id="features" className="home-features" aria-labelledby="home-features-title">
+      <h2 id="home-features-title">{text.featuresTitle}</h2>
+      <div className="home-feature-tabs" role="tablist" aria-labelledby="home-features-title">
+        {features.map(({ id }, index) => (
+          <button
+            key={id}
+            ref={button => { tabs.current[index] = button; }}
+            id={`home-tab-${id}`}
+            type="button"
+            role="tab"
+            aria-selected={index === selected}
+            aria-controls={`home-panel-${id}`}
+            tabIndex={index === selected ? 0 : -1}
+            onClick={() => setSelected(index)}
+            onKeyDown={event => moveTab(event, index)}
+          >
+            {text.features[id].name}
+          </button>
+        ))}
+      </div>
+      {features.map(({ id, mascot, preview, width, height }, index) => (
+        <article
+          key={id}
+          id={`home-panel-${id}`}
+          className="home-feature-panel"
+          role="tabpanel"
+          aria-labelledby={`home-tab-${id}`}
+          tabIndex={0}
+          hidden={index !== selected}
+        >
+          <div className="home-feature-copy">
             <div>
-              <h1 className="text-xl font-semibold leading-tight">OpenJam</h1>
+              <h3>{text.features[id].title}</h3>
+              <p>{text.features[id].description}</p>
             </div>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            {user ? (
-              <>
-                <Link
-                  to="/workplace"
-                  className="flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  Workplace
-                </Link>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="min-h-11 rounded-xl px-4 text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => openAuth('login')}
-                className="min-h-11 rounded-xl px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                style={{ background: 'var(--accent-gradient)' }}
-              >
-                Login
-              </button>
-            )}
+            <img className="home-feature-mascot" src={mascot} alt="" width={300} height={375} loading="lazy" />
           </div>
-        </header>
+          <figure className="home-product">
+            <img src={preview} alt={text.features[id].previewAlt} width={width} height={height} loading="lazy" />
+          </figure>
+        </article>
+      ))}
+    </section>
+  );
+}
 
-        <section className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="max-w-2xl">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
-              Workspace
-            </p>
-            <h2 className="max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
-              Pick up the room where the work is already moving.
-            </h2>
-            <div className="mt-8 flex flex-wrap gap-3">
+function AuthDialog({ mode, onClose, onSuccess }: { mode: AuthMode; onClose: () => void; onSuccess: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const { messages: { workshop: { auth: text } } } = useI18n();
+
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    const opener = document.activeElement;
+    element.showModal();
+    element.querySelector('input')?.focus();
+    return () => {
+      element.close();
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
+
+  return (
+    <dialog
+      className="shell-popover home-auth-dialog"
+      ref={dialog}
+      aria-label={text.title}
+      onCancel={event => { event.preventDefault(); onClose(); }}
+    >
+      <button type="button" className="shell-icon-button home-auth-close" onClick={onClose} aria-label={text.close}>
+        <WorkshopIcon name="close" />
+      </button>
+      <AuthPage variant="modal" initialMode={mode} onSuccess={onSuccess} />
+    </dialog>
+  );
+}
+
+export default function Dashboard({
+  user, onLogout, initialMode = null, onSuccess, onAuthClose,
+}: DashboardProps) {
+  const [authMode, setAuthMode] = useState<AuthMode | null>(initialMode);
+  const { theme, setTheme, isDark } = useTheme();
+  const { messages: { workshop: { home: text } } } = useI18n();
+  const home = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setAuthMode(initialMode); }, [initialMode]);
+  useEffect(() => {
+    if (window.location.hash === '#features') document.getElementById('features')?.scrollIntoView();
+  }, []);
+
+  return (
+    <div className="shiori-home" ref={home}>
+      <header className="home-header home-shell">
+        <Link to="/" className="home-brand" aria-label={text.brandHome}
+          onClick={() => home.current?.scrollTo({ top: 0 })}>
+          <ShioriMark size={34} />
+          <span>Shiori</span>
+        </Link>
+        <nav className="home-nav" aria-label={text.navigation}>
+          <a href="#features">{text.featuresLink}</a>
+          <button className="home-theme-toggle" type="button" aria-label={isDark ? text.lightMode : text.darkMode}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+            <WorkshopIcon name={isDark ? 'sun' : 'moon'} />
+            <span>{isDark ? text.lightMode : text.darkMode}</span>
+          </button>
+          {user && <AccountPopover user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} />}
+        </nav>
+      </header>
+
+      <main className="home-shell">
+        <section className="home-hero" aria-labelledby="home-title">
+          <div className="home-copy">
+            <div className="home-heading">
+              <div className="home-mascot" aria-hidden="true">
+                <img src={welcome} alt="" width={300} height={375} />
+              </div>
+              <h1 id="home-title"><span>{text.title}</span>{' '}<span>{text.titleContinuation}</span></h1>
+            </div>
+            <p>{text.description}</p>
+            <div className="home-actions">
+              <a className="home-primary" href="#features">{text.explore}</a>
               {user ? (
-                <Link
-                  to="/workplace"
-                  className="flex min-h-11 items-center rounded-xl px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  style={{ background: 'var(--accent-gradient)' }}
-                >
-                  Open Workplace
-                </Link>
+                <Link to="/workplace" className="home-entry">{text.openWorkplace}</Link>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => openAuth('login')}
-                    className="min-h-11 rounded-xl px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                    style={{ background: 'var(--accent-gradient)' }}
-                  >
-                    Enter Workplace
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openAuth('register')}
-                    className="min-h-11 rounded-xl px-5 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
-                    Create account
-                  </button>
-                </>
+                <button type="button" className="home-entry" onClick={() => setAuthMode('login')}>{text.signIn}</button>
               )}
             </div>
           </div>
-
-          <div className="home-demo glass-elevated relative min-h-[520px] overflow-hidden rounded-3xl p-5">
-            <div className="demo-grid absolute inset-0" aria-hidden="true" />
-            <div className="relative z-10 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">Product Sprint</p>
-              </div>
-              <div className="flex -space-x-2" aria-label="Demo collaborators">
-                {['AM', 'JT', 'SK'].map((initials, index) => (
-                  <span
-                    key={initials}
-                    className="grid h-9 w-9 place-items-center rounded-full border-2 border-white text-xs font-semibold text-white shadow-sm"
-                    style={{ background: ['#F97316', '#3B82F6', '#10B981'][index] }}
-                  >
-                    {initials}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative z-10 mt-8 h-[390px] rounded-2xl border border-black/5 bg-white/70 p-5 shadow-inner">
-              <div className="demo-connector demo-connector-one" />
-              <div className="demo-connector demo-connector-two" />
-              {demoCards.map((card) => (
-                <article
-                  key={card.title}
-                  className={`demo-note absolute rounded-2xl border border-black/5 bg-white p-4 shadow-lg ${card.className}`}
-                >
-                  <div className="mb-4 h-2 w-12 rounded-full" style={{ background: card.color }} />
-                  <h3 className="text-sm font-semibold">{card.title}</h3>
-                  <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>{card.meta}</p>
-                </article>
-              ))}
-              <div className="demo-frame absolute rounded-2xl border-2 border-dashed border-amber-300/80" />
-              <div className="demo-cursor demo-cursor-orange">
-                <span>Riley</span>
-              </div>
-              <div className="demo-cursor demo-cursor-blue">
-                <span>Mina</span>
-              </div>
-              <div className="demo-pulse-ring" />
-            </div>
-          </div>
+          <figure className="home-product">
+            <img src={projectPreview} alt={text.previewAlt} width={1052} height={620} fetchPriority="high" />
+          </figure>
         </section>
-      </div>
+        <HomeFeatures />
+      </main>
 
       {authMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 py-8 backdrop-blur-sm">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-label={authMode === 'login' ? 'Login to OpenJam' : 'Create an OpenJam account'}
-            className="glass-elevated relative w-full max-w-md rounded-3xl p-6"
-          >
-            <button
-              type="button"
-              onClick={closeAuth}
-              aria-label="Close login dialog"
-              className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-xl text-xl font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              x
-            </button>
-            <AuthPage
-              variant="modal"
-              initialMode={authMode}
-              onSuccess={() => {
-                setAuthMode(null);
-                onSuccess?.();
-              }}
-            />
-          </section>
-        </div>
+        <AuthDialog
+          mode={authMode}
+          onClose={() => { setAuthMode(null); onAuthClose?.(); }}
+          onSuccess={() => { setAuthMode(null); onSuccess?.(); }}
+        />
       )}
-    </main>
+    </div>
   );
 }

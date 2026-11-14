@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 export interface Stamp {
   id: string;
+  pageId?: string;
   emoji: string;
   x: number;
   y: number;
@@ -91,41 +92,42 @@ export default StampPicker;
 interface StampElementProps {
   stamp: Stamp;
   isSelected: boolean;
+  scale?: number;
   onSelect: (id: string, addToSelection: boolean) => void;
   onDelete: (id: string) => void;
   onMove?: (id: string, x: number, y: number) => void;
 }
 
-export function StampElement({ stamp, isSelected, onSelect, onDelete, onMove }: StampElementProps) {
+export function StampElement({ stamp, isSelected, scale = 1, onSelect, onDelete, onMove }: StampElementProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
+  const gesture = useRef<{ pointerId: number; startX: number; startY: number; x: number; y: number } | null>(null);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !e.isPrimary) return;
     e.stopPropagation();
     
     // Select the stamp
     onSelect(stamp.id, e.shiftKey);
     
     // Start dragging if already selected or just selected
-    if (isSelected || !e.shiftKey) {
+    if (onMove && (isSelected || !e.shiftKey)) {
+      e.currentTarget.setPointerCapture(e.pointerId);
       setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
-      setInitialPos({ x: stamp.x, y: stamp.y });
+      gesture.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, x: stamp.x, y: stamp.y };
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !onMove) return;
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const start = gesture.current;
+    if (!start || start.pointerId !== e.pointerId || !onMove) return;
     
     e.stopPropagation();
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    onMove(stamp.id, initialPos.x + dx, initialPos.y + dy);
+    onMove(stamp.id, start.x + (e.clientX - start.startX) / scale, start.y + (e.clientY - start.startY) / scale);
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const finish = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (gesture.current?.pointerId !== e.pointerId) return;
+    gesture.current = null;
     setIsDragging(false);
   };
 
@@ -144,10 +146,12 @@ export function StampElement({ stamp, isSelected, onSelect, onDelete, onMove }: 
         fontSize: '2rem',
         zIndex: isSelected ? 1001 : 1000,
       }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      data-canvas-stamp
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finish}
+      onPointerCancel={finish}
+      onLostPointerCapture={finish}
       onDoubleClick={handleDoubleClick}
     >
       <span className="drop-shadow-md">{stamp.emoji}</span>

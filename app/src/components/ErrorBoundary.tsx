@@ -21,7 +21,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('OpenJam error boundary caught:', error, errorInfo);
+    console.error('Shiori error boundary caught:', error, errorInfo);
   }
 
   render() {

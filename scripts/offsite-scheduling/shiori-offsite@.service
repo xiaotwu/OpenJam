@@ -1,0 +1,15 @@
+[Unit]
+Description=Shiori offsite %i schedule
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=shiori-ops
+WorkingDirectory=/opt/shiori
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+UMask=0077
+ExecStart=/usr/bin/python3 -B /opt/shiori/scripts/shiori-ops.py --project shiori --env-file /etc/shiori/compose.env offsite tick --config /etc/shiori/offsite-%i.json --role %i
+KillMode=mixed
+TimeoutStartSec=30min
+TimeoutStopSec=3min

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import WidgetsPanel from './WidgetsPanel';
 
 export type ToolType =
@@ -58,7 +58,7 @@ interface BottomToolbarProps {
   onSelectStamp?: (emoji: string) => void;
 }
 
-type Popup = 'pen' | 'sticky' | 'shape' | 'connector' | 'drawExtras' | 'insert' | null;
+type Popup = 'pen' | 'sticky' | 'shape' | 'connector' | 'drawExtras' | 'insert' | 'widgets' | 'more';
 
 const STICKY_COLORS: Record<StickyColor, string> = {
   yellow: '#FEF3C7',
@@ -93,6 +93,19 @@ const SHAPE_OPTIONS: { type: ShapeType; icon: ReactNode }[] = [
   { type: 'star', icon: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" strokeWidth={2} /> },
 ];
 
+const SECONDARY_TOOLS: {
+  tool: ToolType;
+  label: string;
+  shortcut: string;
+  popup?: Popup;
+  icon: ReactNode;
+}[] = [
+  { tool: 'shape', label: 'Shape', shortcut: 'R', popup: 'shape', icon: <ShapeIcon /> },
+  { tool: 'text', label: 'Text', shortcut: 'T', icon: <TextIcon /> },
+  { tool: 'connector', label: 'Connector', shortcut: 'C', popup: 'connector', icon: <ConnectorIcon /> },
+  { tool: 'frame', label: 'Frame', shortcut: 'F', icon: <FrameIcon /> },
+];
+
 export default function BottomToolbar({
   currentTool,
   onToolChange,
@@ -104,33 +117,166 @@ export default function BottomToolbar({
   onColorChange,
   onSelectStamp,
 }: BottomToolbarProps) {
-  const [popup, setPopup] = useState<Popup>(null);
-  const [showWidgets, setShowWidgets] = useState(false);
+  const [popup, setPopup] = useState<Popup | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupId = useId();
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (toolbarRef.current && !toolbarRef.current.contains(event.target as Node)) {
-        setPopup(null);
-        setShowWidgets(false);
-      }
+    const handlePointerOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !toolbarRef.current?.contains(event.target)) setPopup(null);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handlePointerOutside);
+    return () => document.removeEventListener('pointerdown', handlePointerOutside);
   }, []);
 
-  const togglePopup = (next: Popup) => {
-    setShowWidgets(false);
+  const togglePopup = (next: Popup, trigger: HTMLButtonElement) => {
+    triggerRef.current = trigger;
     setPopup((current) => current === next ? null : next);
   };
 
-  const chooseTool = (tool: ToolType) => {
+  const chooseTool = (tool: ToolType, next?: Popup, trigger?: HTMLButtonElement) => {
     onToolChange(tool);
+    if (next && trigger) togglePopup(next, trigger);
+    else setPopup(next ?? null);
   };
 
+  const drawingExtraActive = currentTool === 'marker' || currentTool === 'eraser';
+  const insertActive = currentTool === 'stamp' || popup === 'insert' || popup === 'widgets';
+  const secondaryActive = drawingExtraActive || insertActive || SECONDARY_TOOLS.some(({ tool }) => tool === currentTool);
+  const moreExpanded = popup === 'more' || popup === 'shape' || popup === 'connector' ||
+    popup === 'drawExtras' || popup === 'insert' || popup === 'widgets';
+  let panel: ReactNode = null;
+  let width = 'w-64';
+
+  switch (popup) {
+    case 'pen':
+      panel = (
+        <>
+          <ColorGrid
+            label="Pen color"
+            colors={PEN_COLORS}
+            selectedColor={selectedColor}
+            onSelect={(color) => {
+              onColorChange(color);
+              onToolOptionsChange({ strokeColor: color });
+              onToolChange('draw');
+            }}
+          />
+          <SizeRow label="Pen size" values={[2, 4, 6, 8, 12]} selected={toolOptions.strokeWidth} onSelect={(strokeWidth) => onToolOptionsChange({ strokeWidth })} />
+        </>
+      );
+      break;
+    case 'sticky':
+      width = 'w-52';
+      panel = (
+        <div className="grid grid-cols-4 gap-1" role="group" aria-label="Sticky colors">
+          {(Object.keys(STICKY_COLORS) as StickyColor[]).map((color) => (
+            <button
+              key={color}
+              type="button"
+              onClick={() => onToolOptionsChange({ stickyColor: color })}
+              className={`min-h-11 rounded-full transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.stickyColor === color ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+              style={{ backgroundColor: STICKY_COLORS[color] }}
+              aria-label={`${color} sticky note`}
+              aria-pressed={toolOptions.stickyColor === color}
+              title={`${color} sticky note`}
+            />
+          ))}
+        </div>
+      );
+      break;
+    case 'shape':
+      width = 'w-44';
+      panel = (
+        <div className="grid grid-cols-3 gap-1" role="group" aria-label="Shapes">
+          {SHAPE_OPTIONS.map(({ type, icon }) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => {
+                onToolOptionsChange({ shapeType: type });
+                onToolChange('shape');
+              }}
+              className={`flex min-h-11 items-center justify-center rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.shapeType === type ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
+              aria-label={`${type} shape`}
+              aria-pressed={toolOptions.shapeType === type}
+              title={type}
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">{icon}</svg>
+            </button>
+          ))}
+        </div>
+      );
+      break;
+    case 'connector':
+      width = 'w-56';
+      panel = <ConnectorOptions toolOptions={toolOptions} onToolOptionsChange={onToolOptionsChange} />;
+      break;
+    case 'drawExtras':
+      panel = (
+        <>
+          <ToolMenuItem active={currentTool === 'marker'} label="Marker" shortcut="M" onClick={() => onToolChange('marker')} icon={<MarkerIcon />} />
+          <ToolMenuItem active={currentTool === 'eraser'} label="Eraser" shortcut="X" onClick={() => onToolChange('eraser')} icon={<EraserIcon />} />
+          <div className="my-2 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
+          <ColorGrid
+            label="Marker color"
+            colors={MARKER_COLORS}
+            selectedColor={selectedColor}
+            onSelect={(color) => {
+              onColorChange(color);
+              onToolOptionsChange({ strokeColor: color });
+              onToolChange('marker');
+            }}
+          />
+          <SizeRow label="Marker size" values={[4, 8, 12, 16, 20]} selected={toolOptions.strokeWidth} onSelect={(strokeWidth) => onToolOptionsChange({ strokeWidth })} />
+          <SizeRow label="Eraser size" values={[10, 20, 30, 40, 50]} selected={toolOptions.eraserSize} onSelect={(eraserSize) => onToolOptionsChange({ eraserSize })} />
+        </>
+      );
+      break;
+    case 'insert':
+      width = 'w-52';
+      panel = (
+        <>
+          <ToolMenuItem label="Image" onClick={() => { onInsertImage(); setPopup(null); }} icon={<ImageIcon />} />
+          <ToolMenuItem label="Widgets" onClick={() => setPopup('widgets')} icon={<WidgetIcon />} />
+          <div className="my-2 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
+          <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>Stamps</div>
+          <StampGrid
+            onSelect={(emoji) => {
+              onSelectStamp?.(emoji);
+              chooseTool('stamp');
+            }}
+          />
+        </>
+      );
+      break;
+    case 'more':
+      width = 'w-52';
+      panel = (
+        <>
+          {SECONDARY_TOOLS.map(({ tool, label, shortcut, popup: next, icon }) => (
+            <ToolMenuItem key={tool} active={currentTool === tool} label={label} shortcut={shortcut} icon={icon} onClick={() => chooseTool(tool, next)} />
+          ))}
+          <ToolMenuItem active={drawingExtraActive} label="Drawing extras" onClick={() => setPopup('drawExtras')} icon={<SparkIcon />} />
+          <ToolMenuItem active={insertActive} label="Insert tools" onClick={() => setPopup('insert')} icon={<PlusIcon />} />
+        </>
+      );
+      break;
+  }
+
   return (
-    <div ref={toolbarRef} className="absolute bottom-5 left-1/2 z-40 -translate-x-1/2">
-      <div className="glass-elevated flex items-center gap-0.5 rounded-2xl px-1.5 py-1.5">
+    <div
+      ref={toolbarRef}
+      className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[41] w-max -translate-x-1/2"
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || !popup) return;
+        event.stopPropagation();
+        setPopup(null);
+        triggerRef.current?.focus();
+      }}
+    >
+      <div role="group" aria-label="Canvas tools" className="glass-elevated flex flex-nowrap items-center gap-0.5 rounded-full p-1.5">
         <ToolButton active={currentTool === 'select'} label="Select tool (V)" onClick={() => chooseTool('select')}>
           <CursorIcon />
         </ToolButton>
@@ -138,159 +284,88 @@ export default function BottomToolbar({
           <HandIcon />
         </ToolButton>
 
-        <ToolDivider />
+        <ToolDivider hiddenOnNarrow />
 
-        <div className="relative">
-          <ToolButton active={currentTool === 'draw' || popup === 'pen'} label="Pen tool (P)" onClick={() => { chooseTool('draw'); togglePopup('pen'); }}>
-            <PenIcon />
-          </ToolButton>
-          {popup === 'pen' && (
-            <PopupPanel>
-              <ColorGrid
-                label="Pen color"
-                colors={PEN_COLORS}
-                selectedColor={selectedColor}
-                onSelect={(color) => {
-                  onColorChange(color);
-                  onToolOptionsChange({ strokeColor: color });
-                  chooseTool('draw');
-                }}
-              />
-              <SizeRow label="Pen size" values={[2, 4, 6, 8, 12]} selected={toolOptions.strokeWidth} onSelect={(strokeWidth) => onToolOptionsChange({ strokeWidth })} />
-            </PopupPanel>
-          )}
-        </div>
-
-        <div className="relative">
-          <ToolButton active={currentTool === 'sticky' || popup === 'sticky'} label="Sticky note tool (S)" onClick={() => { chooseTool('sticky'); togglePopup('sticky'); }}>
-            <StickyIcon color={STICKY_COLORS[toolOptions.stickyColor]} />
-          </ToolButton>
-          {popup === 'sticky' && (
-            <PopupPanel>
-              <div className="grid w-[188px] grid-cols-4 gap-1" aria-label="Sticky colors">
-                {(Object.keys(STICKY_COLORS) as StickyColor[]).map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => onToolOptionsChange({ stickyColor: color })}
-                    className={`min-h-11 min-w-11 rounded-lg transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.stickyColor === color ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
-                    style={{ backgroundColor: STICKY_COLORS[color] }}
-                    aria-label={`${color} sticky note`}
-                    title={`${color} sticky note`}
-                  />
-                ))}
-              </div>
-            </PopupPanel>
-          )}
-        </div>
-
-        <div className="relative">
-          <ToolButton active={currentTool === 'shape' || popup === 'shape'} label="Shape tool (R)" onClick={() => { chooseTool('shape'); togglePopup('shape'); }}>
-            <ShapeIcon />
-          </ToolButton>
-          {popup === 'shape' && (
-            <PopupPanel>
-              <div className="grid w-[140px] grid-cols-3 gap-1" aria-label="Shapes">
-                {SHAPE_OPTIONS.map(({ type, icon }) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => {
-                      onToolOptionsChange({ shapeType: type });
-                      chooseTool('shape');
-                    }}
-                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.shapeType === type ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
-                    aria-label={`${type} shape`}
-                    title={type}
-                  >
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">{icon}</svg>
-                  </button>
-                ))}
-              </div>
-            </PopupPanel>
-          )}
-        </div>
-
-        <ToolButton active={currentTool === 'text'} label="Text tool (T)" onClick={() => chooseTool('text')}>
-          <TextIcon />
+        <ToolButton active={currentTool === 'draw' || popup === 'pen'} label="Pen tool (P)" expanded={popup === 'pen'} controls={popupId} onClick={(event) => chooseTool('draw', 'pen', event.currentTarget)}>
+          <PenIcon />
+        </ToolButton>
+        <ToolButton active={currentTool === 'sticky' || popup === 'sticky'} label="Sticky note tool (S)" expanded={popup === 'sticky'} controls={popupId} onClick={(event) => chooseTool('sticky', 'sticky', event.currentTarget)}>
+          <StickyIcon color={STICKY_COLORS[toolOptions.stickyColor]} />
         </ToolButton>
 
-        <div className="relative">
-          <ToolButton active={currentTool === 'connector' || popup === 'connector'} label="Connector tool (C)" onClick={() => { chooseTool('connector'); togglePopup('connector'); }}>
-            <ConnectorIcon />
-          </ToolButton>
-          {popup === 'connector' && <ConnectorOptionsPopup toolOptions={toolOptions} onToolOptionsChange={onToolOptionsChange} />}
-        </div>
-
-        <ToolButton active={currentTool === 'frame'} label="Frame tool (F)" onClick={() => chooseTool('frame')}>
-          <FrameIcon />
-        </ToolButton>
-
-        <ToolDivider />
-
-        <div className="relative">
-          <ToolButton active={currentTool === 'marker' || currentTool === 'eraser' || popup === 'drawExtras'} label="Drawing extras" onClick={() => togglePopup('drawExtras')}>
+        <div className="hidden items-center gap-0.5 min-[576px]:flex">
+          {SECONDARY_TOOLS.map(({ tool, label, shortcut, popup: next, icon }) => (
+            <ToolButton
+              key={tool}
+              active={currentTool === tool || (next !== undefined && popup === next)}
+              label={`${label} tool (${shortcut})`}
+              expanded={next ? popup === next : undefined}
+              controls={popupId}
+              onClick={(event) => chooseTool(tool, next, event.currentTarget)}
+            >
+              {icon}
+            </ToolButton>
+          ))}
+          <ToolDivider />
+          <ToolButton active={drawingExtraActive || popup === 'drawExtras'} label="Drawing extras" expanded={popup === 'drawExtras'} controls={popupId} onClick={(event) => togglePopup('drawExtras', event.currentTarget)}>
             <SparkIcon />
           </ToolButton>
-          {popup === 'drawExtras' && (
-            <PopupPanel width="w-64">
-              <ToolMenuItem active={currentTool === 'marker'} label="Marker" shortcut="M" onClick={() => chooseTool('marker')} icon={<MarkerIcon />} />
-              <ToolMenuItem active={currentTool === 'eraser'} label="Eraser" shortcut="X" onClick={() => chooseTool('eraser')} icon={<EraserIcon />} />
-              <div className="my-2 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
-              <ColorGrid
-                label="Marker color"
-                colors={MARKER_COLORS}
-                selectedColor={selectedColor}
-                onSelect={(color) => {
-                  onColorChange(color);
-                  onToolOptionsChange({ strokeColor: color });
-                  chooseTool('marker');
-                }}
-              />
-              <SizeRow label="Marker size" values={[4, 8, 12, 16, 20]} selected={toolOptions.strokeWidth} onSelect={(strokeWidth) => onToolOptionsChange({ strokeWidth })} />
-              <SizeRow label="Eraser size" values={[10, 20, 30, 40, 50]} selected={toolOptions.eraserSize} onSelect={(eraserSize) => onToolOptionsChange({ eraserSize })} />
-            </PopupPanel>
-          )}
-        </div>
-
-        <div className="relative">
-          <ToolButton active={currentTool === 'stamp' || popup === 'insert'} label="Insert tools" onClick={() => togglePopup('insert')}>
+          <ToolButton active={insertActive} label="Insert tools" expanded={popup === 'insert' || popup === 'widgets'} controls={popupId} onClick={(event) => togglePopup('insert', event.currentTarget)}>
             <PlusIcon />
           </ToolButton>
-          {popup === 'insert' && (
-            <PopupPanel width="w-52" align="right">
-              <ToolMenuItem label="Image" onClick={() => { onInsertImage(); setPopup(null); }} icon={<ImageIcon />} />
-              <ToolMenuItem label="Widgets" onClick={() => { setShowWidgets(true); }} icon={<WidgetIcon />} />
-              <div className="my-2 border-t" style={{ borderColor: 'var(--glass-border-strong)' }} />
-              <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>Stamps</div>
-              <StampGrid
-                onSelect={(emoji) => {
-                  onSelectStamp?.(emoji);
-                  chooseTool('stamp');
-                  setPopup(null);
-                }}
-              />
-            </PopupPanel>
-          )}
-          {showWidgets && (
-            <div className="absolute bottom-full right-0 mb-2">
-              <WidgetsPanel isOpen={showWidgets} onClose={() => setShowWidgets(false)} onInsertWidget={(widgetId) => { onInsertWidget(widgetId); setShowWidgets(false); setPopup(null); }} />
-            </div>
-          )}
+        </div>
+        <div className="min-[576px]:hidden">
+          <ToolButton active={secondaryActive || moreExpanded} label="More tools" expanded={moreExpanded} controls={popupId} onClick={(event) => togglePopup('more', event.currentTarget)}>
+            <MoreIcon />
+          </ToolButton>
         </div>
       </div>
+      {popup === 'widgets' ? (
+        <div id={popupId} className="absolute bottom-full left-1/2 mb-2 max-h-[min(28rem,calc(100dvh-11rem))] w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-2xl [&>div]:max-w-full">
+          <WidgetsPanel
+            isOpen
+            onClose={() => setPopup((current) => current === 'widgets' ? 'insert' : current)}
+            onInsertWidget={(widgetId) => { onInsertWidget(widgetId); setPopup(null); }}
+          />
+        </div>
+      ) : panel ? (
+        <PopupPanel id={popupId} width={width}>
+          {moreExpanded && popup !== 'more' && (
+            <button
+              type="button"
+              className="mb-1 flex min-h-10 items-center gap-1.5 rounded-full px-2 text-sm hover:bg-[var(--glass-bg-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] min-[576px]:hidden"
+              aria-label="Back to more tools"
+              onClick={() => setPopup('more')}
+            >
+              <BackIcon />
+              More tools
+            </button>
+          )}
+          {panel}
+        </PopupPanel>
+      ) : null}
     </div>
   );
 }
 
-function ToolButton({ active, label, onClick, children }: { active: boolean; label: string; onClick: () => void; children: ReactNode }) {
+function ToolButton({ active, label, expanded, controls, onClick, children }: {
+  active: boolean;
+  label: string;
+  expanded?: boolean;
+  controls?: string;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`glass-btn flex min-h-11 min-w-11 items-center justify-center rounded-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${active ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
-      style={active ? undefined : { color: 'var(--text-primary)' }}
+      className="glass-btn flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--text-primary)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      style={active ? { background: 'var(--text-primary)', color: 'var(--surface-canvas)' } : undefined}
       aria-label={label}
+      aria-pressed={expanded === undefined ? active : undefined}
+      aria-expanded={expanded}
+      aria-controls={expanded ? controls : undefined}
       title={label}
     >
       {children}
@@ -303,8 +378,9 @@ function ToolMenuItem({ active, label, shortcut, icon, onClick }: { active?: boo
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${active ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
+      className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-full px-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${active ? 'bg-blue-100 text-blue-700' : 'hover:bg-[var(--glass-bg-elevated)]'}`}
       style={active ? undefined : { color: 'var(--text-primary)' }}
+      aria-pressed={active}
     >
       <span className="flex items-center gap-2">{icon}{label}</span>
       {shortcut && <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{shortcut}</span>}
@@ -312,9 +388,13 @@ function ToolMenuItem({ active, label, shortcut, icon, onClick }: { active?: boo
   );
 }
 
-function PopupPanel({ children, width = 'w-auto', align = 'left' }: { children: ReactNode; width?: string; align?: 'left' | 'right' }) {
+function PopupPanel({ children, id, width }: { children: ReactNode; id: string; width: string }) {
   return (
-    <div className={`glass-elevated glass-panel-enter absolute bottom-full mb-2 rounded-2xl p-2 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}>
+    <div
+      id={id}
+      className={`glass-elevated glass-panel-enter absolute bottom-full left-1/2 mb-2 max-h-[min(28rem,calc(100dvh-11rem))] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-2xl p-2 shadow-xl ${width}`}
+      style={{ background: 'var(--surface-panel)' }}
+    >
       {children}
     </div>
   );
@@ -330,7 +410,7 @@ function ColorGrid({ label, colors, selectedColor, onSelect }: { label: string; 
             key={color}
             type="button"
             onClick={() => onSelect(color)}
-            className={`min-h-8 min-w-8 rounded-full transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selectedColor === color ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+            className={`min-h-8 rounded-full transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selectedColor === color ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
             style={{ backgroundColor: color }}
             aria-label={`Use ${color}`}
             title={color}
@@ -345,13 +425,13 @@ function SizeRow({ label, values, selected, onSelect }: { label: string; values:
   return (
     <>
       <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-      <div className="mb-3 flex gap-1">
+      <div className="mb-3 grid grid-cols-5 gap-1">
         {values.map((value) => (
           <button
             key={value}
             type="button"
             onClick={() => onSelect(value)}
-            className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selected === value ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
+            className={`flex min-h-11 items-center justify-center rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selected === value ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
             style={selected === value ? undefined : { color: 'var(--text-primary)' }}
             aria-label={`${label} ${value}`}
             title={`${value}`}
@@ -373,7 +453,7 @@ function StampGrid({ onSelect }: { onSelect: (emoji: string) => void }) {
           key={stamp}
           type="button"
           onClick={() => onSelect(stamp)}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-lg transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="flex min-h-11 items-center justify-center rounded-full text-lg transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           aria-label={`Stamp ${stamp}`}
           title={`Stamp ${stamp}`}
         >
@@ -384,13 +464,18 @@ function StampGrid({ onSelect }: { onSelect: (emoji: string) => void }) {
   );
 }
 
-function ToolDivider() {
-  return <div className="mx-0.5 h-7 w-px" style={{ background: 'var(--glass-border-strong)' }} />;
+function ToolDivider({ hiddenOnNarrow = false }: { hiddenOnNarrow?: boolean }) {
+  return (
+    <div
+      className={`mx-0.5 h-7 w-px shrink-0 ${hiddenOnNarrow ? 'hidden min-[576px]:block' : ''}`}
+      style={{ background: 'var(--glass-border-strong)' }}
+    />
+  );
 }
 
-function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptions: ToolOptions; onToolOptionsChange: (options: Partial<ToolOptions>) => void }) {
+function ConnectorOptions({ toolOptions, onToolOptionsChange }: { toolOptions: ToolOptions; onToolOptionsChange: (options: Partial<ToolOptions>) => void }) {
   return (
-    <PopupPanel width="w-56">
+    <>
       <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>Line style</div>
       <div className="mb-3 flex gap-1">
         {(['straight', 'elbow', 'curved'] as const).map((style) => (
@@ -398,7 +483,7 @@ function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptio
             key={style}
             type="button"
             onClick={() => onToolOptionsChange({ connectorStyle: style })}
-            className={`flex min-h-11 flex-1 items-center justify-center rounded-lg capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.connectorStyle === style ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
+            className={`flex min-h-11 flex-1 items-center justify-center rounded-full capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.connectorStyle === style ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
             style={toolOptions.connectorStyle === style ? undefined : { color: 'var(--text-primary)' }}
             aria-label={`${style} connector`}
             title={style}
@@ -408,13 +493,13 @@ function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptio
         ))}
       </div>
       <div className="mb-2 text-xs font-medium uppercase" style={{ color: 'var(--text-secondary)' }}>Arrow end</div>
-      <div className="flex gap-1">
+      <div className="grid grid-cols-4 gap-1">
         {(['none', 'arrow', 'dot', 'diamond'] as const).map((head) => (
           <button
             key={head}
             type="button"
             onClick={() => onToolOptionsChange({ arrowEnd: head })}
-            className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.arrowEnd === head ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
+            className={`flex min-h-11 items-center justify-center rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${toolOptions.arrowEnd === head ? 'bg-blue-100 text-blue-700' : 'hover:bg-white/15'}`}
             style={toolOptions.arrowEnd === head ? undefined : { color: 'var(--text-primary)' }}
             aria-label={`${head} arrow end`}
             title={head}
@@ -423,7 +508,7 @@ function ConnectorOptionsPopup({ toolOptions, onToolOptionsChange }: { toolOptio
           </button>
         ))}
       </div>
-    </PopupPanel>
+    </>
   );
 }
 
@@ -462,6 +547,12 @@ function EraserIcon() {
 }
 function PlusIcon() {
   return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" /></svg>;
+}
+function MoreIcon() {
+  return <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
+}
+function BackIcon() {
+  return <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m13 6-6 6 6 6m-6-6h12" /></svg>;
 }
 function ImageIcon() {
   return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;

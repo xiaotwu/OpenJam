@@ -1,477 +1,773 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import type { Room, User } from '../lib/api';
-import { createRoom, deleteRoom, listRooms, updateRoom } from '../lib/api';
-import { ConfirmDialog, TextInputDialog } from './AppDialog';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { updateRoom, type User } from '../lib/api';
+import {
+  createOrganization, createProject, createProjectBoard, createProjectDoc, createProjectPresentation, createProjectSheet, createWorkspace, getDirectory,
+  moveBoard, resourceNames, resourcePath, setBoardArchive, setBoardFavorite,
+  type Directory, type DirectoryBoard, type Organization, type Project, type ResourceKind, type Workspace,
+} from '../lib/directory';
+import { useTheme } from '../lib/useTheme';
+import { useAppearance } from '../lib/useAppearance';
+import { meetingPath, useWorkshopResource, workshopPath, type Inbox } from '../lib/workshop';
+import { useI18n } from '../i18n';
+import ShioriMark from './ShioriMark';
+import AccountPopover from './workshop/AccountPopover';
+import BoardCollection, { type BoardAction, type BoardEntry, type BoardLayout } from './workshop/BoardCollection';
+import BoardFilesPanel from './BoardFilesPanel';
+import ProjectImportDialog from './workshop/ProjectImportDialog';
+import ProjectFilesActions from './workshop/ProjectFilesActions';
+import { ImportProjectDialog, ProjectBranchDialog } from './workshop/ProjectBranchDialogs';
+import { ExportProjectArchiveDialog, RestoreProjectArchiveDialog } from './workshop/ProjectArchiveDialogs';
+import MeetingEditor from './workshop/MeetingEditor';
+import WorkshopDialog, { type DialogField, type DialogSelection } from './workshop/WorkshopDialog';
+import { ProjectAccess, ProjectList, TeamMembers } from './workshop/TeamDirectoryPanels';
+import { WorkshopRecents, WorkshopSearch } from './workshop/DiscoveryPanels';
+import TeamRelationships from './workshop/TeamRelationships';
+import { WorkshopCalendar } from './workshop/WorkshopCalendar';
+import WorkshopInbox from './workshop/WorkshopInbox';
+import WorkshopNavigation, { type WorkshopView } from './workshop/WorkshopNavigation';
+import WorkshopIcon, { type WorkshopIconName } from './workshop/WorkshopIcon';
+import './workshop/workshop.css';
+import './workshop/workshop-panels.css';
 
 interface WorkspaceDashboardProps {
   user: User;
   onLogout: () => void | Promise<void>;
 }
 
-interface Workspace {
-  id: string;
-  name: string;
-  color: string;
-  collapsed: boolean;
+type CollectionView = 'recent' | 'favorites' | 'shared' | 'archive';
+type Sort = 'updated' | 'name';
+
+const collectionIcons: Record<CollectionView, WorkshopIconName> = {
+  recent: 'board', favorites: 'star', shared: 'shared', archive: 'archive',
+};
+
+interface DirectoryLoad {
+  key: string;
+  directory?: Directory;
+  error?: string;
 }
 
-interface WorkspaceState {
-  workspaces: Workspace[];
-  assignments: Record<string, string>;
+interface ModalSettings {
+  title: string;
+  submitLabel: string;
+  field?: DialogField;
+  selection?: DialogSelection;
+  save: (name: string, selectionId: string) => Promise<void>;
 }
 
-const defaultWorkspaces: Workspace[] = [
-  { id: 'active', name: 'Active work', color: '#F59E0B', collapsed: false },
-  { id: 'team', name: 'Team spaces', color: '#3B82F6', collapsed: false },
-  { id: 'drafts', name: 'Drafts', color: '#10B981', collapsed: false },
-  { id: 'archive', name: 'Archive', color: '#6B7280', collapsed: true },
-];
-
-const roomAccents = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#14B8A6'];
-
-function storageKey(userId: string): string {
-  return `openjam-workspace-state-${userId}`;
+interface ActiveModal extends ModalSettings {
+  returnFocus: HTMLElement | null;
 }
 
-function createEmptyState(): WorkspaceState {
-  return {
-    workspaces: defaultWorkspaces,
-    assignments: {},
-  };
+interface ProjectLocation {
+  project: Project;
+  workspace: Workspace;
+  organization: Organization;
 }
 
-function loadWorkspaceState(userId: string): WorkspaceState {
+const noProjects: Project[] = [];
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function organizationPreferenceKey(userId: string): string {
+  return `shiori-workshop-organization:${userId}`;
+}
+
+function legacyOrganizationPreferenceKey(userId: string): string {
+  return `openjam-workbench-organization-v1:${userId}`;
+}
+
+function earlierOrganizationPreferenceKey(userId: string): string {
+  return `shiori-workbench-organization-v1:${userId}`;
+}
+
+function getOrganizationPreference(userId: string): string | null {
   try {
-    const stored = localStorage.getItem(storageKey(userId));
-    if (!stored) {
-      return createEmptyState();
-    }
-
-    const parsed = JSON.parse(stored) as Partial<WorkspaceState>;
-    const workspaces = Array.isArray(parsed.workspaces) && parsed.workspaces.length > 0
-      ? parsed.workspaces
-      : defaultWorkspaces;
-
-    return {
-      workspaces,
-      assignments: parsed.assignments || {},
-    };
+    return sessionStorage.getItem(earlierOrganizationPreferenceKey(userId))
+      ?? sessionStorage.getItem(legacyOrganizationPreferenceKey(userId))
+      ?? sessionStorage.getItem(organizationPreferenceKey(userId));
   } catch {
-    return createEmptyState();
+    return null;
   }
-}
-
-function saveWorkspaceState(userId: string, state: WorkspaceState) {
-  localStorage.setItem(storageKey(userId), JSON.stringify(state));
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Recently';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
-}
-
-function roomAccent(roomId: string): string {
-  const total = roomId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return roomAccents[total % roomAccents.length];
 }
 
 export default function WorkspaceDashboard({ user, onLogout }: WorkspaceDashboardProps) {
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState>(() => loadWorkspaceState(user.id));
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [renameRoom, setRenameRoom] = useState<Room | null>(null);
-  const [deleteRoomTarget, setDeleteRoomTarget] = useState<Room | null>(null);
-  const [isWorkspaceDialogOpen, setIsWorkspaceDialogOpen] = useState(false);
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const [attempt, setAttempt] = useState(0);
+  const [load, setLoad] = useState<DirectoryLoad | null>(null);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<Sort>('updated');
+  const [layout, setLayout] = useState<BoardLayout>('grid');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importTarget, setImportTarget] = useState<{ kind: 'doc' | 'sheet' | 'slides'; project: Project }>();
+  const [meetingScope, setMeetingScope] = useState<{ value: string; label: string }>();
+  const [projectDialog, setProjectDialog] = useState<{ id: string; mode: 'import' | 'sync' }>();
+  const [archiveDialog, setArchiveDialog] = useState<{ scope: string; mode: 'export' | 'restore' }>();
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [modal, setModal] = useState<ActiveModal | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
+  const [busyBoards, setBusyBoards] = useState<ReadonlySet<string>>(() => new Set());
+  const mobileMenuButton = useRef<HTMLButtonElement>(null);
+  const mobileCloseButton = useRef<HTMLButtonElement>(null);
+  const { theme, setTheme, isDark } = useTheme();
+  const { appearance } = useAppearance(user.id);
+  const inbox = useWorkshopResource<Inbox>(workshopPath + '/inbox', 8_000);
+  const { locale, formatNumber, messages: { workshop: { directory: text, teams: teamText } } } = useI18n();
+  const collator = useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }), [locale]);
+
+  const key = `${user.id}:${attempt}`;
+  const currentLoad = load?.key === key ? load : null;
+  const directory = currentLoad?.directory;
+  const loadError = currentLoad?.error;
+  const loading = currentLoad === null;
 
   useEffect(() => {
-    saveWorkspaceState(user.id, workspaceState);
-  }, [user.id, workspaceState]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadRooms = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const { rooms } = await listRooms();
-        if (!cancelled) {
-          setRooms(rooms);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load projects');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadRooms();
-
+    const controller = new AbortController();
+    let pending = false;
+    function refreshDirectory() {
+      if (pending || document.visibilityState === 'hidden') return;
+      pending = true;
+      void getDirectory(controller.signal)
+        .then((data) => {
+          if (!controller.signal.aborted) setLoad({ key, directory: data });
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) setLoad({ key, error: errorMessage(error, text.loadBoardsError) });
+        })
+        .finally(() => { pending = false; });
+    }
+    refreshDirectory();
+    window.addEventListener('focus', refreshDirectory);
+    document.addEventListener('visibilitychange', refreshDirectory);
+    const timer = window.setInterval(refreshDirectory, 20_000);
     return () => {
-      cancelled = true;
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDirectory);
+      document.removeEventListener('visibilitychange', refreshDirectory);
     };
-  }, []);
+  }, [key, text.loadBoardsError]);
 
-  const workspaceIds = new Set(workspaceState.workspaces.map((workspace) => workspace.id));
+  useEffect(() => {
+    if (!menuId) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest('[data-workshop-board-menu]')) setMenuId(null);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [menuId]);
 
-  const assignedWorkspace = (roomId: string) => {
-    const assignment = workspaceState.assignments[roomId];
-    return assignment && workspaceIds.has(assignment) ? assignment : 'active';
-  };
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(''), 5500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
-  const groupedWorkspaces = workspaceState.workspaces.map((workspace) => ({
-    ...workspace,
-    rooms: rooms.filter((room) => assignedWorkspace(room.id) === workspace.id),
-  }));
+  useEffect(() => {
+    if (mobileNavOpen) mobileCloseButton.current?.focus();
+  }, [mobileNavOpen]);
 
-  const handleNewBoard = async () => {
-    setCreating(true);
-    setError(null);
+  const preferredOrganization = getOrganizationPreference(user.id);
+  const organizationId = params.get('organization');
+  const personal = directory?.organizations.find(item => item.kind === 'personal');
+  const teams = directory?.organizations.filter(item => item.kind === 'team') ?? [];
+  const requestedTeam = teams.find(item => item.id === organizationId);
+  const section = params.get('section');
+  const teamMode = section === 'teams' || (section !== 'projects' && requestedTeam !== undefined);
+  const organization = teamMode
+    ? organizationId ? requestedTeam : teams.find(item => item.id === preferredOrganization) ?? teams[0]
+    : personal;
+  const canAddWorkspace = organization?.role === 'owner' || organization?.role === 'admin';
+  const activeOrganizationId = organization?.id;
+  const projectId = params.get('project');
+  const requestedView = params.get('view');
+  const view: WorkshopView = requestedView === 'inbox' || requestedView === 'calendar' || requestedView === 'recents'
+    || requestedView === 'favorites' || requestedView === 'shared' || requestedView === 'archive' ? requestedView
+    : section || organizationId || projectId || requestedView === 'recent' ? 'recent' : 'inbox';
+  const collectionView: CollectionView = view === 'favorites' || view === 'shared' || view === 'archive' ? view : 'recent';
+  const workshopHome = view === 'inbox' || view === 'calendar' || view === 'recents';
 
+  useEffect(() => {
+    if (!activeOrganizationId || !teamMode || view !== 'recent') return;
     try {
-      const room = await createRoom('Untitled Board');
-      setRooms((current) => [room, ...current]);
-      setWorkspaceState((current) => ({
-        ...current,
-        assignments: {
-          ...current.assignments,
-          [room.id]: 'drafts',
-        },
-      }));
-      navigate(`/board/${room.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create board');
-    } finally {
-      setCreating(false);
+      sessionStorage.setItem(organizationPreferenceKey(user.id), activeOrganizationId);
+      // A rolled-back client can update the same tab before the next upgrade.
+      sessionStorage.setItem(legacyOrganizationPreferenceKey(user.id), activeOrganizationId);
+      sessionStorage.removeItem(earlierOrganizationPreferenceKey(user.id));
+    } catch {
+      // Navigation still works when browser storage is unavailable.
     }
-  };
+  }, [activeOrganizationId, teamMode, user.id, view]);
 
-  const submitRename = async (nextName: string) => {
-    if (!renameRoom) {
-      return;
+  const locations = useMemo(() => {
+    const workspaces = new Map(directory?.workspaces.map((item) => [item.id, item]));
+    const organizations = new Map(directory?.organizations.map((item) => [item.id, item]));
+    const projects = new Map<string, ProjectLocation>();
+    for (const project of directory?.projects ?? noProjects) {
+      const workspace = workspaces.get(project.workspaceId);
+      const owner = workspace && organizations.get(workspace.organizationId);
+      if (workspace && owner) projects.set(project.id, { project, workspace, organization: owner });
     }
-    if (!nextName || nextName === renameRoom.name) {
-      return;
+    return projects;
+  }, [directory?.organizations, directory?.projects, directory?.workspaces]);
+
+  const organizationWorkspaces = directory?.workspaces.filter((item) => item.organizationId === organization?.id) ?? [];
+  const selectedLocation = projectId ? locations.get(projectId) : undefined;
+  const activeProject = selectedLocation?.organization.id === organization?.id ? selectedLocation?.project : undefined;
+  const organizationProjects = directory?.projects.filter((item) => locations.get(item.id)?.organization.id === organization?.id) ?? noProjects;
+  const editableProjects = organizationProjects.filter(item => item.role === 'manager' || item.role === 'edit');
+  const defaultProject = activeProject
+    ? editableProjects.find(item => item.id === activeProject.id)
+    : editableProjects.find(item => item.isDefault) ?? editableProjects[0];
+  const search = query.trim();
+  const showAreaHome = !activeProject && view === 'recent' && !search;
+  const showBoardTools = !workshopHome && !search;
+  const projectsByTeam = new Map<string, Project[]>();
+  for (const { organization: owner, project } of locations.values()) {
+    if (owner.kind !== 'team') continue;
+    const projects = projectsByTeam.get(owner.id) ?? [];
+    projects.push(project);
+    projectsByTeam.set(owner.id, projects);
+  }
+  const personalProjects = (directory?.projects ?? noProjects)
+    .filter(project => locations.get(project.id)?.organization.id === personal?.id);
+
+  const entries = useMemo(() => {
+    const projectCounts = new Map<string, number>();
+    for (const { organization: owner, project } of locations.values()) {
+      if (project.role === 'manager') projectCounts.set(owner.id, (projectCounts.get(owner.id) ?? 0) + 1);
     }
 
-    setDialogBusy(true);
-    try {
-      const updated = await updateRoom(renameRoom.id, nextName);
-      setRooms((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      setRenameRoom(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename project');
-    } finally {
-      setDialogBusy(false);
-    }
-  };
+    const visible: BoardEntry[] = [];
+    for (const board of [...(directory?.boards ?? []), ...(directory?.docs ?? []), ...(directory?.sheets ?? []), ...(directory?.slides ?? [])]) {
+      const location = board.projectId ? locations.get(board.projectId) : undefined;
+      const ownOrganization = location !== undefined && location.organization.id === organization?.id;
+      const legacyPersonalBoard = !location && board.ownerId === user.id && organization?.kind === 'personal';
+      const archived = board.archivedAt !== null && (board.permission === 'owner' || location?.organization.kind === 'team');
+      const boardLocation = location ? `${location.workspace.name} / ${location.project.name}` : text.sharedBoard;
 
-  const confirmDelete = async () => {
-    if (!deleteRoomTarget) {
-      return;
-    }
+      if (activeProject) {
+        if (archived !== (collectionView === 'archive') || board.projectId !== activeProject.id) continue;
+      } else if (collectionView === 'archive') {
+        if (!archived || (!ownOrganization && !legacyPersonalBoard)) continue;
+      } else {
+        if (archived) continue;
+        if (collectionView === 'favorites' && !board.favorite) continue;
+        if (collectionView === 'shared' && (board.permission === 'owner' || location)) continue;
+        if (collectionView === 'recent' && !ownOrganization && !legacyPersonalBoard) continue;
+      }
 
-    setDialogBusy(true);
-    try {
-      await deleteRoom(deleteRoomTarget.id);
-      setRooms((current) => current.filter((item) => item.id !== deleteRoomTarget.id));
-      setWorkspaceState((current) => {
-        const assignments = { ...current.assignments };
-        delete assignments[deleteRoomTarget.id];
-        return { ...current, assignments };
+      visible.push({
+        board,
+        location: location
+          ? (ownOrganization ? boardLocation : `${location.organization.name} / ${location.project.name}`)
+          : (legacyPersonalBoard ? text.personalDrafts : boardLocation),
+        canMove: board.permission === 'owner' && location !== undefined
+          && (projectCounts.get(location.organization.id) ?? 0) > 1,
       });
-      setDeleteRoomTarget(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete project');
+    }
+
+    return visible.sort((a, b) => sort === 'name'
+      ? collator.compare(a.board.name, b.board.name)
+      : Date.parse(b.board.updatedAt) - Date.parse(a.board.updatedAt));
+  }, [activeProject, collator, collectionView, directory, locations, organization?.id, organization?.kind, sort, text.personalDrafts, text.sharedBoard, user.id]);
+
+  function closeMobileNav() {
+    setMobileNavOpen(false);
+    mobileMenuButton.current?.focus();
+  }
+
+  function changeDestination(next: URLSearchParams) {
+    setParams(next);
+    setQuery('');
+    setMenuId(null);
+    setActionError(null);
+    if (mobileNavOpen) closeMobileNav();
+  }
+
+  function selectDestination(destinationOrganization: string, destinationProject?: string) {
+    const next = new URLSearchParams({ section: teams.some(team => team.id === destinationOrganization) ? 'teams' : 'projects' });
+    if (destinationOrganization) next.set('organization', destinationOrganization);
+    if (destinationProject) next.set('project', destinationProject);
+    changeDestination(next);
+  }
+
+  function selectView(destination: WorkshopView) {
+    const next = new URLSearchParams({ view: destination });
+    if (destination === 'archive' && teamMode && activeOrganizationId) {
+      next.set('section', 'teams');
+      next.set('organization', activeOrganizationId);
+    }
+    changeDestination(next);
+  }
+
+  function selectProject(id: string) {
+    const location = locations.get(id);
+    if (location) selectDestination(location.organization.id, id);
+  }
+
+  function selectConversation(id?: string) {
+    const next = new URLSearchParams({ view: 'inbox' });
+    if (id) next.set('conversation', id);
+    setParams(next);
+  }
+
+  function updateDirectory(update: (data: Directory) => Directory) {
+    setLoad((previous) => previous?.key === key && previous.directory
+      ? { key, directory: update(previous.directory) }
+      : previous);
+  }
+
+  function patchBoard(id: string, changes: Partial<DirectoryBoard>) {
+    updateDirectory((data) => ({
+      ...data,
+      boards: data.boards.map((board) => board.id === id ? { ...board, ...changes } : board),
+      docs: (data.docs ?? []).map(doc => doc.id === id ? { ...doc, ...changes } : doc),
+      sheets: (data.sheets ?? []).map(sheet => sheet.id === id ? { ...sheet, ...changes } : sheet),
+      slides: (data.slides ?? []).map(slide => slide.id === id ? { ...slide, ...changes } : slide),
+    }));
+  }
+
+  function openModal(settings: ModalSettings) {
+    const focused = document.activeElement;
+    const trigger = focused?.closest('[data-workshop-board-menu]')?.querySelector<HTMLElement>('[data-workshop-menu-trigger]');
+    setMenuId(null);
+    setDialogError(null);
+    setModal({ ...settings, returnFocus: trigger ?? (focused instanceof HTMLElement ? focused : null) });
+  }
+
+  async function submitModal(name: string, selectionId: string) {
+    if (!modal || dialogBusy) return;
+    setDialogBusy(true);
+    setDialogError(null);
+    try {
+      await modal.save(name, selectionId);
+      setModal(null);
+    } catch (error) {
+      setDialogError(errorMessage(error, text.saveError));
     } finally {
       setDialogBusy(false);
     }
-  };
+  }
 
-  const handleMove = (roomId: string, workspaceId: string) => {
-    setWorkspaceState((current) => ({
-      ...current,
-      assignments: {
-        ...current.assignments,
-        [roomId]: workspaceId,
+  function addOrganization() {
+    openModal({
+      title: teamText.newTeam,
+      submitLabel: teamText.createTeam,
+      field: { label: teamText.teamName, placeholder: text.teamExample },
+      save: async (name) => {
+        const result = await createOrganization(name);
+        changeDestination(new URLSearchParams({ section: 'teams', organization: result.id }));
+        setAttempt((current) => current + 1);
       },
-    }));
-  };
+    });
+  }
 
-  const handleToggleWorkspace = (workspaceId: string) => {
-    setWorkspaceState((current) => ({
-      ...current,
-      workspaces: current.workspaces.map((workspace) => (
-        workspace.id === workspaceId ? { ...workspace, collapsed: !workspace.collapsed } : workspace
-      )),
-    }));
-  };
+  function addWorkspace() {
+    if (!organization) return;
+    openModal({
+      title: text.newWorkspace,
+      submitLabel: text.createWorkspace,
+      field: { label: text.workspaceName, placeholder: text.workspaceExample },
+      save: async (name) => {
+        const result = await createWorkspace(organization.id, name);
+        updateDirectory((data) => ({ ...data, workspaces: [...data.workspaces, result] }));
+      },
+    });
+  }
 
-  const submitWorkspace = (name: string) => {
-    if (!name) {
+  function addProject(workspace: Workspace) {
+    openModal({
+      title: text.newProject,
+      submitLabel: text.createProject,
+      field: { label: text.projectName, placeholder: text.projectExample },
+      selection: organizationWorkspaces.length > 1 ? {
+        label: 'Workspace',
+        value: workspace.id,
+        options: organizationWorkspaces.map(item => ({ id: item.id, label: item.name })),
+      } : undefined,
+      save: async (name, workspaceId) => {
+        const result = await createProject(workspaceId || workspace.id, name);
+        selectDestination(workspace.organizationId, result.id);
+        setAttempt(current => current + 1);
+      },
+    });
+  }
+
+  function openResource(kind: ResourceKind, id: string, warnings?: string[]) {
+    navigate(resourcePath(kind, id), { state: { workshop: location.pathname + location.search, warnings } });
+  }
+
+  function addResource(kind: ResourceKind) {
+    if (!defaultProject) return;
+    const noun = resourceNames[kind];
+    const board = kind === 'board';
+    openModal({
+      title: board ? text.newBoard : 'New ' + noun,
+      submitLabel: board ? text.createBoard : 'Create ' + noun,
+      field: { label: board ? text.boardName : noun + ' Name', value: board ? text.untitled : 'Untitled ' + noun },
+      selection: activeProject ? undefined : {
+        label: text.project,
+        value: defaultProject.id,
+        options: editableProjects.map((item) => ({
+          id: item.id,
+          label: `${locations.get(item.id)?.workspace.name} / ${item.name}`,
+        })),
+      },
+      save: async (name, selectionId) => {
+        const create = { board: createProjectBoard, doc: createProjectDoc, sheet: createProjectSheet, slides: createProjectPresentation }[kind];
+        const file = await create(selectionId || defaultProject.id, name);
+        openResource(kind, file.id);
+      },
+    });
+  }
+
+  function handleBoardAction(action: BoardAction, board: DirectoryBoard) {
+    if (action === 'reference') {
+      setMenuId(null);
+      setActionError(null);
+      const reference = resourcePath(board.kind, board.id);
+      if (!navigator.clipboard) {
+        setActionError('Select and copy ' + reference);
+        return;
+      }
+      void navigator.clipboard.writeText(reference)
+        .then(() => setNotice('Reference copied.'), () => setActionError('Select and copy ' + reference));
       return;
     }
 
-    const id = `workspace-${Date.now().toString(36)}`;
-    const color = roomAccents[workspaceState.workspaces.length % roomAccents.length];
-    setWorkspaceState((current) => ({
-      ...current,
-      workspaces: [...current.workspaces, { id, name, color, collapsed: false }],
-    }));
-    setIsWorkspaceDialogOpen(false);
-  };
+    if (action === 'rename') {
+      openModal({
+        title: board.kind === 'board' ? text.renameBoard : 'Rename ' + resourceNames[board.kind],
+        submitLabel: text.saveName,
+        field: { label: board.kind === 'board' ? text.boardName : resourceNames[board.kind] + ' Name', value: board.name, maxLength: 255 },
+        save: async (name) => {
+          if (name === board.name) return;
+          const result = await updateRoom(board.id, name);
+          patchBoard(board.id, { name: result.name, updatedAt: result.updatedAt });
+        },
+      });
+      return;
+    }
+
+    if (action === 'move') {
+      const origin = board.projectId ? locations.get(board.projectId) : undefined;
+      if (!origin) return;
+      const options = Array.from(locations.values())
+        .filter((item) => item.organization.id === origin.organization.id && item.project.id !== board.projectId && item.project.role === 'manager')
+        .map((item) => ({ id: item.project.id, label: `${item.workspace.name} / ${item.project.name}` }));
+      if (options.length === 0) return;
+      openModal({
+        title: text.moveNamedBoard(board.name),
+        submitLabel: text.moveBoard,
+        selection: { label: text.destinationProject, options },
+        save: async (_name, selectionId) => {
+          const result = await moveBoard(board.id, selectionId);
+          patchBoard(board.id, { projectId: result.projectId });
+          setNotice(text.moved(board.name));
+        },
+      });
+      return;
+    }
+
+    if (busyBoards.has(board.id)) return;
+    setMenuId(null);
+    setActionError(null);
+    setBusyBoards((previous) => new Set([...previous, board.id]));
+    void (async () => {
+      try {
+        if (action === 'favorite') {
+          const result = await setBoardFavorite(board.id, !board.favorite);
+          patchBoard(board.id, { favorite: result.favorite });
+        } else {
+          const result = await setBoardArchive(board.id, board.archivedAt === null);
+          patchBoard(board.id, { archivedAt: result.archivedAt });
+          setNotice(result.archivedAt ? text.archived(board.name) : text.restored(board.name));
+        }
+      } catch (error) {
+        setActionError(errorMessage(error, text.updateError));
+      } finally {
+        setBusyBoards((previous) => {
+          const next = new Set(previous);
+          next.delete(board.id);
+          return next;
+        });
+      }
+    })();
+  }
+
+  const title = search ? text.searchResults
+    : view === 'inbox' ? 'Inbox'
+      : view === 'calendar' ? 'Calendar'
+        : view === 'recents' ? 'Recents'
+          : activeProject?.name ?? (showAreaHome ? (teamMode ? organization?.name ?? (organizationId ? 'Team Unavailable' : teamText.noTeams) : teamText.personal) : text[collectionView]);
+  const empty = text.empty[activeProject ? 'recent' : collectionView];
+  const firstWorkspace = organizationWorkspaces.find(item => item.isDefault) ?? organizationWorkspaces[0];
+  const primaryAction = activeProject ? null
+    : firstWorkspace ? { label: text.newProject, run: () => addProject(firstWorkspace) }
+      : organization && canAddWorkspace ? { label: text.newWorkspace, run: addWorkspace }
+        : teamMode && !organization ? { label: teamText.newTeam, run: addOrganization } : null;
+  const scope = !showBoardTools ? undefined : view === 'shared' || view === 'favorites' ? text.allOrganizations
+    : selectedLocation && activeProject ? selectedLocation.organization.name
+      : view === 'archive' ? organization?.name : undefined;
+  const scheduleScope = activeProject ? 'project:' + activeProject.id
+    : teamMode && activeOrganizationId ? 'team:' + activeOrganizationId : undefined;
+  const canCreateMeeting = activeProject ? Boolean(defaultProject) : organization?.kind === 'team';
+  const teamWorkspaces = teams.flatMap(team => (directory?.workspaces ?? [])
+    .filter(workspace => workspace.organizationId === team.id).map(workspace => ({
+      id: workspace.id, label: team.name + ' / ' + workspace.name,
+    })));
+  const dialogProject = projectDialog?.id === activeProject?.id ? defaultProject : undefined;
+  const showTeamWorkspaceAction = showAreaHome && teamMode && canAddWorkspace && firstWorkspace;
+  const calendarDate = params.get('date') ?? undefined;
+  const calendarItem = params.get('item') ?? undefined;
+  const calendarScope = params.get('scope') ?? undefined;
 
   return (
-    <main className="min-h-screen overflow-auto" style={{ background: 'var(--surface-canvas)', color: 'var(--text-primary)' }}>
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="flex flex-col border-b border-black/5 bg-white/55 p-5 backdrop-blur-xl lg:min-h-screen lg:border-b-0 lg:border-r">
-          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
-            <img src="/icons/openjam.png" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
-            <p className="font-semibold leading-tight">OpenJam</p>
+    <main className="shiori-workshop">
+      <aside
+        className="workshop-sidebar"
+        id="workshop-sidebar"
+        data-open={mobileNavOpen}
+        aria-label={text.sidebar}
+        onKeyDown={(event) => {
+          if (mobileNavOpen && event.key === 'Escape') closeMobileNav();
+        }}
+      >
+        <div className="workshop-sidebar-top">
+          <Link
+            to="/workplace"
+            className="workshop-brand"
+            onClick={() => { setQuery(''); setMobileNavOpen(false); }}
+          >
+            <ShioriMark size={25} />
+            <span>Shiori</span>
           </Link>
+          <button type="button" ref={mobileCloseButton} className="workshop-icon-button workshop-mobile-close" aria-label={text.closeNavigation} onClick={closeMobileNav}>
+            <WorkshopIcon name="close" />
+          </button>
+        </div>
 
+        <div className="workshop-sidebar-scroll">
+          <WorkshopNavigation activeView={search ? undefined : view} personalProjects={personalProjects} teams={teams}
+            projectsByTeam={projectsByTeam} activeTeam={teamMode && view === 'recent' ? activeOrganizationId : undefined}
+            activeProject={!search ? activeProject?.id : undefined} personalOpen={!teamMode && view === 'recent' && !search}
+            badge={appearance.inboxBadge} unread={inbox.data?.unread ?? 0}
+            onView={selectView} onProjects={() => selectDestination(personal?.id ?? '')}
+            onTeam={selectDestination} onProject={selectProject} onNewTeam={addOrganization} />
+        </div>
+
+        <div className="workshop-profile">
+          <AccountPopover user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} side="above" expanded />
+        </div>
+      </aside>
+      {mobileNavOpen && <button type="button" tabIndex={-1} className="workshop-navigation-scrim" onClick={closeMobileNav} aria-label={text.closeNavigation} />}
+
+      <section className="workshop-main" aria-label={text.name}>
+        <header className="workshop-toolbar">
           <button
             type="button"
-            onClick={handleNewBoard}
-            disabled={creating}
-            className="mt-8 flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-            style={{ background: 'var(--accent-gradient)' }}
+            ref={mobileMenuButton}
+            className="shell-island workshop-mobile-menu"
+            aria-label={mobileNavOpen ? text.closeNavigation : text.showNavigation}
+            aria-expanded={mobileNavOpen}
+            aria-controls="workshop-sidebar"
+            onClick={() => setMobileNavOpen((open) => !open)}
           >
-            {creating ? 'Creating...' : 'New'}
+            <WorkshopIcon name="menu" />
           </button>
-
-          <section className="mt-8">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>
-                Categories
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsWorkspaceDialogOpen(true)}
-                className="min-h-11 rounded-xl px-3 text-sm font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                Add
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {groupedWorkspaces.map((workspace) => (
-                <button
-                  key={workspace.id}
-                  type="button"
-                  onClick={() => handleToggleWorkspace(workspace.id)}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  aria-expanded={!workspace.collapsed}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <span className="h-3 w-3 rounded-full" style={{ background: workspace.color }} />
-                    <span className="truncate text-sm font-semibold">{workspace.name}</span>
-                  </span>
-                  <span className="rounded-full px-2 py-1 text-xs" style={{ background: 'var(--badge-bg)', color: 'var(--text-secondary)' }}>
-                    {workspace.rooms.length}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <div className="mt-8 border-t border-black/5 pt-5 lg:mt-auto">
-            <p className="truncate text-sm font-semibold">{user.displayName}</p>
-            <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>{user.email}</p>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="mt-4 min-h-11 w-full rounded-xl px-4 text-left text-sm font-medium transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Sign out
-            </button>
+          <div className="workshop-search" role="search">
+            <WorkshopIcon name="search" />
+            <input type="search" aria-label={text.search} placeholder={text.searchPlaceholder} value={query} maxLength={120}
+              onChange={event => setQuery(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Escape') setQuery(''); }} />
+            {query && <button type="button" className="workshop-icon-button" aria-label={text.clearSearch} onClick={() => setQuery('')}>
+              <WorkshopIcon name="close" />
+            </button>}
           </div>
-        </aside>
+          {directory && showBoardTools && (
+            <div className="shell-island workshop-toolbar-actions">
+              {scheduleScope && view === 'recent' && <Link className="workshop-icon-button" aria-label="Open Calendar" title="Open Calendar"
+                to={'/workplace?' + new URLSearchParams({ view: 'calendar', scope: scheduleScope })}><WorkshopIcon name="calendar" /></Link>}
+              {scheduleScope && canCreateMeeting && view === 'recent' && <button type="button" className="workshop-icon-button workshop-glass-control"
+                aria-label="New Meeting" title="New Meeting" onClick={() => setMeetingScope({
+                  value: scheduleScope, label: activeProject?.name ?? organization?.name ?? '',
+                })}><WorkshopIcon name="camera" /></button>}
+              {showAreaHome && organization && firstWorkspace && <button type="button" className="workshop-icon-button workshop-glass-control"
+                aria-label="Restore Project Archive" title="Restore Project Archive"
+                onClick={() => setArchiveDialog({ scope: organization.id, mode: 'restore' })}><WorkshopIcon name="restore" /></button>}
+              {showTeamWorkspaceAction && <button type="button" className="workshop-icon-button" aria-label={text.newWorkspace}
+                title={text.newWorkspace} onClick={addWorkspace}><WorkshopIcon name="folder" /></button>}
+              {activeProject && defaultProject && view === 'recent' && <ProjectFilesActions
+                onNewBoard={() => addResource('board')} onNewDoc={() => addResource('doc')} onNewSheet={() => addResource('sheet')}
+                onNewPresentation={() => addResource('slides')}
+                onImportBoard={() => setShowImport(true)} onImportDoc={() => setImportTarget({ kind: 'doc', project: activeProject })}
+                onImportSheet={() => setImportTarget({ kind: 'sheet', project: activeProject })}
+                onImportPresentation={() => setImportTarget({ kind: 'slides', project: activeProject })} />}
+              {!activeProject && (!showAreaHome || !teamMode) && <button type="button" className="workshop-icon-button" aria-label={text.importBoard}
+                title={text.importBoard} aria-expanded={showImport} onClick={() => setShowImport(open => !open)}><WorkshopIcon name="import" /></button>}
+              {primaryAction && view === 'recent' && <button type="button" className="workshop-button workshop-button-primary" onClick={primaryAction.run}
+                aria-label={primaryAction.label} title={primaryAction.label}><WorkshopIcon name="plus" /><span>{primaryAction.label}</span></button>}
+            </div>
+          )}
+        </header>
 
-        <section className="min-w-0 px-5 py-6 sm:px-8">
-          <header className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
-                Workplace
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold">Good to see you, {user.displayName}.</h1>
-            </div>
-            <div className="rounded-2xl border bg-white/60 px-4 py-3 text-right" style={{ borderColor: 'var(--glass-border-strong)' }}>
-              <p className="text-2xl font-semibold">{rooms.length}</p>
-              <p className="text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--text-secondary)' }}>Projects</p>
-            </div>
+        <div className="workshop-content">
+          <header className="workshop-page-heading">
+            {scope && <p>{scope}</p>}
+            <h1>{title}</h1>
+            {activeProject && defaultProject && !search && view === 'recent' && <div className="shell-island workshop-project-branch-actions"
+              role="group" aria-label="Project Actions">
+              {organization?.kind === 'personal' && teamWorkspaces.length > 0 && <button type="button" className="workshop-icon-button workshop-glass-control"
+                aria-label="Import to Team" title="Import to Team" onClick={() => setProjectDialog({ id: activeProject.id, mode: 'import' })}>
+                <WorkshopIcon name="branch" />
+              </button>}
+              <button type="button" className="workshop-icon-button workshop-glass-control" aria-label="Project Sync & Versions" title="Project Sync & Versions"
+                onClick={() => setProjectDialog({ id: activeProject.id, mode: 'sync' })}><WorkshopIcon name="sync" /></button>
+              {activeProject.role === 'manager' && <button type="button" className="workshop-icon-button workshop-glass-control"
+                aria-label="Export Project Archive" title="Export Project Archive"
+                onClick={() => setArchiveDialog({ scope: activeProject.id, mode: 'export' })}><WorkshopIcon name="download" /></button>}
+            </div>}
           </header>
 
-          {error && (
-            <div role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+          {actionError && (
+            <div className="workshop-message workshop-message-error" role="alert">
+              <p>{actionError}</p>
+              <button type="button" className="workshop-icon-button" aria-label={text.dismissError} onClick={() => setActionError(null)}>
+                <WorkshopIcon name="close" />
+              </button>
             </div>
           )}
 
-          <div className="mt-8 space-y-5">
-            {loading ? (
-              <div className="glass-subtle rounded-2xl p-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Loading projects...
+          {search ? (
+            <WorkshopSearch query={search} teamId={teamMode && view === 'recent' ? organizationId ?? activeOrganizationId : undefined}
+              teamName={teamMode && view === 'recent' ? organization?.name : undefined} onOpen={() => setQuery('')} />
+          ) : view === 'inbox' ? (
+            <WorkshopInbox user={user} teams={teams} data={inbox.data} loading={inbox.loading} error={inbox.error}
+              selected={params.get('conversation') ?? undefined} onSelect={selectConversation} onChange={inbox.refresh} />
+          ) : view === 'calendar' ? (
+            <WorkshopCalendar key={[calendarDate, calendarItem, calendarScope].join(':')} teams={teams}
+              projects={directory?.projects ?? noProjects} initialDate={calendarDate} initialItem={calendarItem} initialScope={calendarScope} />
+          ) : view === 'recents' ? <WorkshopRecents /> : loading ? (
+            <div className="workshop-loading" role="status">
+              <p>{text.loading}</p>
+              <div className="workshop-skeletons" aria-hidden="true"><span /><span /><span /></div>
+            </div>
+          ) : loadError ? (
+            <div className="workshop-message workshop-message-error" role="alert">
+              <div><strong>{text.loadError}</strong><p>{loadError}</p></div>
+              <button type="button" className="workshop-button workshop-button-secondary" onClick={() => setAttempt((current) => current + 1)}>{text.retry}</button>
+            </div>
+          ) : showAreaHome && teamMode ? (
+            organization ? <>
+              <div className="workshop-team-overview">
+                <TeamRelationships key={organization.id} teamId={organization.id} />
+                <div className="workshop-team-details">
+                  <ProjectList projects={organizationProjects} onOpen={selectProject} />
+                  <TeamMembers key={organization.id} team={organization} currentUserId={user.id} focusedMember={params.get('member')}
+                    onLeave={() => { selectView('inbox'); setAttempt(current => current + 1); }} />
+                </div>
               </div>
-            ) : rooms.length === 0 ? (
-              <div className="glass-subtle rounded-2xl p-8 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                No saved projects yet.
+            </> : <p className="workshop-inline-empty">{organizationId ? 'This team is unavailable.' : 'Create a team or accept an invitation.'}</p>
+          ) : (
+            <>
+              {showAreaHome && organization && <ProjectList projects={organizationProjects} onOpen={selectProject} />}
+              {teamMode && organization && activeProject?.role === 'manager' && <ProjectAccess key={activeProject.id}
+                project={activeProject} teamId={organization.id} currentUserId={user.id}
+                onChange={() => setAttempt(current => current + 1)} />}
+              <div className="workshop-collection-bar">
+                <p role="status">{formatNumber(entries.length)} {entries.length === 1 ? 'file' : 'files'}</p>
+                <div className="workshop-collection-controls">
+                  <label className="workshop-sort">
+                    <select aria-label={text.sort} value={sort} onChange={(event) => setSort(event.target.value === 'name' ? 'name' : 'updated')}>
+                      <option value="updated">{text.updated}</option>
+                      <option value="name">{text.nameSort}</option>
+                    </select>
+                  </label>
+                  <div className="shell-island workshop-layout-toggle" role="group" aria-label={text.layout}>
+                    <button type="button" className="workshop-icon-button" aria-label={text.grid} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>
+                      <WorkshopIcon name="grid" />
+                    </button>
+                    <button type="button" className="workshop-icon-button" aria-label={text.list} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>
+                      <WorkshopIcon name="list" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            ) : (
-              groupedWorkspaces.map((workspace) => (
-                <section key={workspace.id} className="glass-elevated rounded-3xl p-4">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleWorkspace(workspace.id)}
-                    className="flex min-h-11 w-full items-center justify-between gap-4 rounded-2xl px-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                    aria-expanded={!workspace.collapsed}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className="h-3 w-3 rounded-full" style={{ background: workspace.color }} />
-                      <span className="truncate text-lg font-semibold">{workspace.name}</span>
-                    </span>
-                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      {workspace.collapsed ? '+' : '-'} {workspace.rooms.length}
-                    </span>
-                  </button>
-
-                  {!workspace.collapsed && (
-                    <div className="mt-4 grid gap-3 xl:grid-cols-2">
-                      {workspace.rooms.length === 0 ? (
-                        <div className="rounded-2xl bg-white/55 px-4 py-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          Empty workspace
-                        </div>
-                      ) : (
-                        workspace.rooms.map((room) => {
-                          const canManageRoom = room.permission === 'owner' || room.ownerId === user.id || !room.permission;
-
-                          return (
-                            <article key={room.id} className="rounded-2xl border bg-white/78 p-4 shadow-sm" style={{ borderColor: 'var(--glass-border-strong)' }}>
-                              <div className="grid gap-4 sm:grid-cols-[68px_minmax(0,1fr)]">
-                                <div className="aspect-square rounded-2xl" style={{ background: roomAccent(room.id) }}>
-                                  <div className="h-full w-full rounded-2xl bg-white/20" />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="min-w-0">
-                                    <h3 className="truncate text-base font-semibold">{room.name}</h3>
-                                    <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                      Updated {formatDate(room.updatedAt)}
-                                    </p>
-                                  </div>
-                                  <div className="mt-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${room.name} actions`}>
-                                    <Link
-                                      to={`/board/${room.id}`}
-                                      className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-white transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                      style={{ background: roomAccent(room.id) }}
-                                    >
-                                      Open
-                                    </Link>
-                                    {canManageRoom ? (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => setRenameRoom(room)}
-                                          className="min-h-11 rounded-lg px-3 text-xs font-semibold transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                        >
-                                          Rename
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setDeleteRoomTarget(room)}
-                                          className="min-h-11 rounded-lg px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                                        >
-                                          Delete
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <span className="flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold" style={{ background: 'var(--badge-bg)', color: 'var(--text-secondary)' }}>
-                                        Shared
-                                      </span>
-                                    )}
-                                    <label className="sr-only" htmlFor={`move-${room.id}`}>Move {room.name}</label>
-                                    <select
-                                      id={`move-${room.id}`}
-                                      value={assignedWorkspace(room.id)}
-                                      onChange={(event) => handleMove(room.id, event.target.value)}
-                                      className="min-h-11 rounded-lg border border-black/10 bg-white px-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                                    >
-                                      {workspaceState.workspaces.map((option) => (
-                                        <option key={option.id} value={option.id}>{option.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                </div>
-                              </div>
-                            </article>
-                          );
-                        })
-                      )}
-                    </div>
+              {entries.length > 0 ? (
+                <BoardCollection entries={entries} theme={isDark ? 'dark' : 'light'} layout={layout} busyBoards={busyBoards} menuId={menuId} onMenuChange={setMenuId} onAction={handleBoardAction} />
+              ) : (
+                <div className="workshop-empty">
+                  <span className="workshop-empty-icon" aria-hidden="true"><WorkshopIcon name={activeProject ? 'board' : collectionIcons[collectionView]} /></span>
+                  <h2>{activeProject ? 'No files yet' : empty.title}</h2>
+                  <p>{activeProject && defaultProject ? 'Create or import a file in this project.' : activeProject ? 'Project files will appear here.' : empty.description}</p>
+                  {primaryAction && (activeProject || view === 'recent') && (
+                    <button type="button" className="workshop-button workshop-button-secondary" onClick={primaryAction.run}>
+                      <WorkshopIcon name="plus" /> {primaryAction.label}
+                    </button>
                   )}
-                </section>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
-      <TextInputDialog
-        isOpen={renameRoom !== null}
-        title="Rename Project"
-        label="Project name"
-        initialValue={renameRoom?.name || ''}
-        submitLabel="Rename"
-        isBusy={dialogBusy}
-        onSubmit={submitRename}
-        onClose={() => setRenameRoom(null)}
-      />
-
-      <TextInputDialog
-        isOpen={isWorkspaceDialogOpen}
-        title="New Workspace"
-        label="Workspace name"
-        placeholder="Design reviews"
-        submitLabel="Create"
-        isBusy={dialogBusy}
-        onSubmit={submitWorkspace}
-        onClose={() => setIsWorkspaceDialogOpen(false)}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteRoomTarget !== null}
-        title="Delete Project"
-        message={(
-          <span>
-            Delete <strong style={{ color: 'var(--text-primary)' }}>{deleteRoomTarget?.name}</strong>? This cannot be undone.
-          </span>
-        )}
-        confirmLabel="Delete"
-        tone="danger"
-        isBusy={dialogBusy}
-        onConfirm={confirmDelete}
-        onClose={() => setDeleteRoomTarget(null)}
-      />
+      {notice && <div className="workshop-toast" role="status"><WorkshopIcon name="check" /> {notice}</div>}
+      {dialogProject && projectDialog?.mode === 'import' && <ImportProjectDialog key={dialogProject.id} project={dialogProject} workspaces={teamWorkspaces}
+        onClose={() => setProjectDialog(undefined)} onImported={(id, organizationId) => {
+          setProjectDialog(undefined);
+          selectDestination(organizationId, id);
+          setAttempt(current => current + 1);
+        }} />}
+      {dialogProject && projectDialog?.mode === 'sync' && <ProjectBranchDialog key={dialogProject.id} project={dialogProject}
+        onClose={() => setProjectDialog(undefined)} onChange={() => {
+          void getDirectory().then(data => setLoad({ key, directory: data })).catch(() => undefined);
+        }} />}
+      {archiveDialog?.mode === 'export' && activeProject?.role === 'manager' && archiveDialog.scope === activeProject.id
+        && <ExportProjectArchiveDialog project={activeProject} onClose={() => setArchiveDialog(undefined)} onExported={() => {
+          setArchiveDialog(undefined);
+          setNotice('Project archive downloaded.');
+        }} />}
+      {archiveDialog?.mode === 'restore' && organization && archiveDialog.scope === organization.id && firstWorkspace
+        && <RestoreProjectArchiveDialog key={organization.id} label={organization.kind === 'team' ? organization.name : 'Personal Projects'}
+          teamId={organization.kind === 'team' ? organization.id : undefined} actorId={user.id}
+          workspaces={organizationWorkspaces} initialWorkspaceId={firstWorkspace.id}
+          onClose={() => setArchiveDialog(undefined)} onRestored={project => {
+            setArchiveDialog(undefined);
+            selectDestination(organization.id, project.id);
+            setAttempt(current => current + 1);
+            setNotice('Project restored.');
+          }} />}
+      {meetingScope && <MeetingEditor scopes={[meetingScope]} onClose={() => setMeetingScope(undefined)} onCreated={id => {
+        setMeetingScope(undefined);
+        navigate(meetingPath(id), { state: { workshop: location.pathname + location.search } });
+      }} />}
+      {importTarget && <ProjectImportDialog kind={importTarget.kind} projectId={importTarget.project.id} projectName={importTarget.project.name}
+        onClose={() => setImportTarget(undefined)} onImported={(id, warnings) => { setImportTarget(undefined); openResource(importTarget.kind, id, warnings); }} />}
+      {showImport && <BoardFilesPanel onClose={() => setShowImport(false)} onOpenBoard={id => navigate(`/board/${encodeURIComponent(id)}`)} />}
+      {modal && (
+        <WorkshopDialog
+          title={modal.title}
+          submitLabel={modal.submitLabel}
+          field={modal.field}
+          selection={modal.selection}
+          busy={dialogBusy}
+          error={dialogError}
+          returnFocus={modal.returnFocus}
+          onClose={() => setModal(null)}
+          onSubmit={(name, selectionId) => void submitModal(name, selectionId)}
+        />
+      )}
     </main>
   );
 }

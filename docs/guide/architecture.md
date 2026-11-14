@@ -1,6 +1,6 @@
 # Architecture
 
-OpenJam follows a client-server architecture with WebSocket for real-time communication.
+Shiori follows a client-server architecture with WebSocket for real-time communication.
 
 ## System Overview
 
@@ -26,8 +26,8 @@ The frontend is a single-page React application built with Vite.
 
 ### Key Components
 
-- **OpenJamCanvas** - Main canvas component handling rendering, interaction, and tool management
-- **ElementStore** - CRDT-based state management for canvas elements with vector clocks
+- **ShioriCanvas** - Main canvas component handling rendering, interaction, and tool management
+- **ElementStore** - Operation-log state management for canvas elements with vector clocks for ordering and dedup
 - **useCollaboration** - React hook bridging ElementStore with WebSocket for real-time sync
 - **WebSocketClient** - WebSocket connection with auto-reconnect and message queuing
 
@@ -78,13 +78,13 @@ rooms (id VARCHAR(36), name, owner_id, board_data JSONB, ...)
 room_members (room_id, user_id, permission, ...)
 room_share_settings (room_id, link_permission, updated_by, ...)
 
--- Operations for CRDT sync
+-- Operation log for real-time sync (last-writer-wins with opId dedup)
 operations (id BIGSERIAL, room_id, user_id, op_id, op_type, payload JSONB, vector_clock JSONB, ...)
 ```
 
 ## Multi-Server Scaling
 
-With Redis enabled, OpenJam supports horizontal scaling:
+With Redis enabled, Shiori supports horizontal scaling:
 
 1. Each server instance connects to the shared Redis pub/sub channel
 2. When a client sends an operation, the server broadcasts locally AND publishes to Redis

@@ -1,0 +1,150 @@
+.agent-character {
+  display: inline-block;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  vertical-align: middle;
+}
+
+.agent-character-picture { border-radius: 50%; object-fit: contain; }
+
+.agent-character-mark[data-pose='working'] {
+  stroke-dasharray: 38 10;
+  animation: agent-character-spin 2s linear infinite;
+}
+
+.agent-character-mark[data-pose='waiting'],
+.agent-character-picture[data-pose='working'],
+.agent-character-picture[data-pose='waiting'] { animation: agent-character-breathe 1.8s ease-in-out infinite; }
+
+.agent-character-pet {
+  background-size: 600% 400%;
+  background-position: 0 calc(var(--pet-row) * (100% / 3));
+  background-repeat: no-repeat;
+  animation: agent-character-frames 1.2s steps(6, end) infinite;
+}
+
+@keyframes agent-character-spin { to { transform: rotate(1turn); } }
+@keyframes agent-character-breathe { 50% { opacity: 0.6; transform: scale(0.92); } }
+@keyframes agent-character-frames { to { background-position-x: 120%; } }
+
+.agent-profile-dialog {
+  --workshop-border: var(--glass-border-strong);
+  --workshop-text: var(--text-primary);
+  --workshop-muted: var(--text-secondary);
+  --workshop-field: var(--badge-bg);
+  --workshop-hover: var(--badge-bg);
+  --workshop-primary: var(--text-primary);
+  max-height: min(640px, calc(100dvh - 32px));
+  overflow-y: auto;
+}
+
+.agent-profile-dialog .workshop-button { min-height: 40px; padding-inline: 14px; }
+.agent-profile-dialog .workshop-field input[type='file'] { height: auto; padding-block: 7px; }
+.agent-profile-dialog .workshop-field input::file-selector-button { border: 0; border-radius: 999px; padding: 4px 9px; }
+
+.agent-profile-poses,
+.agent-profile-glyphs {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.agent-profile-poses { margin: 16px 17px; }
+
+.agent-profile-poses > div {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.agent-profile-poses .agent-character { width: 2.5rem; height: 2.5rem; }
+.agent-profile-style { margin: 12px 17px; padding: 0; border: 0; }
+.agent-profile-style .workshop-field { margin: 8px 0; }
+.agent-profile-style legend { margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.agent-profile-glyphs { justify-content: flex-start; margin-bottom: 12px; }
+.agent-profile-glyphs .board-action-button { border: 1px solid var(--glass-border-strong); }
+
+.agent-canvas-rehearsal {
+  overflow: hidden;
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 14px;
+  background: var(--surface-canvas);
+}
+
+.agent-canvas-rehearsal figcaption {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 0 12px;
+  border-bottom: 1px solid var(--glass-border-strong);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agent-canvas-rehearsal .board-action-button { min-width: 32px; min-height: 30px; }
+
+.agent-preview-viewport {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle, var(--canvas-grid-dot) 1px, transparent 1px) 0 0 / 13px 13px;
+}
+
+.agent-preview-objects,
+.agent-preview-objects *,
+.board-agent-ghost { pointer-events: none !important; }
+
+.agent-preview-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: agent-preview-reveal 230ms ease-out both;
+}
+
+@keyframes agent-preview-reveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.board-agent-ghost {
+  position: absolute;
+  z-index: 50;
+  inset: 0;
+  opacity: 0.52;
+}
+
+.board-agent-attribution-layer {
+  position: absolute;
+  z-index: 19;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.board-agent-attribution {
+  position: absolute;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 50%;
+  background: var(--surface-float);
+  color: var(--text-primary);
+  box-shadow: 0 2px 7px rgb(0 0 0 / 12%);
+  pointer-events: auto;
+}
+
+.board-agent-attribution .agent-character { width: 14px; height: 14px; }
+.board-agent-attribution:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-character,
+  .agent-preview-object { animation: none !important; }
+}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { updateProfile } from '../lib/api';
 
 interface UserMenuProps {
   username: string;
@@ -214,7 +215,6 @@ export function ProfileSettingsDialog({
     try {
       // Try to update profile via API, but don't fail if API is unavailable
       try {
-        const { updateProfile } = await import('../lib/api');
         await updateProfile(tempUsername, tempColor);
       } catch {
         // API call failed, but we can still save locally

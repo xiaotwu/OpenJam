@@ -53,6 +53,8 @@ export type ArrowHead =
 
 export interface BaseElement {
   id: string;
+  pageId?: string;
+  groupId?: string;
   type: ElementType;
   x: number;
   y: number;
@@ -71,6 +73,8 @@ export interface StickyElement extends BaseElement {
   type: 'sticky';
   text: string;
   color: StickyColor;
+  fontFamily?: string;
+  stickyShape?: 'square' | 'rounded' | 'circle';
   fontSize: number;
   textAlign: 'left' | 'center' | 'right';
 }
@@ -83,6 +87,7 @@ export interface ShapeElement extends BaseElement {
   strokeWidth: number;
   text?: string;
   fontSize?: number;
+  fontFamily?: string;
 }
 
 export interface TextElement extends BaseElement {
@@ -123,6 +128,7 @@ export interface DrawingElement extends BaseElement {
 
 export interface ImageElement extends BaseElement {
   type: 'image';
+  assetId?: string;
   src: string;
   originalWidth: number;
   originalHeight: number;
@@ -293,7 +299,7 @@ export function createDefaultElement(
         ...base,
         type: 'text',
         text: 'Text',
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'IBM Plex Sans Variable',
         fontSize: 24,
         fontWeight: 'normal',
         fontStyle: 'normal',

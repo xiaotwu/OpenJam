@@ -1,0 +1,32 @@
+services:
+  server:
+    environment:
+      SHIORI_MEETINGS_MEDIA_URL: &media-url http://meeting-media:7880
+      SHIORI_MEETINGS_MEDIA_KEY: &media-key openjam
+      SHIORI_MEETINGS_MEDIA_SECRET: &media-secret "${SHIORI_MEETINGS_MEDIA_SECRET:-${OPENJAM_MEETINGS_MEDIA_SECRET:?Set SHIORI_MEETINGS_MEDIA_SECRET}}"
+      OPENJAM_MEETINGS_MEDIA_URL: *media-url
+      OPENJAM_MEETINGS_MEDIA_KEY: *media-key
+      OPENJAM_MEETINGS_MEDIA_SECRET: *media-secret
+    depends_on:
+      meeting-media:
+        condition: service_started
+
+  meeting-media:
+    image: livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      LIVEKIT_KEYS: "openjam: ${SHIORI_MEETINGS_MEDIA_SECRET:-${OPENJAM_MEETINGS_MEDIA_SECRET:?Set SHIORI_MEETINGS_MEDIA_SECRET}}"
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+          node_ip: "${SHIORI_MEETINGS_MEDIA_IP:-${OPENJAM_MEETINGS_MEDIA_IP:-127.0.0.1}}"
+        room:
+          max_participants: 12
+    ports:
+      - "${SHIORI_MEETINGS_MEDIA_BIND:-${OPENJAM_MEETINGS_MEDIA_BIND:-127.0.0.1}}:7881:7881/tcp"
+      - "${SHIORI_MEETINGS_MEDIA_BIND:-${OPENJAM_MEETINGS_MEDIA_BIND:-127.0.0.1}}:7882:7882/udp"

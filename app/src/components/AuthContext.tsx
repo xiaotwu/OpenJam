@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../lib/api';
-import { getMe, login as apiLogin, register as apiRegister, logout as apiLogout, getToken, clearToken } from '../lib/api';
+import { ApiError, SESSION_TOKEN_STORAGE_KEY, getMe, login as apiLogin, register as apiRegister, logout as apiLogout, updateProfile, getToken, clearToken } from '../lib/api';
+import { countAccountPending, discardAccountPending } from '../lib/boardSyncQueue';
 
 interface AuthContextType {
   user: User | null;
@@ -9,7 +10,8 @@ interface AuthContextType {
   isLoading: boolean; // Alias for loading
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
+  saveProfile: (displayName: string, avatarColor: string) => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -19,8 +21,8 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check auth on mount
   useEffect(() => {
+    let disposed = false;
     const checkAuth = async () => {
       const token = getToken();
       if (!token) {
@@ -30,15 +32,26 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const { user } = await getMe();
-        setUser(user);
-      } catch {
-        clearToken();
+        if (!disposed && getToken() === token) setUser(user);
+      } catch (error) {
+        if (!disposed && getToken() === token && error instanceof ApiError && error.status === 401) clearToken();
       } finally {
-        setLoading(false);
+        if (!disposed && (getToken() === token || !getToken())) setLoading(false);
       }
     };
+    const onTokenChange = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage || (event.key !== SESSION_TOKEN_STORAGE_KEY && event.key !== null)) return;
+      setUser(null);
+      setLoading(!!getToken());
+      void checkAuth();
+    };
 
-    checkAuth();
+    void checkAuth();
+    window.addEventListener('storage', onTokenChange);
+    return () => {
+      disposed = true;
+      window.removeEventListener('storage', onTokenChange);
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -51,10 +64,25 @@ function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user);
   }, []);
 
-  const logout = useCallback(async () => {
-    await apiLogout();
-    setUser(null);
+  const saveProfile = useCallback(async (displayName: string, avatarColor: string) => {
+    const token = getToken();
+    const { user: updated } = await updateProfile(displayName, avatarColor);
+    if (getToken() === token) setUser(current => current?.id === updated.id ? updated : current);
   }, []);
+
+  const logout = useCallback(async () => {
+    if (!user) return false;
+    const token = getToken();
+    const pending = await countAccountPending(user.id).catch(() => undefined);
+    if (pending === undefined && !window.confirm('Shiori could not check for pending edits. Sign out and keep any drafts on this device?')) return false;
+    if (pending && !window.confirm(`Discard ${pending} unsynced ${pending === 1 ? 'edit' : 'edits'} on this device and sign out? Cancel to return and sync your edits first.`)) return false;
+    if (getToken() !== token) return false;
+
+    await apiLogout();
+    if (!getToken()) setUser(null);
+    if (pending) await discardAccountPending(user.id);
+    return true;
+  }, [user]);
 
   return (
     <AuthContext.Provider
@@ -65,6 +93,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        saveProfile,
         isAuthenticated: !!user,
       }}
     >

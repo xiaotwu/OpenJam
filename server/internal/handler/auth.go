@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/project-wb/server/internal/middleware"
-	"github.com/project-wb/server/internal/model"
+	"github.com/xiaotwu/shiori/server/internal/middleware"
+	"github.com/xiaotwu/shiori/server/internal/model"
 )
 
 type RegisterRequest struct {
@@ -24,6 +24,34 @@ type LoginRequest struct {
 type AuthResponse struct {
 	Token string      `json:"token"`
 	User  *model.User `json:"user"`
+}
+
+const sessionCookieMaxAge = 86400 * 7
+
+// secureCookies is toggled by SetCookieSecurity based on ENVIRONMENT. In
+// production the session cookie is marked Secure + SameSite=Lax; in local
+// development (plain HTTP) we keep Secure off so the cookie still works.
+var secureCookies = false
+
+// SetCookieSecurity is called from main with the configured environment.
+func SetCookieSecurity(environment string) {
+	secureCookies = environment == "production"
+}
+
+// setSessionCookie writes the session cookie with HttpOnly and SameSite=Lax
+// always, plus Secure when serving over HTTPS in production. SameSite=Lax
+// blocks the cookie on cross-site POST (CSRF) while allowing top-level
+// navigation so shared links still open the app logged-in.
+func setSessionCookie(c *gin.Context, token string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     middleware.SessionCookieName,
+		Value:    token,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   secureCookies || c.Request.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+	})
 }
 
 func Register(c *gin.Context) {
@@ -52,7 +80,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("wb_session", session.Token, 86400*7, "/", "", false, true)
+	setSessionCookie(c, session.Token, sessionCookieMaxAge)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		Token: session.Token,
@@ -85,7 +113,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("wb_session", session.Token, 86400*7, "/", "", false, true)
+	setSessionCookie(c, session.Token, sessionCookieMaxAge)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		Token: session.Token,
@@ -98,15 +126,18 @@ func Logout(c *gin.Context) {
 
 	if auth := c.GetHeader("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		token = strings.TrimPrefix(auth, "Bearer ")
-	} else if cookie, err := c.Cookie("wb_session"); err == nil {
+	} else if cookie, err := c.Cookie(middleware.SessionCookieName); err == nil {
 		token = cookie
 	}
 
 	if token != "" {
-		_ = model.DeleteSession(c.Request.Context(), token)
+		if err := model.DeleteSession(c.Request.Context(), token); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not end the session. Try again."})
+			return
+		}
 	}
 
-	c.SetCookie("wb_session", "", -1, "/", "", false, true)
+	setSessionCookie(c, "", -1)
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

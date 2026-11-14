@@ -1,12 +1,15 @@
 import { useState, useCallback, type RefObject } from 'react';
-import type { Element } from '../../../lib/elements';
+import { createDefaultElement, type ConnectorElement, type Element } from '../../../lib/elements';
 import type { ElementStore } from '../../../lib/elementStore';
-import type { ToolType } from '../../BottomToolbar';
+import type { StickyColor, ToolType } from '../../BottomToolbar';
+import type { Bounds, Point } from '../boardObjects';
 
 interface UseDragCreateOptions {
   elementStoreRef: RefObject<ElementStore>;
   toolOptions: {
     fontSize: number;
+    stickyColor: StickyColor;
+    stickyShape: 'square' | 'rounded' | 'circle';
     shapeType: string;
     fillColor: string;
     strokeColor: string;
@@ -18,6 +21,11 @@ interface UseDragCreateOptions {
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setEditingId: React.Dispatch<React.SetStateAction<string | null>>;
   setCurrentTool: React.Dispatch<React.SetStateAction<ToolType>>;
+}
+
+interface CreationContext {
+  getAnchor: (point: Point) => { id: string; name: NonNullable<ConnectorElement['startAnchor']>; point: Point } | undefined;
+  getFrameChildren: (bounds: Bounds) => string[];
 }
 
 export function useDragCreate({ elementStoreRef, toolOptions, setSelectedIds, setEditingId, setCurrentTool }: UseDragCreateOptions) {
@@ -35,7 +43,13 @@ export function useDragCreate({ elementStoreRef, toolOptions, setSelectedIds, se
     setDragCreateEnd(point);
   }, []);
 
-  const endDragCreate = useCallback(() => {
+  const cancelDragCreate = useCallback(() => {
+    setDragCreateStart(null);
+    setDragCreateEnd(null);
+    setDragCreateTool(null);
+  }, []);
+
+  const endDragCreate = useCallback(({ getAnchor, getFrameChildren }: CreationContext) => {
     if (!dragCreateStart || !dragCreateEnd || !dragCreateTool) return;
 
     const minX = Math.min(dragCreateStart.x, dragCreateEnd.x);
@@ -65,6 +79,8 @@ export function useDragCreate({ elementStoreRef, toolOptions, setSelectedIds, se
       op = elementStoreRef.current.addElement('sticky', isDragged ? minX : dragCreateStart.x, isDragged ? minY : dragCreateStart.y, {
         width: size,
         height: size,
+        color: toolOptions.stickyColor,
+        stickyShape: toolOptions.stickyShape,
       } as Partial<Element>);
       setSelectedIds(new Set([op.element.id]));
       setEditingId(op.element.id);
@@ -89,21 +105,42 @@ export function useDragCreate({ elementStoreRef, toolOptions, setSelectedIds, se
       } as Partial<Element>);
       setSelectedIds(new Set([op.element.id]));
     } else if (dragCreateTool === 'connector') {
+      const start = getAnchor(dragCreateStart);
+      const finish = isDragged ? getAnchor(dragCreateEnd) : undefined;
+      const end = finish?.id !== start?.id ? finish : undefined;
       op = elementStoreRef.current.addElement('connector', dragCreateStart.x, dragCreateStart.y, {
-        startPoint: { x: dragCreateStart.x, y: dragCreateStart.y },
-        endPoint: { x: isDragged ? dragCreateEnd.x : dragCreateStart.x + 100, y: isDragged ? dragCreateEnd.y : dragCreateStart.y },
+        startPoint: start?.point ?? dragCreateStart,
+        endPoint: end?.point ?? (isDragged ? dragCreateEnd : { x: dragCreateStart.x + 100, y: dragCreateStart.y }),
+        startElementId: start?.id,
+        startAnchor: start?.name,
+        endElementId: end?.id,
+        endAnchor: end?.name,
         style: toolOptions.connectorStyle || 'straight',
         startArrow: toolOptions.arrowStart || 'none',
-        endArrow: toolOptions.arrowEnd || 'arrow',
+        endArrow: toolOptions.arrowEnd === 'dot' ? 'circle' : toolOptions.arrowEnd || 'arrow',
+        stroke: toolOptions.strokeColor,
+        strokeWidth: toolOptions.strokeWidth,
       } as Partial<Element>);
+      setSelectedIds(new Set([op.element.id]));
+    } else if (dragCreateTool === 'frame') {
+      const left = isDragged ? minX : dragCreateStart.x;
+      const top = isDragged ? minY : dragCreateStart.y;
+      const frameWidth = isDragged ? Math.max(100, width) : 420;
+      const frameHeight = isDragged ? Math.max(80, height) : 280;
+      const store = elementStoreRef.current;
+      const zIndex = store.getElements().reduce((min, element) => Math.min(min, element.zIndex || 0), 0) - 1;
+      op = store.addElement({
+        ...createDefaultElement('frame', left, top, store.getUserId()),
+        type: 'frame', width: frameWidth, height: frameHeight, zIndex,
+        name: 'Untitled section', backgroundColor: 'transparent', showName: true,
+        childIds: isDragged ? getFrameChildren({ left, top, right: left + frameWidth, bottom: top + frameHeight }) : [],
+      });
       setSelectedIds(new Set([op.element.id]));
     }
 
-    setDragCreateStart(null);
-    setDragCreateEnd(null);
-    setDragCreateTool(null);
+    cancelDragCreate();
     setCurrentTool('select');
-  }, [dragCreateStart, dragCreateEnd, dragCreateTool, elementStoreRef, toolOptions, setSelectedIds, setEditingId, setCurrentTool]);
+  }, [dragCreateStart, dragCreateEnd, dragCreateTool, elementStoreRef, toolOptions, setSelectedIds, setEditingId, setCurrentTool, cancelDragCreate]);
 
-  return { dragCreateStart, dragCreateEnd, dragCreateTool, startDragCreate, updateDragCreate, endDragCreate };
+  return { dragCreateStart, dragCreateEnd, dragCreateTool, startDragCreate, updateDragCreate, endDragCreate, cancelDragCreate };
 }

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || '';
+export const API_BASE_URL = import.meta.env.SHIORI_API_URL;
 
 export interface User {
   id: string;
@@ -41,78 +41,110 @@ export interface AuthResponse {
   user: User;
 }
 
-const TOKEN_KEY = 'wb_token';
+// Share the bearer credential with open tabs and the previous client on rollback.
+export const SESSION_TOKEN_STORAGE_KEY = 'wb_token';
 const DEV_API_URL = 'http://localhost:8080';
-const BACKEND_UNAVAILABLE_MESSAGE = `OpenJam API is unavailable. Start the Go backend on ${DEV_API_URL} and try again.`;
+const BACKEND_UNAVAILABLE_MESSAGE = `Shiori API is unavailable. Start the Go backend on ${DEV_API_URL} and try again.`;
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
 }
 
 export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, token);
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
 }
 
-async function getErrorMessage(response: Response): Promise<string> {
+async function getApiError(response: Response): Promise<ApiError> {
   const contentType = response.headers.get('content-type') || '';
+  const retryAfter = response.headers.get('Retry-After') ?? undefined;
+  const body = await response.text().catch(() => '');
 
   if (contentType.includes('application/json')) {
-    const error = await response.json().catch(() => null);
-    if (typeof error?.error === 'string') {
-      return error.error;
-    }
-    if (typeof error?.message === 'string') {
-      return error.message;
+    try {
+      const error = JSON.parse(body);
+      const message = typeof error?.error === 'string' ? error.error : error?.message;
+      if (typeof message === 'string') {
+        return new ApiError(
+          message,
+          response.status,
+          typeof error.code === 'string' ? error.code : undefined,
+          error.details && typeof error.details === 'object' && !Array.isArray(error.details) ? error.details : undefined,
+          retryAfter,
+        );
+      }
+    } catch {
+      // A malformed JSON error can still be displayed as text.
     }
   }
 
-  const body = await response.text().catch(() => '');
   const isUnavailableStatus = [500, 502, 503, 504].includes(response.status);
-  const isDevProxyRequest = API_BASE === '';
+  const isDevProxyRequest = API_BASE_URL === '';
 
   if (isDevProxyRequest && isUnavailableStatus) {
-    return BACKEND_UNAVAILABLE_MESSAGE;
+    return new ApiError(BACKEND_UNAVAILABLE_MESSAGE, response.status);
   }
 
-  return body.trim() || `Request failed with HTTP ${response.status}`;
+  return new ApiError(body.trim() || `Request failed with HTTP ${response.status}`, response.status, undefined, undefined, retryAfter);
 }
 
-async function request<T>(
+// ApiError carries the HTTP status so callers can distinguish 401/403/404/5xx
+// instead of guessing from a message string.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  details?: Record<string, unknown>;
+  retryAfter?: string;
+
+  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>, retryAfter?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+    this.retryAfter = retryAfter;
+  }
+}
+
+export async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const response = await requestResponse(endpoint, options);
+  if (response.status === 204) return undefined as T;
+  return response.json();
+}
+
+export async function requestResponse(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
 
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
-
-  if (token) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
   }
+  if (token) headers.set('Authorization', `Bearer ${token}`);
 
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE}${endpoint}`, {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
       credentials: 'include',
     });
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
     throw new Error(BACKEND_UNAVAILABLE_MESSAGE);
   }
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    throw await getApiError(response);
   }
 
-  return response.json();
+  return response;
 }
 
 export async function register(
@@ -138,11 +170,9 @@ export async function login(email: string, password: string): Promise<AuthRespon
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await request('/api/auth/logout', { method: 'POST' });
-  } finally {
-    clearToken();
-  }
+  const token = getToken();
+  await request('/api/auth/logout', { method: 'POST' });
+  if (getToken() === token) clearToken();
 }
 
 export async function getMe(): Promise<{ user: User }> {
@@ -220,13 +250,59 @@ export interface BoardData {
   stamps?: unknown[];
   pages?: unknown[];
   currentPageId?: string;
+  updatedAt?: string;
 }
 
-export async function saveBoard(roomId: string, data: BoardData): Promise<{ success: boolean; savedAt: string }> {
-  return request(`/api/rooms/${roomId}/save`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export interface SaveBoardResult {
+  success: boolean;
+  savedAt: string;
+  updatedAt: string;
+}
+
+export class BoardConflictError extends Error {
+  board: BoardData;
+  constructor(board: BoardData) {
+    super('Board was modified by someone else; reload to merge');
+    this.name = 'BoardConflictError';
+    this.board = board;
+  }
+}
+
+export async function saveBoard(roomId: string, data: BoardData, expectedUpdatedAt?: string): Promise<SaveBoardResult> {
+  const token = getToken();
+  const body: Record<string, unknown> = { ...data };
+  if (expectedUpdatedAt) {
+    body.expectedUpdatedAt = expectedUpdatedAt;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(BACKEND_UNAVAILABLE_MESSAGE);
+  }
+
+  if (response.status === 409) {
+    const conflict = await response.json().catch(() => null);
+    if (conflict?.board) {
+      throw new BoardConflictError(conflict.board as BoardData);
+    }
+    throw new Error(conflict?.error || 'Board was modified by someone else; reload to merge');
+  }
+
+  if (!response.ok) {
+    throw await getApiError(response);
+  }
+
+  return response.json();
 }
 
 export async function loadBoard(roomId: string): Promise<BoardData> {

@@ -1,0 +1,6 @@
+:root {
+  --font-ui: "IBM Plex Sans Variable", ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: var(--font-ui);
+  font-size: var(--ui-text-size, 14px);
+  font-family: var(--font-ui);
+}

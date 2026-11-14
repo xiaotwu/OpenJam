@@ -1,18 +1,27 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import CollaborationPresence, { type PresenceCollaborator } from './collaboration/CollaborationPresence';
 import ConnectionStatus, { type ConnectionState } from './collaboration/ConnectionStatus';
-import SaveStatusIndicator from './collaboration/SaveStatusIndicator';
+import SyncStatus from './collaboration/SyncStatus';
 import { ProfileSettingsDialog } from './UserMenu';
+import PagesPanel, { type Page } from './PagesPanel';
+import { useI18n } from '../i18n';
 
-type MenuKey = 'board' | 'view' | 'export' | 'account';
+type MenuKey = 'main' | 'more' | 'account' | 'pages';
+const mainSections = ['file', 'edit', 'view', 'window', 'help'] as const;
+type MainSection = typeof mainSections[number];
 
 type Collaborator = PresenceCollaborator;
 
 interface MenuBarProps {
   boardName: string;
-  onBoardNameChange: (name: string) => void;
+  onBoardNameChange: (name: string, expectedName: string) => void;
+  canEdit?: boolean;
+  pendingCount?: number;
+  limitedAccess?: 'comment' | 'view';
   onUndo: () => void;
   onRedo: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   onSelectAll: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -23,24 +32,41 @@ interface MenuBarProps {
   onZoomReset: () => void;
   onZoomFit: () => void;
   onSave?: () => void;
-  saveStatus?: string;
+  saveStatus?: ComponentProps<typeof SyncStatus>['status'];
   saveError?: string;
-  onExportPNG: () => void;
-  onExportJSON: () => void;
+  onExportPNG?: () => void;
+  onExportJSON?: () => void;
   onShare: () => void;
+  onOpenComments?: () => void;
+  commentsOpen?: boolean;
+  onOpenVersions?: () => void;
+  onOpenFiles?: () => void;
+  onOpenAgent?: () => void;
+  onOpenHelp?: () => void;
+  onOpenCommands?: () => void;
+  presentationControls?: ReactNode;
   onToggleGrid: () => void;
   showGrid: boolean;
-  onVersionHistory?: () => void;
+  onToggleSnap?: () => void;
+  snapToGrid?: boolean;
   onFileInfo?: () => void;
   onDeleteBoard?: () => void;
   onDuplicateBoard?: () => void;
-  pages?: unknown[];
+  pages?: Page[];
   currentPageId?: string;
   onSelectPage?: (pageId: string) => void;
   onAddPage?: () => void;
-  onRenamePage?: (pageId: string, name: string) => void;
+  onRenamePage?: (pageId: string, name: string, expectedName: string) => void;
   onDuplicatePage?: (pageId: string) => void;
   onDeletePage?: (pageId: string) => void;
+  onReorderPage?: (pageId: string, position: number) => void;
+  defaultPageId?: string;
+  onDefaultPage?: (pageId: string) => void;
+  onCopyPageLink?: (pageId: string) => Promise<boolean>;
+  onMoveSelection?: (pageId: string) => void;
+  sections?: { id: string; name: string }[];
+  onSelectSection?: (elementId: string) => void;
+  onCopySectionLink?: (elementId: string) => Promise<boolean>;
   username?: string;
   userEmail?: string;
   userColor?: string;
@@ -59,15 +85,22 @@ interface MenuBarProps {
   collaborators?: Collaborator[];
   connectionState?: ConnectionState;
   isDark?: boolean;
+  theme?: 'light' | 'dark' | 'system';
   onToggleTheme?: () => void;
 }
 
 export default function MenuBar(props: MenuBarProps) {
+  const { messages: { board: text } } = useI18n();
   const {
     boardName,
     onBoardNameChange,
+    canEdit = true,
+    pendingCount,
+    limitedAccess,
     onUndo,
     onRedo,
+    canUndo = true,
+    canRedo = true,
     onSelectAll,
     onDelete,
     onDuplicate,
@@ -83,12 +116,36 @@ export default function MenuBar(props: MenuBarProps) {
     onExportPNG,
     onExportJSON,
     onShare,
+    onOpenComments,
+    commentsOpen,
+    onOpenVersions,
+    onOpenFiles,
+    onOpenAgent,
+    onOpenHelp,
+    onOpenCommands,
+    presentationControls,
     onToggleGrid,
     showGrid,
-    onVersionHistory,
+    onToggleSnap,
+    snapToGrid = false,
     onFileInfo,
     onDeleteBoard,
     onDuplicateBoard,
+    pages,
+    currentPageId,
+    onSelectPage,
+    onAddPage,
+    onRenamePage,
+    onDuplicatePage,
+    onDeletePage,
+    onReorderPage,
+    defaultPageId,
+    onDefaultPage,
+    onCopyPageLink,
+    onMoveSelection,
+    sections,
+    onSelectSection,
+    onCopySectionLink,
     username,
     userEmail,
     userColor,
@@ -107,18 +164,27 @@ export default function MenuBar(props: MenuBarProps) {
     collaborators = [],
     connectionState = 'connected',
     isDark,
+    theme = 'system',
     onToggleTheme,
   } = props;
 
   const [activeMenu, setActiveMenu] = useState<MenuKey | null>(null);
+  const [mainSection, setMainSection] = useState<MainSection>();
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(boardName);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
+  const originalName = useRef<string | null>(null);
+  const mainTrigger = useRef<HTMLButtonElement>(null);
+  const moreTrigger = useRef<HTMLButtonElement>(null);
+  const accountTrigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    setTempName(boardName);
-  }, [boardName]);
+    if (!canEdit && isEditingName) {
+      originalName.current = null;
+      setIsEditingName(false);
+    }
+  }, [canEdit, isEditingName]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -130,7 +196,7 @@ export default function MenuBar(props: MenuBarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const closeMenu = () => setActiveMenu(null);
+  const closeMenu = useCallback(() => setActiveMenu(null), []);
 
   const handleMenuAction = (action?: () => void) => {
     action?.();
@@ -138,181 +204,254 @@ export default function MenuBar(props: MenuBarProps) {
   };
 
   const handleNameSubmit = () => {
+    const expected = originalName.current;
+    originalName.current = null;
     setIsEditingName(false);
     const nextName = tempName.trim();
-    if (nextName) {
-      onBoardNameChange(nextName);
-    } else {
-      setTempName(boardName);
-    }
+    if (canEdit && nextName && expected !== null && nextName !== expected) onBoardNameChange(nextName, expected);
+  };
+
+  const startRename = () => {
+    if (!canEdit) return;
+    originalName.current = boardName;
+    setTempName(boardName);
+    setIsEditingName(true);
   };
 
   const toggleMenu = (menu: MenuKey) => {
+    if (menu === 'main') setMainSection(undefined);
     setActiveMenu((current) => current === menu ? null : menu);
   };
 
-  return (
-    <div ref={barRef} className="pointer-events-none absolute left-3 right-3 top-3 z-50 flex items-start justify-between gap-3">
-      <section className="pointer-events-auto glass-elevated flex min-h-12 min-w-0 items-center gap-1.5 rounded-2xl px-1.5 py-1.5">
-        <button
-          type="button"
-          onClick={() => { window.location.href = '/'; }}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-xl transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-          aria-label="Go to dashboard"
-        >
-          <img src="/icons/openjam.png" alt="" className="h-8 w-8 rounded-lg" />
-        </button>
+  const mainItems: Record<MainSection, ReactNode> = {
+    file: <>
+      <MenuItemButton label={text.home} onClick={() => { window.location.href = '/'; }} />
+      {onSave && <MenuItemButton label={text.save} shortcut="Ctrl+S" onClick={canEdit ? () => handleMenuAction(onSave) : undefined} />}
+      <MenuItemButton label={text.rename} onClick={canEdit ? () => handleMenuAction(startRename) : undefined} />
+      {onDuplicateBoard && <MenuItemButton label={text.clone} onClick={() => handleMenuAction(onDuplicateBoard)} />}
+      {onOpenFiles && <MenuItemButton label={text.exportTasks} onClick={() => handleMenuAction(onOpenFiles)} />}
+      {onFileInfo && <MenuItemButton label={text.information} onClick={() => handleMenuAction(onFileInfo)} />}
+      {onDeleteBoard && <MenuItemButton label={text.deleteBoard} danger onClick={() => handleMenuAction(onDeleteBoard)} />}
+    </>,
+    edit: <>
+      <MenuItemButton label={text.undo} shortcut="Ctrl+Z" onClick={canEdit && canUndo ? () => handleMenuAction(onUndo) : undefined} />
+      <MenuItemButton label={text.redo} shortcut="Ctrl+Y" onClick={canEdit && canRedo ? () => handleMenuAction(onRedo) : undefined} />
+      <MenuItemButton label={text.copy} shortcut="Ctrl+C" onClick={() => handleMenuAction(onCopy)} />
+      <MenuItemButton label={text.paste} shortcut="Ctrl+V" onClick={canEdit ? () => handleMenuAction(onPaste) : undefined} />
+      <MenuItemButton label={text.duplicate} shortcut="Ctrl+D" onClick={canEdit ? () => handleMenuAction(onDuplicate) : undefined} />
+      <MenuItemButton label={text.deleteSelection} shortcut="Del" onClick={canEdit ? () => handleMenuAction(onDelete) : undefined} />
+      <MenuItemButton label={text.selectAll} shortcut="Ctrl+A" onClick={() => handleMenuAction(onSelectAll)} />
+      <MenuDivider />
+      {onBringToFront && <MenuItemButton label={text.front} shortcut="]" onClick={canEdit ? () => handleMenuAction(onBringToFront) : undefined} />}
+      {onSendToBack && <MenuItemButton label={text.back} shortcut="[" onClick={canEdit ? () => handleMenuAction(onSendToBack) : undefined} />}
+      {onLock && <MenuItemButton label={text.lock} shortcut="Shift+L" onClick={canEdit ? () => handleMenuAction(onLock) : undefined} />}
+      {onUnlockAll && <MenuItemButton label={text.unlock} onClick={canEdit ? () => handleMenuAction(onUnlockAll) : undefined} />}
+      {onGroup && <MenuItemButton label={text.group} shortcut="Ctrl+G" onClick={canEdit ? () => handleMenuAction(onGroup) : undefined} />}
+      {onUngroup && <MenuItemButton label={text.ungroup} shortcut="Shift+G" onClick={canEdit ? () => handleMenuAction(onUngroup) : undefined} />}
+    </>,
+    view: <>
+      <MenuItemButton label={text.zoomIn} shortcut="Ctrl++" onClick={() => handleMenuAction(onZoomIn)} />
+      <MenuItemButton label={text.zoomOut} shortcut="Ctrl+-" onClick={() => handleMenuAction(onZoomOut)} />
+      <MenuItemButton label={text.zoomReset} shortcut="Ctrl+0" onClick={() => handleMenuAction(onZoomReset)} />
+      <MenuItemButton label={text.zoomFit} shortcut="Ctrl+1" onClick={() => handleMenuAction(onZoomFit)} />
+      <MenuDivider />
+      <MenuItemButton label={showGrid ? text.hideGrid : text.showGrid} checked={showGrid} onClick={() => handleMenuAction(onToggleGrid)} />
+      {onToggleSnap && <MenuItemButton label={text.snap} checked={snapToGrid} onClick={() => handleMenuAction(onToggleSnap)} />}
+    </>,
+    window: <>
+      <MenuItemButton label={text.workspace} onClick={() => { window.location.href = '/workplace'; }} />
+      {pages?.length ? <MenuItemButton label={text.pages} onClick={() => setActiveMenu('pages')} /> : null}
+      {onOpenAgent && <MenuItemButton label={text.assistant} onClick={() => handleMenuAction(onOpenAgent)} />}
+      {onOpenComments && <MenuItemButton label={text.comments} onClick={() => handleMenuAction(onOpenComments)} />}
+      {onOpenVersions && <MenuItemButton label={text.history} onClick={() => handleMenuAction(onOpenVersions)} />}
+    </>,
+    help: <>
+      {onOpenHelp && <MenuItemButton label={text.helpAndShortcuts} onClick={() => handleMenuAction(onOpenHelp)} />}
+      {onOpenCommands && <MenuItemButton label={text.commandPalette} shortcut="Ctrl+K" onClick={() => handleMenuAction(onOpenCommands)} />}
+    </>,
+  };
 
-        <div className="min-w-0 pr-1">
-          {isEditingName ? (
+  const accountItems = (
+    <>
+      <div className="px-3 py-2">
+        <p className="truncate text-sm font-semibold">{username || text.user}</p>
+        {userEmail && <p className="truncate text-xs text-[var(--text-secondary)]">{userEmail}</p>}
+      </div>
+      <MenuDivider />
+      <MenuItemButton label={text.profile} icon={<UserIcon />} onClick={() => { setShowProfileSettings(true); closeMenu(); }} />
+      {onTogglePin && <MenuItemButton label={isPinned ? text.stopSpotlight : text.spotlight} icon={<PinIcon />} checked={isPinned} onClick={() => handleMenuAction(onTogglePin)} />}
+      <MenuItemButton
+        label={text.theme(theme === 'system' ? text.system : isDark ? text.dark : text.light)}
+        icon={theme === 'system' ? <SystemIcon /> : isDark ? <SunIcon /> : <MoonIcon />}
+        onClick={() => handleMenuAction(onToggleTheme)}
+      />
+      {onLogout && <MenuItemButton label={text.signOut} icon={<LogoutIcon />} danger onClick={() => handleMenuAction(onLogout)} />}
+    </>
+  );
+
+  return (
+    <div ref={barRef} className="board-topbar pointer-events-none absolute left-3 right-3 top-3 z-[90] flex items-center justify-between gap-1.5 sm:gap-2" onKeyDown={(event) => {
+      if (event.key !== 'Escape' || !activeMenu) return;
+      event.stopPropagation();
+      closeMenu();
+      if (activeMenu === 'main') mainTrigger.current?.focus();
+      if (activeMenu === 'more') moreTrigger.current?.focus();
+      if (activeMenu === 'account') accountTrigger.current?.focus();
+    }}>
+      <section aria-label={text.navigation} className="pointer-events-auto relative flex min-w-0 items-center gap-1.5 sm:gap-2">
+        <div className="board-action-island board-title-island">
+          <IconButton buttonRef={mainTrigger} label={text.mainMenu} expanded={activeMenu === 'main'} onClick={() => toggleMenu('main')}>
+            <SvgIcon><path d="M5 7h14M5 12h14M5 17h14" /></SvgIcon>
+          </IconButton>
+
+        <div className="min-w-0">
+          {canEdit && isEditingName ? (
             <input
               value={tempName}
               onChange={(event) => setTempName(event.target.value)}
               onBlur={handleNameSubmit}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return;
                 if (event.key === 'Enter') handleNameSubmit();
                 if (event.key === 'Escape') {
+                  originalName.current = null;
                   setIsEditingName(false);
-                  setTempName(boardName);
                 }
               }}
-              className="h-9 w-64 max-w-[52vw] rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="h-8 w-64 max-w-full rounded-full border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               style={{ background: 'var(--glass-bg-subtle)', borderColor: 'var(--glass-border-strong)', color: 'var(--text-primary)' }}
-              aria-label="Board name"
+              aria-label={text.name}
               autoFocus
             />
-          ) : (
+          ) : canEdit ? (
             <button
               type="button"
-              onClick={() => setIsEditingName(true)}
-              className="group flex max-w-[52vw] items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              aria-label="Rename board"
+              onClick={startRename}
+              className="board-name-trigger group flex min-w-0 max-w-full items-center gap-1.5 rounded-full px-1.5 text-left transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              aria-label={text.renameBoard}
             >
-              <span className="truncate text-sm font-semibold sm:text-base">{boardName}</span>
-              <PencilIcon className="h-3.5 w-3.5 opacity-55 transition group-hover:opacity-100" />
+              <span className="truncate text-[13px] font-semibold sm:text-sm">{boardName}</span>
+              <PencilIcon className="h-3 w-3 shrink-0 opacity-45 transition group-hover:opacity-100" />
             </button>
-          )}
+          ) : <span className="block truncate px-1.5 py-1 text-[13px] font-semibold sm:text-sm">{boardName}</span>}
         </div>
 
-        <SaveStatusIndicator status={saveStatus} error={saveError} compact />
-
-        <div className="hidden h-7 w-px sm:block" style={{ background: 'var(--glass-border-strong)' }} />
-
-        <MenuTrigger label="Board actions" active={activeMenu === 'board'} onClick={() => toggleMenu('board')}>
-          <BoardMenuIcon />
-        </MenuTrigger>
-        <MenuTrigger label="View actions" active={activeMenu === 'view'} onClick={() => toggleMenu('view')}>
-          <ViewMenuIcon />
-        </MenuTrigger>
-
-        {activeMenu === 'board' && (
-          <MenuPanel align="left" width="w-[21rem]">
-            <MenuGrid>
-              <MenuItemButton compact label="Save" shortcut="Ctrl+S" icon={<SaveIcon />} onClick={() => handleMenuAction(onSave || onExportJSON)} />
-              <MenuItemButton compact label="Rename" icon={<PencilIcon />} onClick={() => { setIsEditingName(true); closeMenu(); }} />
-            </MenuGrid>
-            <MenuDivider />
-            <MenuGrid>
-              <MenuItemButton compact label="Undo" shortcut="Ctrl+Z" icon={<UndoIcon />} onClick={() => handleMenuAction(onUndo)} />
-              <MenuItemButton compact label="Redo" shortcut="Ctrl+Y" icon={<RedoIcon />} onClick={() => handleMenuAction(onRedo)} />
-              <MenuItemButton compact label="Copy" shortcut="Ctrl+C" icon={<CopyIcon />} onClick={() => handleMenuAction(onCopy)} />
-              <MenuItemButton compact label="Paste" shortcut="Ctrl+V" icon={<ClipboardIcon />} onClick={() => handleMenuAction(onPaste)} />
-              <MenuItemButton compact label="Duplicate" shortcut="Ctrl+D" icon={<DuplicateIcon />} onClick={() => handleMenuAction(onDuplicate)} />
-              <MenuItemButton compact label="Delete" shortcut="Del" icon={<TrashIcon />} onClick={() => handleMenuAction(onDelete)} />
-              <MenuItemButton compact label="Select all" shortcut="Ctrl+A" icon={<SelectAllIcon />} onClick={() => handleMenuAction(onSelectAll)} />
-            </MenuGrid>
-            <MenuDivider />
-            <MenuGrid>
-              <MenuItemButton compact label="Front" shortcut="]" icon={<BringFrontIcon />} onClick={() => handleMenuAction(onBringToFront)} />
-              <MenuItemButton compact label="Back" shortcut="[" icon={<SendBackIcon />} onClick={() => handleMenuAction(onSendToBack)} />
-              <MenuItemButton compact label="Lock" shortcut="Shift+L" icon={<LockIcon />} onClick={() => handleMenuAction(onLock)} />
-              <MenuItemButton compact label="Unlock" icon={<UnlockIcon />} onClick={() => handleMenuAction(onUnlockAll)} />
-              <MenuItemButton compact label="Group" shortcut="Ctrl+G" icon={<GroupIcon />} onClick={() => handleMenuAction(onGroup)} />
-              <MenuItemButton compact label="Ungroup" shortcut="Shift+G" icon={<UngroupIcon />} onClick={() => handleMenuAction(onUngroup)} />
-            </MenuGrid>
-            <MenuDivider />
-            <MenuGrid>
-              <MenuItemButton compact label="Clone board" icon={<DuplicateIcon />} onClick={() => handleMenuAction(onDuplicateBoard || onDuplicate)} />
-              <MenuItemButton compact label="History" icon={<ClockIcon />} onClick={() => handleMenuAction(onVersionHistory)} />
-              <MenuItemButton compact label="Info" icon={<InfoIcon />} onClick={() => handleMenuAction(onFileInfo)} />
-              <MenuItemButton compact label="Delete board" icon={<TrashIcon />} danger onClick={() => handleMenuAction(onDeleteBoard)} />
-            </MenuGrid>
-          </MenuPanel>
+        <SyncStatus compact status={saveStatus} error={saveError} pendingCount={pendingCount} />
+        {limitedAccess && <span className="board-access-indicator" title={limitedAccess === 'comment' ? text.canComment : text.viewOnly}
+          role="img" aria-label={limitedAccess === 'comment' ? text.canComment : text.viewOnly}>
+          {limitedAccess === 'comment' ? <CommentsIcon /> : <ViewMenuIcon />}
+        </span>}
+        </div>
+        {!!pages?.length && currentPageId && onSelectPage && (
+          <div role="group" aria-label={text.pageControls} className={activeMenu === 'pages' ? 'board-pages-detached' : 'board-action-island board-pages-island shrink-0'}>
+          <PagesPanel
+            pages={pages}
+            currentPageId={currentPageId}
+            onSelectPage={onSelectPage}
+            onAddPage={canEdit ? onAddPage : undefined}
+            onRenamePage={canEdit ? onRenamePage : undefined}
+            onDuplicatePage={canEdit ? onDuplicatePage : undefined}
+            onDeletePage={canEdit ? onDeletePage : undefined}
+            onReorderPage={canEdit ? onReorderPage : undefined}
+            defaultPageId={defaultPageId}
+            onDefaultPage={canEdit ? onDefaultPage : undefined}
+            onCopyPageLink={onCopyPageLink}
+            onMoveSelection={canEdit ? onMoveSelection : undefined}
+            sections={sections}
+            onSelectSection={onSelectSection}
+            onCopySectionLink={onCopySectionLink}
+            onDismiss={activeMenu === 'pages' ? closeMenu : undefined}
+          />
+          </div>
         )}
 
-        {activeMenu === 'view' && (
-          <MenuPanel align="left" width="w-56">
-            <MenuItemButton label="Zoom in" shortcut="Ctrl++" icon={<ZoomInIcon />} onClick={() => handleMenuAction(onZoomIn)} />
-            <MenuItemButton label="Zoom out" shortcut="Ctrl+-" icon={<ZoomOutIcon />} onClick={() => handleMenuAction(onZoomOut)} />
-            <MenuItemButton label="Zoom 100%" shortcut="Ctrl+0" icon={<ZoomResetIcon />} onClick={() => handleMenuAction(onZoomReset)} />
-            <MenuItemButton label="Zoom to fit" shortcut="Ctrl+1" icon={<FitIcon />} onClick={() => handleMenuAction(onZoomFit)} />
-            <MenuDivider />
-            <MenuItemButton label={showGrid ? 'Hide grid' : 'Show grid'} icon={<GridIcon />} checked={showGrid} onClick={() => handleMenuAction(onToggleGrid)} />
+        {activeMenu === 'main' && (
+          <MenuPanel align="left" width="w-64">
+            {mainSections.map(section => (
+              <div key={section}>
+                <button type="button" aria-label={text.menu[section]} aria-expanded={mainSection === section}
+                  className="board-main-menu-section" onClick={() => setMainSection(current => current === section ? undefined : section)}>
+                  {text.menu[section]}
+                </button>
+                {mainSection === section && <div className="board-main-menu-items">{mainItems[section]}</div>}
+              </div>
+            ))}
           </MenuPanel>
         )}
       </section>
 
-      <section className="pointer-events-auto glass-elevated flex min-h-12 items-center gap-1 rounded-2xl px-1.5 py-1.5">
-        <CollaborationPresence collaborators={collaborators} currentUserId={userId} currentUserName={username} />
-        <ConnectionStatus state={connectionState} />
+      <section aria-label={text.collaborationAndSharing} className="pointer-events-auto relative ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {(presentationControls || connectionState !== 'connected' || collaborators.length > 0) && (
+          <div role="group" aria-label={text.liveCollaboration} className="board-action-island board-wide-only">
+            <CollaborationPresence collaborators={collaborators} currentUserId={userId} currentUserName={username} />
+            {connectionState !== 'connected' && <ConnectionStatus state={connectionState} />}
+            {presentationControls}
+          </div>
+        )}
+
+        <div role="group" aria-label={text.reviewAndTools} className="board-action-island">
+          {onOpenComments && <div className="board-wide-only">
+            <IconButton label={text.comments} pressed={commentsOpen} onClick={() => handleMenuAction(onOpenComments)}>
+              <CommentsIcon />
+            </IconButton>
+          </div>}
+          <IconButton buttonRef={moreTrigger} label={text.more} expanded={activeMenu === 'more'} onClick={() => toggleMenu('more')}>
+            <SvgIcon><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></SvgIcon>
+          </IconButton>
+        </div>
+        {activeMenu === 'more' && (
+            <MenuPanel align="right" width="w-64">
+              <div className="board-compact-only">
+                {!!pages?.length && <div className="board-pages-overflow">
+                  <MenuItemButton label={text.pages} onClick={() => setActiveMenu('pages')} />
+                </div>}
+                <CollaborationPresence compact collaborators={collaborators} currentUserId={userId} currentUserName={username} />
+                {connectionState !== 'connected' && <ConnectionStatus state={connectionState} />}
+                {presentationControls && <div className="board-compact-presentation">{presentationControls}</div>}
+                {onOpenComments && <MenuItemButton label={text.comments} icon={<CommentsIcon />} onClick={() => handleMenuAction(onOpenComments)} />}
+                <MenuItemButton label={text.shareBoard} icon={<ShareIcon className="h-[17px] w-[17px]" />} onClick={() => handleMenuAction(onShare)} />
+              </div>
+              {onOpenVersions && <MenuItemButton label={text.history} icon={<HistoryIcon />} onClick={() => handleMenuAction(onOpenVersions)} />}
+              {onOpenAgent && <MenuItemButton label={text.assistant} icon={<AssistantIcon />} onClick={() => handleMenuAction(onOpenAgent)} />}
+              {onOpenFiles ? (
+                <MenuItemButton label={text.exportTasks} icon={<DownloadIcon className="h-4 w-4" />} onClick={() => handleMenuAction(onOpenFiles)} />
+              ) : (
+                <>
+                  {onExportPNG && <MenuItemButton label={text.exportPNG} icon={<ImageFileIcon />} onClick={() => handleMenuAction(onExportPNG)} />}
+                  {onExportJSON && <MenuItemButton label={text.exportJSON} icon={<CodeFileIcon />} onClick={() => handleMenuAction(onExportJSON)} />}
+                </>
+              )}
+              {!onOpenVersions && !onOpenFiles && !onOpenAgent && !onExportPNG && !onExportJSON && <MenuItemButton label={text.information} icon={<InfoIcon />} onClick={() => handleMenuAction(onFileInfo)} />}
+              <div className="board-compact-only"><MenuDivider />{accountItems}</div>
+            </MenuPanel>
+        )}
 
         <button
           type="button"
-          onClick={onShare}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          aria-label="Share board"
-          title="Share"
+          onClick={() => handleMenuAction(onShare)}
+          className="board-action-island board-share-action board-wide-only"
+          aria-label={text.shareBoard}
+          title={text.shareBoard}
         >
-          <ShareIcon className="h-5 w-5" />
+          <ShareIcon className="h-[17px] w-[17px]" />
         </button>
 
-        <div className="relative">
-          <IconButton label="Export" active={activeMenu === 'export'} onClick={() => toggleMenu('export')}>
-            <DownloadIcon className="h-5 w-5" />
-          </IconButton>
-          {activeMenu === 'export' && (
-            <MenuPanel align="right" width="w-52">
-              <MenuItemButton label="Export as PNG" icon={<ImageFileIcon />} onClick={() => handleMenuAction(onExportPNG)} />
-              <MenuItemButton label="Export as JSON" icon={<CodeFileIcon />} onClick={() => handleMenuAction(onExportJSON)} />
-            </MenuPanel>
-          )}
-        </div>
-
-        <IconButton label={isDark ? 'Switch to light theme' : 'Switch to dark theme'} onClick={() => onToggleTheme?.()}>
-          {isDark ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-        </IconButton>
-
-        <div className="relative">
+        <div className="relative board-wide-only">
           <button
+            ref={accountTrigger}
             type="button"
             onClick={() => toggleMenu('account')}
-            className={`flex min-h-11 min-w-11 items-center justify-center rounded-full text-sm font-semibold text-white transition hover:ring-2 hover:ring-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${isPinned ? 'ring-2 ring-blue-500' : ''}`}
-            style={{ backgroundColor: userAvatarUrl ? 'transparent' : (userColor || '#9CA3AF') }}
-            aria-label="Open account menu"
+            className="board-account-trigger"
+            aria-label={text.accountMenu}
+            aria-expanded={activeMenu === 'account'}
+            title={text.account}
           >
-            {userAvatarUrl ? (
-              <img src={userAvatarUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
-            ) : (
-              (username || 'U').charAt(0).toUpperCase()
-            )}
+            {userAvatarUrl ? <img src={userAvatarUrl} alt="" className="h-full w-full object-cover" /> : (username || 'U').charAt(0).toUpperCase()}
           </button>
 
           {activeMenu === 'account' && (
             <MenuPanel align="right" width="w-64">
-              <div className="px-3 py-2">
-                <p className="truncate text-sm font-semibold">{username || 'User'}</p>
-                {userEmail && <p className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>{userEmail}</p>}
-              </div>
-              <MenuDivider />
-              <MenuItemButton label="Profile settings" icon={<UserIcon />} onClick={() => { setShowProfileSettings(true); closeMenu(); }} />
-              <MenuItemButton label={isPinned ? 'Stop spotlighting me' : 'Spotlight me'} icon={<PinIcon />} checked={isPinned} onClick={() => handleMenuAction(onTogglePin)} />
-              <MenuItemButton label={isDark ? 'Light mode' : 'Dark mode'} icon={isDark ? <SunIcon /> : <MoonIcon />} onClick={() => handleMenuAction(onToggleTheme)} />
-              {onLogout && (
-                <>
-                  <MenuDivider />
-                  <MenuItemButton label="Sign out" icon={<LogoutIcon />} danger onClick={() => handleMenuAction(onLogout)} />
-                </>
-              )}
+              {accountItems}
             </MenuPanel>
           )}
         </div>
@@ -333,32 +472,24 @@ export default function MenuBar(props: MenuBarProps) {
   );
 }
 
-function MenuTrigger({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: ReactNode }) {
+function IconButton({ label, pressed, expanded, buttonRef, onClick, children }: {
+  label: string;
+  pressed?: boolean;
+  expanded?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
+      ref={buttonRef}
       onClick={onClick}
-      className={`hidden min-h-11 min-w-11 items-center justify-center rounded-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:flex ${active ? 'bg-white/25' : 'hover:bg-white/15'}`}
-      style={{ color: 'var(--text-primary)' }}
+      className="board-action-button"
       aria-label={label}
       title={label}
-      aria-expanded={active}
-    >
-      {children}
-    </button>
-  );
-}
-
-function IconButton({ label, active, onClick, children }: { label: string; active?: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${active ? 'bg-white/25' : 'hover:bg-white/15'}`}
-      style={{ color: 'var(--text-primary)' }}
-      aria-label={label}
-      title={label}
-      aria-expanded={active}
+      aria-expanded={expanded}
+      aria-pressed={pressed}
     >
       {children}
     </button>
@@ -368,16 +499,12 @@ function IconButton({ label, active, onClick, children }: { label: string; activ
 function MenuPanel({ align, width = 'w-56', children }: { align: 'left' | 'right'; width?: string; children: ReactNode }) {
   return (
     <div
-      className={`glass-elevated glass-panel-enter absolute top-full mt-2 max-h-[58vh] overflow-y-auto rounded-2xl p-1.5 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-0'}`}
+      className={`board-chrome-popover glass-panel-enter absolute top-full mt-1 max-h-[min(73dvh,calc(100dvh-4.75rem))] max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-2xl border border-[var(--glass-border-strong)] p-1.5 shadow-xl ${width} ${align === 'right' ? 'right-0' : 'left-0'}`}
       style={{ color: 'var(--text-primary)' }}
     >
       {children}
     </div>
   );
-}
-
-function MenuGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-2 gap-1">{children}</div>;
 }
 
 function MenuItemButton({
@@ -386,7 +513,6 @@ function MenuItemButton({
   icon,
   checked,
   danger,
-  compact,
   onClick,
 }: {
   label: string;
@@ -394,7 +520,6 @@ function MenuItemButton({
   icon?: ReactNode;
   checked?: boolean;
   danger?: boolean;
-  compact?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -402,7 +527,7 @@ function MenuItemButton({
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`flex min-h-11 w-full items-center justify-between rounded-xl text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${compact ? 'gap-2 px-2 text-[13px]' : 'gap-3 px-3 text-sm'} ${onClick ? 'hover:bg-white/15' : 'cursor-not-allowed opacity-40'}`}
+      className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-full px-3 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${onClick ? 'hover:bg-[var(--badge-bg)]' : 'cursor-not-allowed opacity-40'}`}
       style={{ color: danger ? '#EF4444' : 'var(--text-primary)' }}
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -423,16 +548,24 @@ function PencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>;
 }
 
-function SaveIcon() {
-  return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>;
-}
-
 function ShareIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>;
 }
 
 function DownloadIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16" /></svg>;
+}
+
+function HistoryIcon() {
+  return <SvgIcon><path d="M4.8 10a7.5 7.5 0 1 1 1.1 6.6M4.8 6.5V10h3.5M12 8v4l2.7 1.7" /></SvgIcon>;
+}
+
+function CommentsIcon() {
+  return <SvgIcon><path d="M7 4.5h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-5l-5 3v-3a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3Z" /><path d="M8 9.5h8M8 12.5h5" /></SvgIcon>;
+}
+
+function AssistantIcon() {
+  return <SvgIcon><path d="m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3z" /></SvgIcon>;
 }
 
 function SunIcon({ className = 'h-4 w-4' }: { className?: string }) {
@@ -443,92 +576,16 @@ function MoonIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>;
 }
 
-function BoardMenuIcon() {
-  return <SvgIcon><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 9h8M8 13h5" /></SvgIcon>;
+function SystemIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 }
 
 function ViewMenuIcon() {
   return <SvgIcon><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" /><circle cx="12" cy="12" r="3" /></SvgIcon>;
 }
 
-function UndoIcon() {
-  return <SvgIcon><path d="M9 7H4v5" /><path d="M4 12a8 8 0 101.9-5.2L4 7" /></SvgIcon>;
-}
-
-function RedoIcon() {
-  return <SvgIcon><path d="M15 7h5v5" /><path d="M20 12a8 8 0 10-1.9-5.2L20 7" /></SvgIcon>;
-}
-
-function CopyIcon() {
-  return <SvgIcon><rect x="9" y="9" width="11" height="11" rx="2" /><rect x="4" y="4" width="11" height="11" rx="2" /></SvgIcon>;
-}
-
-function ClipboardIcon() {
-  return <SvgIcon><path d="M9 4h6l1 2h2a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h2l1-2z" /><path d="M9 8h6" /></SvgIcon>;
-}
-
-function DuplicateIcon() {
-  return <SvgIcon><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M4 16V6a2 2 0 012-2h10" /></SvgIcon>;
-}
-
-function TrashIcon() {
-  return <SvgIcon><path d="M4 7h16" /><path d="M10 11v6M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></SvgIcon>;
-}
-
-function SelectAllIcon() {
-  return <SvgIcon><rect x="5" y="5" width="14" height="14" rx="2" strokeDasharray="3 2" /></SvgIcon>;
-}
-
-function BringFrontIcon() {
-  return <SvgIcon><rect x="8" y="4" width="12" height="12" rx="2" /><path d="M4 8v10a2 2 0 002 2h10" /></SvgIcon>;
-}
-
-function SendBackIcon() {
-  return <SvgIcon><rect x="4" y="8" width="12" height="12" rx="2" /><path d="M8 4h10a2 2 0 012 2v10" /></SvgIcon>;
-}
-
-function LockIcon() {
-  return <SvgIcon><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></SvgIcon>;
-}
-
-function UnlockIcon() {
-  return <SvgIcon><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 017.5-1.9" /></SvgIcon>;
-}
-
-function GroupIcon() {
-  return <SvgIcon><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /><path d="M11 7h2M17 11v2" /></SvgIcon>;
-}
-
-function UngroupIcon() {
-  return <SvgIcon><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /><path d="M11 7h2" strokeDasharray="2 2" /><path d="M17 11v2" strokeDasharray="2 2" /></SvgIcon>;
-}
-
-function ClockIcon() {
-  return <SvgIcon><circle cx="12" cy="12" r="8" /><path d="M12 8v5l3 2" /></SvgIcon>;
-}
-
 function InfoIcon() {
   return <SvgIcon><circle cx="12" cy="12" r="8" /><path d="M12 11v5" /><path d="M12 8h.01" /></SvgIcon>;
-}
-
-function ZoomInIcon() {
-  return <SvgIcon><circle cx="10" cy="10" r="6" /><path d="M10 7v6M7 10h6M15 15l5 5" /></SvgIcon>;
-}
-
-function ZoomOutIcon() {
-  return <SvgIcon><circle cx="10" cy="10" r="6" /><path d="M7 10h6M15 15l5 5" /></SvgIcon>;
-}
-
-function ZoomResetIcon() {
-  return <SvgIcon><circle cx="12" cy="12" r="7" /><path d="M12 8v8M9 11l3-3 3 3" /></SvgIcon>;
-}
-
-function FitIcon() {
-  return <SvgIcon><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></SvgIcon>;
-}
-
-function GridIcon() {
-  return <SvgIcon><path d="M4 4h16v16H4z" /><path d="M4 10h16M4 16h16M10 4v16M16 4v16" /></SvgIcon>;
 }
 
 function ImageFileIcon() {

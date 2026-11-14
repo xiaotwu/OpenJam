@@ -1,6 +1,6 @@
 # Authentication & Security
 
-OpenJam implements session-based authentication with several security measures.
+Shiori implements session-based authentication with several security measures.
 
 ## Authentication Flow
 
@@ -21,16 +21,17 @@ OpenJam implements session-based authentication with several security measures.
 
 ## WebSocket Authentication
 
-WebSocket connections are authenticated before upgrade:
-1. Client sends the session token as a query parameter
-2. Server validates the token against the session store
-3. Only authenticated connections are upgraded to WebSocket
+WebSocket connections require a valid session before upgrade. Browsers send the HttpOnly session cookie. The document endpoint at `/ws/v2` also accepts bearer credentials from non-browser clients and validates each session against PostgreSQL.
+
+The document endpoint limits rejected handshakes by client IP and limits authenticated handshakes by account. Session lookups allow a burst of 64 per IP for shared gateways, with a sustained rate of two lookups per second per IP and a cap of 64 concurrent checks per API replica. The legacy `/ws` endpoint has its own per-IP rate limit. Configure [trusted proxies](../reference/configuration.md) for the specific reverse proxies that forward client addresses.
+
+Private image requests and document sync each have a separate budget of 30 requests per second with a burst of 60 per authenticated account on each API replica. Image reads still check the current board access and association before serving the file. The editor shares image downloads within the open board session and releases their object URLs when that session closes or loses access.
 
 ## Room Access Control
 
 - Rooms are owned by the user who created them
 - Room list shows owned rooms and rooms where the current user is an invited member
-- Owners can invite registered OpenJam users by email with `view`, `comment`, or `edit` permission
+- Owners can invite registered Shiori users by email with `view`, `comment`, or `edit` permission
 - Owners can configure board-link permissions: `restricted`, `anyone-view`, `anyone-comment`, or `anyone-edit`
 - Public link permissions apply to authenticated users who have the board URL; unauthenticated viewers still need to sign in first
 - Room load, export, and WebSocket join flows allow owners, invited members, and authenticated link viewers
@@ -45,8 +46,8 @@ WebSocket connections are authenticated before upgrade:
 
 ## Best Practices for Production
 
-1. **Change `SESSION_SECRET`** - Generate a random string: `openssl rand -hex 32`
-2. **Restrict CORS origins** - Set `CORS_ORIGINS` to your actual domain(s)
-3. **Use HTTPS** - Deploy behind a reverse proxy (nginx, Caddy) with TLS
-4. **Change default credentials** - Update MinIO and PostgreSQL passwords
-5. **Enable Redis** - For session caching and multi-server support
+1. **Use HTTPS** with a reverse proxy and set `ENVIRONMENT=production` for secure session cookies.
+2. **Restrict CORS origins** by setting `CORS_ORIGINS` to the deployment's HTTPS origin.
+3. **Set unique credentials** for PostgreSQL and object storage.
+4. **Use Redis** for session caching and multi-server collaboration.
+5. **Protect instance backups** because they contain account data and active sessions. Follow the [operations guide](./operations.md).

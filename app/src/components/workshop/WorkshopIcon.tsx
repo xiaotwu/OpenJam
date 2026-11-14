@@ -1,0 +1,84 @@
+const paths = {
+  document: 'M5 3h9l5 5v13H5z M14 3v5h5 M8 12h8 M8 16h8',
+  sheet: 'M5 3h9l5 5v13H5z M14 3v5h5 M5 11h14 M5 16h14 M11 11v10',
+  slides: 'M4 4h16v12H4z M2 4h20 M12 16v5m-4 0 4-3 4 3 M8 9h8 M8 12h5',
+  image: 'M4 4h16v16H4z M4 16l5-5 4 4 2-2 5 5 M15 8h.01',
+  play: 'M8 5l12 7-12 7z',
+  bold: 'M7 12h6a3.5 3.5 0 0 1 0 7H7V5h5a3.5 3.5 0 0 1 0 7',
+  italic: 'M11 5h8 M5 19h8 M15 5 9 19',
+  formula: 'M14 4h-2a3 3 0 0 0-3 3v9a3 3 0 0 1-3 3H4 M5 9h9 M14 13l6 7m0-7-6 7',
+  back: 'm11 5-7 7 7 7 M4 12h16',
+  download: 'M12 4v11m-4-4 4 4 4-4M4 17v4h16v-4',
+  undo: 'm9 6-5 5 5 5 M4 11h10a5 5 0 0 1 0 10',
+  redo: 'm15 6 5 5-5 5 M20 11H10a5 5 0 0 0 0 10',
+  preview: 'M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  expand: 'M9 4H4v5 M15 4h5v5 M9 20H4v-5 M15 20h5v-5',
+  up: 'm6 14 6-6 6 6',
+  down: 'm6 10 6 6 6-6',
+  inbox: 'M4 5h16l2 10v4H2v-4z M2 15h6l2 2h4l2-2h6',
+  calendar: 'M4 6h16v14H4z M4 10h16 M8 4v4 M16 4v4 M8 14h2 M13 14h2 M8 17h2',
+  graph: 'M7 8l9 3M7 16l9-4M5 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM18 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
+  pin: 'M9 3h6l-1 6 3 3v2H7v-2l3-3z M12 14v7',
+  send: 'm3 3 18 9-18 9 3-9z M6 12h15',
+  message: 'M4 5h16v12h-9l-5 3v-3H4z M8 10h8 M8 13h5',
+  previous: 'm15 6-6 6 6 6',
+  next: 'm9 6 6 6-6 6',
+  text: 'M5 5h14M12 5v14M8 19h8 M5 8V5 M19 8V5',
+  link: 'M10 13a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-2 2 M14 11a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l2-2',
+  bell: 'M5 16h14l-2-3V9a5 5 0 0 0-10 0v4z M10 19a2 2 0 0 0 4 0',
+  task: 'M4 4h16v16H4z m4 8 3 3 5-6',
+  trash: 'M4 6h16 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',
+  archive: 'M4 7h16v13H4z M3 3h18v4H3z M10 11h4',
+  branch: 'M6 9v7 M8 15c6 0 10-2 10-7 M6 5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M6 16a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M18 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+  sync: 'M3 9a9 9 0 0 1 15.5-3.5L21 8 M21 3v5h-5 M21 15A9 9 0 0 1 5.5 18.5L3 16 M3 21v-5h5',
+  arrow: 'M7 17 17 7M7 7h10v10',
+  board: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M7 8h5v5H7z M15 8h2 M15 12h2 M7 17h10',
+  check: 'm5 12 4 4L19 6',
+  chevron: 'm6 9 6 6 6-6',
+  close: 'm6 6 12 12M18 6 6 18',
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+  import: 'M12 16V4m-4 4 4-4 4 4M4 16v4h16v-4',
+  list: 'M4 6h16 M4 12h16 M4 18h16',
+  logout: 'M10 17l5-5-5-5 M15 12H3 M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  monitor: 'M3 5h18v12H3z M12 17v4 M8 21h8',
+  camera: 'M3 6h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3z M16 10l5-3v10l-5-3',
+  cameraOff: 'M4 6h11a1 1 0 0 1 1 1v4l5-4v10l-4-3 M3 9v9h12l1-1 M3 3l18 18',
+  microphone: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0z M5 11v1a7 7 0 0 0 14 0v-1 M12 19v3',
+  microphoneOff: 'M9 8v4a3 3 0 0 0 5 2 M9 5a3 3 0 0 1 6 0v5 M5 11v1a7 7 0 0 0 12 5 M19 11v1 M12 19v3 M3 3l18 18',
+  screenShare: 'M3 5h18v13H3z M8 22h8 M12 18v4 M12 14V8m-3 3 3-3 3 3',
+  phoneOff: 'M3 16v-3a12 12 0 0 1 18 0v3h-5l-1-4a9 9 0 0 0-6 0l-1 4z',
+  volume: 'M3 9h4l5-4v14l-5-4H3z M16 8a6 6 0 0 1 0 8 M19 5a10 10 0 0 1 0 14',
+  moon: 'M20.9 13.4A9 9 0 1 1 10.6 3.1a7 7 0 0 0 10.3 10.3Z',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  move: 'M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3',
+  organization: 'M3 21h18 M5 21V8l7-4 7 4v13 M9 21v-5h6v5 M9 10h.01M15 10h.01',
+  pencil: 'm15 5 4 4 M4 20l1-5L17 3l4 4L9 19z',
+  plus: 'M12 5v14M5 12h14',
+  recent: 'M12 7v5l3 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  restore: 'M3 12a9 9 0 1 1 2 5.6 M3 5v7h7',
+  search: 'M21 21l-4.5-4.5 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',
+  settings: 'M4 6h16M4 12h16M4 18h16 M8 4v4M16 10v4M10 16v4',
+  shared: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M22 21v-2a4 4 0 0 0-3-3.87 M14 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z M18 3.1a4 4 0 0 1 0 7.8',
+  star: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z',
+  sun: 'M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1.5 1.5 M17.5 17.5 19 19 M5 19l1.5-1.5 M17.5 6.5 19 5 M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z',
+} as const;
+
+export type WorkshopIconName = keyof typeof paths;
+
+export default function WorkshopIcon({ name, filled = false }: { name: WorkshopIconName; filled?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth={name === 'more' ? 3 : 1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[name]} />
+    </svg>
+  );
+}

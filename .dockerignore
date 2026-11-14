@@ -4,19 +4,27 @@ server/node_modules/
 
 # Build outputs
 app/dist/
+openjam-server
+shiori-server
+server/shiori-server
+server/openjam-server
+server/server
+server/test-server
+server/static/*
+!server/static/.gitkeep
 
 # Git
 .git/
 .gitignore
+.worktrees/
 
 # IDE
 .vscode/
 .idea/
 
 # Env files (we use Docker env vars)
-**/.env
-**/.env.local
-**/.env.*.local
+**/.env*
+**/*.env
 
 # Logs
 *.log
@@ -25,10 +33,6 @@ npm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
-
-# Test files
-**/*.test.*
-**/__tests__/
 
 # Documentation site
 docs/

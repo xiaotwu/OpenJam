@@ -45,19 +45,6 @@ export {
 // Types exports
 export { type Point, type User, type Cursor, type Tool, type ToolState, type ViewState } from './types';
 
-// CRDT exports
-export {
-  generateId,
-  CRDTStore,
-  type OperationType as CRDTOperationType,
-  type DrawOperation,
-  type EraseOperation,
-  type UndoOperation,
-  type ClearOperation as CRDTClearOperation,
-  type Operation as CRDTOperation,
-  type VectorClock as CRDTVectorClock,
-} from './crdt';
-
 // WebSocket exports
 export {
   wsClient,

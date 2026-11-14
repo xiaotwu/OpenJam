@@ -1,56 +1,32 @@
-# Development environment - only starts dependency services
-# Use with: docker compose -f docker-compose.dev.yml up -d
-
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: openjam-postgres
+    extends:
+      file: docker-compose.yml
+      service: postgres
     ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: openjam
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
   redis:
-    image: redis:7-alpine
-    container_name: openjam-redis
+    extends:
+      file: docker-compose.yml
+      service: redis
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+  seaweedfs:
+    extends:
+      file: docker-compose.yml
+      service: seaweedfs
+    ports:
+      - "127.0.0.1:${SEAWEEDFS_S3_PORT:-8333}:8333"
 
   minio:
-    image: minio/minio:latest
-    container_name: openjam-minio
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    extends:
+      file: docker-compose.yml
+      service: minio
 
 volumes:
   postgres_data:
   redis_data:
+  seaweed_data:
   minio_data:

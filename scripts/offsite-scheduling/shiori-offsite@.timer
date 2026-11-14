@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Shiori offsite %i schedule
+
+[Timer]
+OnBootSec=30s
+OnCalendar=minutely
+Persistent=true
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

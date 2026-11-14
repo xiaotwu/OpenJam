@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ShioriMark from './ShioriMark';
 
 interface HelpPanelProps {
   isOpen: boolean;
@@ -179,29 +180,29 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
             <div className="space-y-3">
               {[
                 {
-                  href: 'https://xiaotwu.github.io/OpenJam/guide/getting-started.html',
+                  href: 'https://xiaotwu.github.io/Shiori/guide/getting-started.html',
                   icon: (
-                    <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                   ),
-                  iconBg: 'rgba(147, 51, 234, 0.08)',
+                  iconBg: 'var(--badge-bg)',
                   title: 'Getting Started Guide',
-                  desc: 'Learn the basics of using OpenJam',
+                  desc: 'Learn the basics of using Shiori',
                 },
                 {
-                  href: 'https://xiaotwu.github.io/OpenJam/reference/architecture.html',
+                  href: 'https://xiaotwu.github.io/Shiori/guide/architecture.html',
                   icon: (
-                    <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                     </svg>
                   ),
-                  iconBg: 'rgba(234, 88, 12, 0.08)',
+                  iconBg: 'var(--badge-bg)',
                   title: 'Architecture & API Reference',
                   desc: 'Technical architecture, WebSocket API, and CRDT details',
                 },
                 {
-                  href: 'https://github.com/xiaotwu/OpenJam/issues',
+                  href: 'https://github.com/xiaotwu/Shiori/issues',
                   icon: (
                     <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -217,21 +218,7 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                   href={item.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block p-4 rounded-xl transition-all"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.5)',
-                    border: '1px solid rgba(0, 0, 0, 0.04)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
-                    e.currentTarget.style.borderColor = 'rgba(147, 51, 234, 0.2)';
-                    e.currentTarget.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.04)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.5)';
-                    e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.04)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
+                  className="block p-4 rounded-xl border border-[var(--glass-border-strong)] bg-[var(--glass-bg-subtle)] transition-colors hover:border-[var(--focus-ring)] hover:bg-[var(--surface-panel)]"
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -241,10 +228,10 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                       {item.icon}
                     </div>
                     <div>
-                      <h4 className="font-medium" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                      <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
                         {item.title}
                       </h4>
-                      <p className="text-sm mt-0.5" style={{ color: 'rgba(0, 0, 0, 0.5)' }}>
+                      <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                         {item.desc}
                       </p>
                     </div>
@@ -256,49 +243,44 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
 
           {activeTab === 'about' && (
             <div className="text-center py-6">
-              <img
-                src="/icons/openjam.png"
-                alt="OpenJam"
-                className="w-20 h-20 rounded-[22px] mx-auto mb-5"
-                style={{
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05)',
-                }}
-              />
-              <h3 className="text-xl font-bold mb-1" style={{ color: 'rgba(0, 0, 0, 0.87)' }}>
-                OpenJam
+              <div className="mx-auto mb-5 w-fit"><ShioriMark size={64} /></div>
+              <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                Shiori
               </h3>
-              <p className="text-sm mb-5" style={{ color: 'rgba(0, 0, 0, 0.4)' }}>Version 1.0.0</p>
-              <p className="text-sm max-w-md mx-auto mb-6" style={{ color: 'rgba(0, 0, 0, 0.55)' }}>
-                An open-source collaborative whiteboard for teams to brainstorm, plan, and create together in real-time.
+              {import.meta.env.SHIORI_BUILD && <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
+                Build {import.meta.env.SHIORI_BUILD}
+              </p>}
+              <p className="text-sm max-w-md mx-auto mb-6" style={{ color: 'var(--text-secondary)' }}>
+                An open-source workspace for teams to collaborate on boards, documents, spreadsheets, and presentations.
               </p>
               <div
                 className="rounded-xl p-4 max-w-md mx-auto mb-6"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.5)',
-                  border: '1px solid rgba(0, 0, 0, 0.04)',
+                  background: 'var(--glass-bg-subtle)',
+                  border: '1px solid var(--glass-border-strong)',
                 }}
               >
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <svg className="w-5 h-5" style={{ color: 'rgba(0, 0, 0, 0.75)' }} viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5" style={{ color: 'var(--text-primary)' }} viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                   </svg>
-                  <span className="text-sm font-medium" style={{ color: 'rgba(0, 0, 0, 0.75)' }}>Open Source</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Open Source</span>
                 </div>
-                <p className="text-xs" style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
-                  OpenJam is free and open-source software released under the MIT License.
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Shiori is free and open-source software released under the MIT License.
                   Contributions are welcome!
                 </p>
               </div>
               <div className="flex items-center justify-center gap-4">
-                <a href="https://github.com/xiaotwu/OpenJam/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-700 hover:underline transition-colors">
+                <a href="https://github.com/xiaotwu/Shiori/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] hover:underline transition-colors">
                   MIT License
                 </a>
-                <span style={{ color: 'rgba(0, 0, 0, 0.15)' }}>·</span>
-                <a href="https://github.com/xiaotwu/OpenJam" target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-700 hover:underline transition-colors">
+                <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                <a href="https://github.com/xiaotwu/Shiori" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] hover:underline transition-colors">
                   GitHub Repository
                 </a>
-                <span style={{ color: 'rgba(0, 0, 0, 0.15)' }}>·</span>
-                <a href="https://github.com/xiaotwu/OpenJam/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-700 hover:underline transition-colors">
+                <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                <a href="https://github.com/xiaotwu/Shiori#contributing" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] hover:underline transition-colors">
                   Contribute
                 </a>
               </div>

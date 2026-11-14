@@ -1,5 +1,5 @@
 // Random Picker Widget - Randomly select participants
-import { useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 interface RandomPickerWidgetProps {
   id: string;
@@ -10,42 +10,30 @@ interface RandomPickerWidgetProps {
   onUpdate: (data: { items?: string[]; pickedItems?: string[] }) => void;
   onDelete: () => void;
   isSelected: boolean;
+  editable?: boolean;
   onSelect: () => void;
 }
 
-export default function RandomPickerWidget({ x, y, items, pickedItems, onUpdate, onDelete, isSelected, onSelect }: RandomPickerWidgetProps) {
+export default function RandomPickerWidget({ x, y, items, pickedItems, onUpdate, onDelete, isSelected, onSelect, editable = true }: RandomPickerWidgetProps) {
   const [isSpinning, setIsSpinning] = useState(false);
-  const [winner, setWinner] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(items.length === 0);
   const [editText, setEditText] = useState(items.join('\n'));
 
-  const availableItems = items.filter((item) => !pickedItems.includes(item));
+  const picked = new Set(pickedItems);
+  const availableItems = items.filter(item => !picked.has(item));
+  const winner = pickedItems.at(-1);
 
-  const handlePick = useCallback(() => {
-    if (availableItems.length === 0) return;
+  useEffect(() => {
+    if (!isSpinning) return;
+    const timeout = window.setTimeout(() => setIsSpinning(false), 300);
+    return () => window.clearTimeout(timeout);
+  }, [isSpinning]);
+
+  const handlePick = () => {
+    if (!availableItems.length || isSpinning) return;
+    const finalWinner = availableItems[Math.floor(Math.random() * availableItems.length)];
+    onUpdate({ pickedItems: [...pickedItems, finalWinner] });
     setIsSpinning(true);
-    setWinner(null);
-    
-    // Animate through items
-    let count = 0;
-    const maxCount = 20;
-    const interval = setInterval(() => {
-      const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
-      setWinner(randomItem);
-      count++;
-      if (count >= maxCount) {
-        clearInterval(interval);
-        setIsSpinning(false);
-        const finalWinner = availableItems[Math.floor(Math.random() * availableItems.length)];
-        setWinner(finalWinner);
-        onUpdate({ pickedItems: [...pickedItems, finalWinner] });
-      }
-    }, 100);
-  }, [availableItems, pickedItems, onUpdate]);
-
-  const handleReset = () => {
-    onUpdate({ pickedItems: [] });
-    setWinner(null);
   };
 
   const handleSaveItems = () => {
@@ -57,7 +45,7 @@ export default function RandomPickerWidget({ x, y, items, pickedItems, onUpdate,
   return (
     <div className="absolute" style={{ left: x, top: y }} onClick={onSelect} data-widget="random-picker">
       <div className={`bg-gradient-to-br from-purple-600 to-pink-500 rounded-2xl shadow-xl border-2 ${isSelected ? 'border-blue-500' : 'border-purple-400'} p-4 min-w-[220px]`}>
-        {isEditing ? (
+        {editable && isEditing ? (
           <div className="bg-white rounded-lg p-3">
             <textarea value={editText} onChange={(e) => setEditText(e.target.value)}
               placeholder="Enter names (one per line)..." rows={6}
@@ -70,19 +58,20 @@ export default function RandomPickerWidget({ x, y, items, pickedItems, onUpdate,
             <div className={`bg-white rounded-xl p-4 text-center mb-3 ${isSpinning ? 'animate-pulse' : ''}`}>
               <div className="text-3xl mb-1">🎲</div>
               <div className={`text-xl font-bold ${winner ? 'text-purple-600' : 'text-gray-400'}`}>
-                {winner || 'Click to pick!'}
+                {winner || (editable ? 'Ready to pick' : 'No selection yet')}
               </div>
             </div>
 
             {/* Controls */}
-            <div className="flex gap-2 mb-3">
+            {editable && <div className="flex gap-2 mb-3">
               <button onClick={handlePick} disabled={isSpinning || availableItems.length === 0}
                 className="flex-1 py-2 bg-white text-purple-600 rounded-lg font-semibold disabled:opacity-50 hover:bg-purple-50">
                 {isSpinning ? '...' : 'Pick'}
               </button>
-              <button onClick={handleReset} className="px-3 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30">↺</button>
-              <button onClick={() => setIsEditing(true)} className="px-3 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30">✎</button>
-            </div>
+              <button type="button" aria-label="Reset picks" onClick={() => onUpdate({ pickedItems: [] })} className="px-3 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30">↺</button>
+              <button type="button" aria-label="Edit participants" onClick={() => { setEditText(items.join('\n')); setIsEditing(true); }}
+                className="px-3 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30">✎</button>
+            </div>}
 
             {/* Stats */}
             <div className="text-center text-white/80 text-sm">

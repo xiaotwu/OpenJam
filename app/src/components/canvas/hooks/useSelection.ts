@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Element } from '../../../lib/elements';
+import type { Stamp } from '../../StampTool';
+import { selectionGroup, withinBounds, type Bounds } from '../boardObjects';
 
 interface SelectionBox {
   start: { x: number; y: number };
@@ -8,27 +10,28 @@ interface SelectionBox {
 
 interface UseSelectionOptions {
   elements: Element[];
+  stamps: Stamp[];
+  objectBounds: ReadonlyMap<string, Bounds>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
-export function useSelection({ elements, setSelectedIds }: UseSelectionOptions) {
+export function useSelection({ elements, stamps, objectBounds, setSelectedIds }: UseSelectionOptions) {
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
 
   const handleSelect = useCallback((id: string, addToSelection: boolean) => {
     setSelectedIds((prev) => {
+      const group = selectionGroup(elements, id);
+      if (!addToSelection && group.every(member => prev.has(member))) return prev;
       const newSelection = new Set(addToSelection ? prev : []);
-      if (newSelection.has(id)) {
-        newSelection.delete(id);
-      } else {
-        newSelection.add(id);
-      }
+      const remove = addToSelection && newSelection.has(id);
+      group.forEach(member => { if (remove) newSelection.delete(member); else newSelection.add(member); });
       return newSelection;
     });
-  }, [setSelectedIds]);
+  }, [elements, setSelectedIds]);
 
   const selectAll = useCallback(() => {
-    setSelectedIds(new Set(elements.map((el) => el.id)));
-  }, [elements, setSelectedIds]);
+    setSelectedIds(new Set([...elements, ...stamps].map(item => item.id)));
+  }, [elements, stamps, setSelectedIds]);
 
   // Compute elements inside the selection box
   const getSelectedFromBox = useCallback((box: SelectionBox): Set<string> => {
@@ -37,20 +40,19 @@ export function useSelection({ elements, setSelectedIds }: UseSelectionOptions) 
     const minY = Math.min(box.start.y, box.end.y);
     const maxY = Math.max(box.start.y, box.end.y);
 
+    const outer = { left: minX, right: maxX, top: minY, bottom: maxY };
     const ids = new Set<string>();
+    const groups = new Set<string>();
     for (const el of elements) {
-      const bounds = {
-        left: el.x,
-        right: el.x + (el.width || 100),
-        top: el.y,
-        bottom: el.y + (el.height || 100),
-      };
-      if (bounds.left >= minX && bounds.right <= maxX && bounds.top >= minY && bounds.bottom <= maxY) {
-        ids.add(el.id);
-      }
+      const bounds = objectBounds.get(el.id);
+      if (!bounds || !withinBounds(outer, bounds)) continue;
+      ids.add(el.id);
+      if (el.groupId) groups.add(el.groupId);
     }
+    if (groups.size) elements.forEach(element => { if (element.groupId && groups.has(element.groupId)) ids.add(element.id); });
+    stamps.forEach(stamp => { if (stamp.x >= minX && stamp.x <= maxX && stamp.y >= minY && stamp.y <= maxY) ids.add(stamp.id); });
     return ids;
-  }, [elements]);
+  }, [elements, objectBounds, stamps]);
 
   return { selectionBox, setSelectionBox, handleSelect, selectAll, getSelectedFromBox };
 }
