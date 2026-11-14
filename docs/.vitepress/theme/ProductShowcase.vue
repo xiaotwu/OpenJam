@@ -6,6 +6,7 @@ import docsPreview from '../../../app/src/assets/home/docs.webp';
 import projectPreview from '../../../app/src/assets/home/project.webp';
 import sheetsPreview from '../../../app/src/assets/home/sheets.webp';
 import slidesPreview from '../../../app/src/assets/home/slides.webp';
+import budget from '../../../app/src/assets/home/budget.webp';
 import present from '../../../app/src/assets/home/present.webp';
 import review from '../../../app/src/assets/home/review.webp';
 import sketch from '../../../app/src/assets/home/sketch.webp';
@@ -48,7 +49,7 @@ const scenes = [
     title: 'Track the launch budget',
     description: 'Compare planned and actual costs and use formulas to calculate what remains.',
     guide: '/guide/getting-started.html#sheets',
-    pose: review,
+    pose: budget,
     screenshot: sheetsPreview,
     alt: 'Launch Budget in Shiori Sheets with the formula for the remaining total selected',
   },
