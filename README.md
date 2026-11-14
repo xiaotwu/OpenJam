@@ -15,7 +15,7 @@ Shiori brings boards, documents, spreadsheets, and presentations into team-owned
 
 <p align="center">
   <img src="docs/public/images/shiori-character.png" alt="Shiori in a gray draped jacket, with pink-violet hair and three hairclips" width="20%" align="middle">
-  <img src="docs/public/images/workshop-preview.png" alt="Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project" width="77%" align="middle">
+  <img src="docs/public/images/shiori-workshop-preview.png" alt="Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project" width="77%" align="middle">
 </p>
 
 ## Workspace

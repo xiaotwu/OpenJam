@@ -3,7 +3,7 @@ layout: home
 head:
   - - meta
     - property: og:image
-      content: https://xiaotwu.github.io/Shiori/images/workshop-preview.png
+      content: https://xiaotwu.github.io/Shiori/images/shiori-workshop-preview.png
   - - meta
     - property: og:image:alt
       content: The Product Launch project in Shiori Workshop
@@ -30,4 +30,4 @@ features:
     details: Run Shiori on your infrastructure with Docker Compose. Back up or move projects and their private assets.
 ---
 
-![Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project](/images/workshop-preview.png)
+![Shiori Workshop showing a board, document, spreadsheet, and presentation in the Product Launch project](/images/shiori-workshop-preview.png)
